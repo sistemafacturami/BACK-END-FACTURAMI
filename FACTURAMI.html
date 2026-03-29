@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FACTURAMI · Sistema Contable</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --cream:#faf8f4;
+  --cream2:#f3f0ea;
+  --cream3:#e8e3d9;
+  --ink:#1a1714;
+  --ink2:#4a4540;
+  --ink3:#8c8580;
+  --ink4:#b8b3ae;
+  --white:rgba(255,255,255,0.7);
+  --blue:#1a56db;
+  --blue-l:#eef3ff;
+  --blue-m:#c7d7fd;
+  --green:#0a7c52;
+  --green-l:#ecfdf5;
+  --green-m:#a7f3d0;
+  --red:#c81e1e;
+  --red-l:#fef2f2;
+  --amber:#92400e;
+  --amber-l:#fffbeb;
+  --amber-m:#fcd34d;
+  --teal:#0e7490;
+  --teal-l:#ecfeff;
+  --gold:#b45309;
+  --ff: 'Inter', system-ui, sans-serif;
+  --fb: 'Inter', system-ui, sans-serif;
+  --fm: 'Roboto Mono', monospace;
+  --r:10px;--r2:16px;--r3:24px;
+  --shadow:0 8px 32px rgba(31,38,135,0.06);
+  --shadow2:0 12px 40px rgba(31,38,135,0.08);
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--fb);background:var(--cream);color:var(--ink);display:flex;font-size:13px;line-height:1.5}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--cream3);border-radius:10px}
+
+/* ══ SIDEBAR ════════════════════════════════════════════════ */
+.sb{
+  width:240px;min-width:240px;height:100vh;
+  background:var(--ink);
+  display:flex;flex-direction:column;
+  position:relative;z-index:10;
+  overflow:hidden;
+}
+.sb::before{
+  content:'';position:absolute;
+  bottom:-80px;right:-80px;
+  width:200px;height:200px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(26,86,219,.25),transparent 70%);
+  pointer-events:none;
+}
+.sb-logo{padding:28px 24px 22px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sb-logomark{display:flex;align-items:center;gap:12px;margin-bottom:2px}
+.sb-emblem{
+  width:38px;height:38px;border-radius:10px;
+  background:linear-gradient(135deg,var(--blue),#4f83e0);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--ff);font-weight:700;font-size:14px;color:#fff;
+  box-shadow:0 4px 14px rgba(26,86,219,.45);
+}
+.sb-name{font-family:var(--ff);font-weight:600;font-size:16px;color:#fff;letter-spacing:.01em}
+.sb-tagline{font-size:10px;color:rgba(255,255,255,.35);letter-spacing:.12em;text-transform:uppercase;padding-left:50px;margin-top:1px}
+
+.nav{flex:1;padding:16px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:1px}
+.ng{font-size:9px;font-weight:600;color:rgba(255,255,255,.25);letter-spacing:.14em;text-transform:uppercase;padding:12px 10px 5px}
+.ni{
+  display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;
+  cursor:pointer;color:rgba(255,255,255,.5);font-size:12px;font-weight:500;
+  transition:all .2s;user-select:none;
+}
+.ni:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.85)}
+.ni.on{background:rgba(26,86,219,.25);color:#fff;border-left:3px solid var(--blue)}
+.ni-ico{font-size:15px;width:20px;text-align:center;flex-shrink:0;opacity:.8}
+.ni.on .ni-ico{opacity:1}
+.ni-badge{margin-left:auto;background:var(--red);color:#fff;font-size:8px;font-weight:700;padding:2px 6px;border-radius:20px}
+
+.sb-user{
+  margin:14px;padding:12px 14px;
+  background:rgba(255,255,255,.06);border-radius:12px;border:1px solid rgba(255,255,255,.08);
+  display:flex;align-items:center;gap:10px;
+}
+.sb-av{
+  width:32px;height:32px;border-radius:8px;flex-shrink:0;
+  background:linear-gradient(135deg,#4f83e0,var(--teal));
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:11px;color:#fff;
+}
+.sb-un{font-size:12px;font-weight:600;color:#fff}
+.sb-ur{font-size:10px;color:rgba(255,255,255,.35)}
+.sb-dot{width:7px;height:7px;border-radius:50%;background:#10b981;margin-left:auto;box-shadow:0 0 6px #10b981;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ══ MAIN ════════════════════════════════════════════════════ */
+.main{flex:1;height:100vh;overflow-y:auto;background:var(--cream);position:relative;}
+.main::before{content:'';position:fixed;top:-100px;left:-100px;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(10,124,82,0.06),transparent 60%);filter:blur(80px);pointer-events:none;z-index:0;transition:background 0.8s ease;}
+.main.debt::before{background:radial-gradient(circle,rgba(200,30,30,0.06),transparent 60%);}
+
+/* ══ TOPBAR ══════════════════════════════════════════════════ */
+.top{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 28px;
+  background:rgba(255,255,255,0.65);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-bottom:1px solid rgba(255,255,255,0.8);
+  position:sticky;top:0;z-index:9;
+  box-shadow:0 1px 0 var(--cream3);
+}
+.top-l h1{font-family:var(--ff);font-size:20px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.top-l p{font-size:11px;color:var(--ink3);margin-top:1px}
+.top-r{display:flex;align-items:center;gap:10px}
+.top-sel{
+  font-family:var(--fb);font-size:12px;color:var(--ink2);
+  background:var(--cream);border:1px solid var(--cream3);border-radius:8px;
+  padding:7px 12px;outline:none;cursor:pointer;
+}
+.top-btn{
+  display:flex;align-items:center;gap:6px;padding:8px 16px;
+  border-radius:9px;font-family:var(--fb);font-size:12px;font-weight:500;
+  cursor:pointer;transition:all .2s;border:1px solid var(--cream3);
+  background:var(--white);color:var(--ink2);
+}
+.top-btn:hover{background:var(--cream);border-color:var(--cream3)}
+.top-btn.prime{
+  background:var(--ink);color:#fff;border-color:var(--ink);
+  box-shadow:0 2px 8px rgba(26,23,20,.2);
+}
+.top-btn.prime:hover{background:var(--ink2)}
+
+/* ══ PAGES ════════════════════════════════════════════════════ */
+.page{padding:24px 28px 40px;display:none}
+.page.on{display:block;animation:slideIn .25s ease}
+@keyframes slideIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+/* ══ GRIDS ═══════════════════════════════════════════════════ */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+
+/* ══ CARD ════════════════════════════════════════════════════ */
+.card{
+  background:var(--white);border:1px solid rgba(255,255,255,0.8);border-radius:var(--r2);
+  padding:20px 22px;box-shadow:var(--shadow);transition:all .22s;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);position:relative;z-index:1;
+}
+.card:hover{box-shadow:var(--shadow2);border-color:var(--cream3)}
+
+/* ══ KPI CARDS ═══════════════════════════════════════════════ */
+.kpi{
+  background:var(--white);border:1px solid rgba(255,255,255,0.8);border-radius:var(--r2);
+  padding:18px 20px;box-shadow:var(--shadow);transition:all .22s;position:relative;overflow:hidden;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);z-index:1;
+}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow2)}
+.kpi-accent{position:absolute;top:0;left:0;width:100%;height:3px;border-radius:var(--r2) var(--r2) 0 0}
+.kpi-icon{
+  width:38px;height:38px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;margin-bottom:12px;
+}
+.kpi-lbl{font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.kpi-num{font-family:var(--ff);font-size:26px;font-weight:700;color:var(--ink);letter-spacing:-.03em;line-height:1;margin-bottom:10px}
+.kpi-foot{display:flex;align-items:center;gap:6px}
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px}
+.badge-g{background:var(--green-l);color:var(--green)}
+.badge-r{background:var(--red-l);color:var(--red)}
+.badge-b{background:var(--blue-l);color:var(--blue)}
+.badge-a{background:var(--amber-l);color:var(--amber)}
+.badge-t{background:var(--teal-l);color:var(--teal)}
+.badge-n{background:var(--cream2);color:var(--ink3)}
+
+/* ══ SECTION HEAD ════════════════════════════════════════════ */
+.sh{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+.sh-t{font-family:var(--ff);font-size:16px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.sh-s{font-size:11px;color:var(--ink3);margin-top:2px}
+.sh-a{font-size:11px;color:var(--blue);cursor:pointer;font-weight:500;transition:color .18s}
+.sh-a:hover{color:var(--ink)}
+
+/* ══ TABLE ════════════════════════════════════════════════════ */
+.tw{overflow-x:auto;margin-top:2px}
+table{width:100%;border-collapse:collapse}
+thead tr{border-bottom:2px solid var(--cream2)}
+thead th{
+  font-size:10px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.09em;
+  padding:9px 12px;text-align:left;white-space:nowrap;background:var(--white);
+}
+tbody tr{border-bottom:1px solid var(--cream2);transition:background .12s}
+tbody tr:hover{background:var(--cream)}
+td{padding:10px 12px;font-size:12px;color:var(--ink2)}
+td.bold{font-weight:600;color:var(--ink)}
+td.mono{font-family:var(--fm);font-size:11px}
+td.r{text-align:right}
+td.zero{color:var(--ink4)}
+tfoot tr{border-top:2px solid var(--cream2);background:var(--cream)}
+tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
+
+/* ══ IVA TABLE ═══════════════════════════════════════════════ */
+.iva-wrap{overflow-x:auto}
+.iva-table{min-width:900px;width:100%;border-collapse:collapse}
+.iva-table thead th{
+  font-size:9px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;
+  padding:8px 10px;text-align:right;border-bottom:2px solid var(--cream2);
+  background:var(--cream);
+}
+.iva-table thead th:first-child{text-align:left;min-width:180px}
+.iva-table tbody tr{border-bottom:1px solid var(--cream2);transition:background .12s}
+.iva-table tbody tr:hover{background:var(--cream)}
+.iva-table td{padding:9px 10px;font-size:11px;font-family:var(--fm);text-align:right;color:var(--ink2)}
+.iva-table td:first-child{font-family:var(--fb);font-size:12px;font-weight:500;text-align:left;color:var(--ink)}
+.iva-table td.zero{color:var(--ink4)}
+.iva-table td.hi{color:var(--blue);font-weight:600}
+.iva-table tfoot td{padding:10px 10px;font-size:11px;font-weight:700;text-align:right;background:var(--ink);color:#fff;border:none}
+.iva-table tfoot td:first-child{text-align:left;border-radius:var(--r) 0 0 var(--r)}
+.iva-table tfoot tr td:last-child{border-radius:0 var(--r) var(--r) 0}
+
+/* ══ CHART ════════════════════════════════════════════════════ */
+.chart-area{display:flex;align-items:flex-end;gap:8px;height:150px;padding:4px 0 0}
+.bar-g{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%}
+.bar-inner{flex:1;display:flex;align-items:flex-end;gap:2px;width:100%}
+.bar{border-radius:4px 4px 0 0;width:100%;min-height:2px;transition:height .9s cubic-bezier(.34,1.56,.64,1)}
+.bar-lbl{font-size:9px;color:var(--ink4);font-family:var(--fm)}
+
+/* ══ DONUT ════════════════════════════════════════════════════ */
+.donut-row{display:flex;align-items:center;gap:20px}
+.legend{flex:1;display:flex;flex-direction:column;gap:9px}
+.leg-r{display:flex;justify-content:space-between;align-items:center}
+.leg-l{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ink2)}
+.leg-sq{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.leg-v{font-size:11px;font-family:var(--fm);font-weight:600;color:var(--ink)}
+.leg-bar{height:3px;border-radius:2px;margin-top:4px;transition:width 1s ease}
+
+/* ══ BUTTONS ══════════════════════════════════════════════════ */
+.btn{
+  display:inline-flex;align-items:center;gap:7px;padding:9px 18px;
+  border-radius:9px;font-family:var(--fb);font-size:12px;font-weight:500;
+  cursor:pointer;border:none;transition:all .18s;
+}
+.btn:active{transform:scale(.98)}
+.btn-dark{background:var(--ink);color:#fff;box-shadow:0 2px 8px rgba(26,23,20,.2)}
+.btn-dark:hover{background:var(--ink2)}
+.btn-blue{background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(26,86,219,.2)}
+.btn-blue:hover{box-shadow:0 4px 16px rgba(26,86,219,.3)}
+.btn-green{background:var(--green);color:#fff}
+.btn-out{background:var(--white);color:var(--ink2);border:1px solid var(--cream3)}
+.btn-out:hover{background:var(--cream)}
+.btn-sm{padding:6px 13px;font-size:11px;border-radius:7px}
+
+/* ══ FORM ══════════════════════════════════════════════════════ */
+.fc{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.flbl{font-size:10px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em}
+.finp{
+  background:var(--cream);border:1.5px solid var(--cream3);border-radius:8px;
+  color:var(--ink);font-family:var(--fb);font-size:12px;padding:9px 12px;outline:none;
+  transition:border-color .18s;
+}
+.finp:focus{border-color:var(--blue);background:var(--white)}
+.finp::placeholder{color:var(--ink4)}
+
+/* ══ STATUS TAGS ══════════════════════════════════════════════ */
+.stag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px}
+.stag::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.stag-g{background:var(--green-l);color:var(--green)}.stag-g::before{background:var(--green)}
+.stag-r{background:var(--red-l);color:var(--red)}.stag-r::before{background:var(--red)}
+.stag-a{background:var(--amber-l);color:var(--amber)}.stag-a::before{background:var(--amber)}
+.stag-b{background:var(--blue-l);color:var(--blue)}.stag-b::before{background:var(--blue)}
+.stag-t{background:var(--teal-l);color:var(--teal)}.stag-t::before{background:var(--teal)}
+
+/* ══ DIVIDER ══════════════════════════════════════════════════ */
+.div{height:1px;background:var(--cream2);margin:16px 0}
+
+/* ══ PROPORCIONALIDAD ═════════════════════════════════════════ */
+.prop-formula{
+  background:var(--ink);color:#fff;border-radius:var(--r2);padding:20px 24px;
+  font-family:var(--fm);line-height:2.2;font-size:12px;
+  position:relative;overflow:hidden;
+}
+.prop-formula::before{
+  content:'';position:absolute;top:-40px;right:-40px;
+  width:120px;height:120px;border-radius:50%;
+  background:radial-gradient(circle,rgba(26,86,219,.3),transparent 70%);
+}
+
+/* ══ D-150 HEADER ════════════════════════════════════════════ */
+.d150-head{
+  background:var(--ink);color:#fff;border-radius:var(--r2) var(--r2) 0 0;
+  padding:20px 24px;display:flex;justify-content:space-between;align-items:center;
+}
+.d150-stripe{height:4px;background:linear-gradient(90deg,var(--blue) 0%,var(--teal) 40%,var(--green) 70%,var(--amber) 100%)}
+
+/* ══ MODULO TABS ══════════════════════════════════════════════ */
+.tabs{display:flex;gap:0;border-bottom:2px solid var(--cream2);margin-bottom:16px}
+.tab{padding:8px 16px;font-size:12px;font-weight:500;color:var(--ink3);cursor:pointer;transition:all .18s;border-bottom:2px solid transparent;margin-bottom:-2px}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--blue);border-bottom-color:var(--blue);font-weight:600}
+
+/* ══ TOAST ════════════════════════════════════════════════════ */
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:100;
+  background:var(--ink);color:#fff;
+  padding:12px 18px;border-radius:12px;
+  font-size:12px;font-weight:500;
+  display:flex;align-items:center;gap:8px;
+  box-shadow:0 8px 24px rgba(0,0,0,.2);
+  transform:translateY(80px);opacity:0;
+  transition:all .3s cubic-bezier(.34,1.56,.64,1);
+  pointer-events:none;
+}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* ══ MODAL ════════════════════════════════════════════════════ */
+.modal{border:none;border-radius:var(--r2);background:var(--cream);box-shadow:var(--shadow2);padding:24px;width:100%;max-width:440px;margin:auto;font-family:var(--fb)}
+.modal::backdrop{background:rgba(26,23,20,.4);backdrop-filter:blur(4px)}
+.m-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+
+@media(max-width:900px){
+  .sb{width:56px;min-width:56px}
+  .sb-name,.sb-tagline,.ng,.ni span:not(.ni-ico),.sb-un,.sb-ur{display:none}
+  .sb-emblem{margin:auto}
+  .sb-logomark{justify-content:center}
+  .g4,.g5{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:1fr 1fr}
+}
+
+/* ══ DECLARACIÓN D-104 ═══════════════════════════════════════ */
+.fd104{max-width:920px;margin:0 auto}
+.fd104-sec{background:#fff;border:1px solid var(--cream3);border-radius:var(--r2);margin-bottom:16px;overflow:hidden}
+.fd104-hd{font-family:var(--ff);font-size:15px;font-weight:700;color:var(--ink);padding:14px 20px;background:var(--cream);border-bottom:2px solid var(--cream3)}
+.fd104-grp{font-size:13px;font-weight:600;color:var(--ink);padding:9px 20px;background:rgba(232,227,217,.3);border-bottom:1px solid var(--cream2)}
+.fd104-r{display:flex;align-items:center;padding:6px 20px 6px 52px;border-bottom:1px solid var(--cream2);transition:background .12s}
+.fd104-r:hover{background:var(--cream)}
+.fd104-r label{font-size:12px;color:var(--ink2);flex:1;line-height:1.4}
+.fd104-r .fd-inp{width:160px;text-align:right;font-family:var(--fm);font-size:12px;color:var(--ink);background:transparent;border:none;border-bottom:1.5px solid transparent;padding:5px 4px;outline:none;transition:all .18s}
+.fd104-r .fd-inp:focus{border-bottom-color:var(--blue);background:var(--blue-l)}
+.fd104-r .fd-inp.auto{color:var(--ink3);cursor:default}
+.fd104-tot{display:flex;align-items:center;padding:10px 20px;border-top:2px solid var(--cream3);background:var(--cream)}
+.fd104-tot label{font-size:13px;font-weight:700;color:var(--ink);flex:1}
+.fd104-tot .fd-val{width:160px;text-align:right;font-family:var(--fm);font-size:13px;font-weight:700;color:var(--ink);padding:5px 4px}
+.fd104-info{padding:10px 20px;font-size:12px;font-weight:600;color:var(--ink);background:var(--cream);border-bottom:1px solid var(--cream2)}
+.fd104-sel{display:flex;align-items:center;gap:8px;padding:7px 20px 7px 32px;border-bottom:1px solid var(--cream2);font-size:12px;color:var(--ink2);flex-wrap:wrap}
+.fd104-sel .fd-link{color:var(--red);font-weight:600;cursor:pointer;transition:opacity .18s}
+.fd104-sel .fd-link:hover{opacity:.7}
+.fd104-sel .fd-link.blue{color:var(--blue)}
+@media print{.sb,.top{display:none!important}.main{overflow:visible!important}.page{display:block!important;padding:10px!important}.fd104-sec{break-inside:avoid}.fd104-r .fd-inp{border:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ══ SIDEBAR ═══════════════════════════════════════════════════ -->
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="sb-logomark">
+      <div class="sb-emblem">FM</div>
+      <div class="sb-name">FACTURAMI</div>
+    </div>
+  </div>
+  <nav class="nav">
+    <div class="ng">Principal</div>
+    <div class="ni on" onclick="go('dash',this)"><span class="ni-ico">⊞</span><span>Dashboard</span></div>
+    <div class="ni" onclick="go('ingresos',this)"><span class="ni-ico">↗</span><span>Ingresos</span></div>
+    <div class="ni" onclick="go('compras',this)"><span class="ni-ico">↙</span><span>Compras</span></div>
+    <div class="ni" onclick="go('gastos',this)"><span class="ni-ico">◈</span><span>Gastos</span></div>
+    <div class="ni" onclick="go('costos',this)"><span class="ni-ico">⬡</span><span>Costos</span></div>
+    <div class="ng">Módulos</div>
+    <div class="ni" onclick="go('obras',this)"><span class="ni-ico">▦</span><span>Obras en Proceso</span></div>
+    <div class="ni" onclick="go('cxc',this)"><span class="ni-ico">⊕</span><span>C × Cobrar</span></div>
+    <div class="ni" onclick="go('cxp',this)"><span class="ni-ico">⊖</span><span>C × Pagar</span></div>
+    <div class="ni" onclick="go('prop',this)"><span class="ni-ico">⊗</span><span>Proporcionalidad</span></div>
+    <div class="ng">Reportes</div>
+    <div class="ni" onclick="go('d150',this)"><span class="ni-ico">◉</span><span>Reporte D-150</span><div class="ni-badge">IVA</div></div>
+    <div class="ni" onclick="go('d105',this)"><span class="ni-ico">▣</span><span>Reporte D-105</span><div class="ni-badge">RTS</div></div>
+    <div class="ni" onclick="go('conv',this)"><span class="ni-ico">⇄</span><span>Convertidor</span></div>
+  </nav>
+  <div class="sb-user">
+    <div class="sb-av">LV</div>
+    <div><div class="sb-un">Cta. LVM</div><div class="sb-ur">Administrador</div></div>
+    <div class="sb-dot"></div>
+  </div>
+</aside>
+
+<!-- ══ MAIN ═══════════════════════════════════════════════════════ -->
+<main class="main">
+  <div class="top">
+    <div class="top-l">
+      <h1 id="pgTitle">Dashboard</h1>
+      <p id="pgSub">Resumen financiero del período activo</p>
+    </div>
+    <div class="top-r">
+      <select class="top-sel" id="anioSel" onchange="changePer()">
+        <option>2024</option><option>2025</option><option selected>2026</option><option>2027</option><option>2028</option>
+      </select>
+      <select class="top-sel" id="mesSel" onchange="changePer()">
+        <option value="">Todo el año</option>
+        <option value="Enero">Enero</option><option value="Febrero">Febrero</option><option value="Marzo">Marzo</option>
+        <option value="Abril">Abril</option><option value="Mayo">Mayo</option><option value="Junio" selected>Junio</option>
+        <option value="Julio">Julio</option><option value="Agosto">Agosto</option><option value="Septiembre">Septiembre</option>
+        <option value="Octubre">Octubre</option><option value="Noviembre">Noviembre</option><option value="Diciembre">Diciembre</option>
+      </select>
+      <button class="top-btn" onclick="document.getElementById('csvUploader').click()">📥 Importar CSV XML</button>
+      <button class="top-btn" onclick="showToast('Exportando datos...')">⬇ Exportar</button>
+      <button class="top-btn prime" onclick="go('d150',null)">Generar D-150 →</button>
+    </div>
+  </div>
+
+  <!-- ════════════ DASHBOARD ═══════════════════════════════════ -->
+  <div class="page on" id="pg-dash">
+    <input type="file" id="csvUploader" accept=".csv" style="display:none" onchange="importData(event)">
+
+    <!-- KPI row -->
+    <div class="g5" style="margin-bottom:18px">
+      <div class="kpi">
+        <div class="kpi-accent" style="background:linear-gradient(90deg,var(--green),#34d399)"></div>
+        <div class="kpi-icon" style="background:var(--green-l)">📈</div>
+        <div class="kpi-lbl">Ingresos</div>
+        <div class="kpi-num" id="k-ing">₡0</div>
+        <div class="kpi-foot"><span class="badge badge-g" id="b-ing">0 facturas</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-accent" style="background:linear-gradient(90deg,var(--blue),#60a5fa)"></div>
+        <div class="kpi-icon" style="background:var(--blue-l)">🛒</div>
+        <div class="kpi-lbl">Compras</div>
+        <div class="kpi-num" id="k-com">₡0</div>
+        <div class="kpi-foot"><span class="badge badge-b" id="b-com">0 facturas</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-accent" style="background:linear-gradient(90deg,var(--amber),#fbbf24)"></div>
+        <div class="kpi-icon" style="background:var(--amber-l)">💸</div>
+        <div class="kpi-lbl">Gastos</div>
+        <div class="kpi-num" id="k-gas">₡0</div>
+        <div class="kpi-foot"><span class="badge badge-a" id="b-gas">0 facturas</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-accent" style="background:linear-gradient(90deg,#7c3aed,#a78bfa)"></div>
+        <div class="kpi-icon" style="background:#f5f3ff">🏗️</div>
+        <div class="kpi-lbl">Costos obra</div>
+        <div class="kpi-num" id="k-cos">₡0</div>
+        <div class="kpi-foot"><span class="badge" style="background:#f5f3ff;color:#7c3aed" id="b-cos">0 obras</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-accent" style="background:linear-gradient(90deg,var(--red),#f87171)"></div>
+        <div class="kpi-icon" style="background:var(--red-l)">📋</div>
+        <div class="kpi-lbl">IVA a declarar</div>
+        <div class="kpi-num" id="k-iva">₡0</div>
+        <div class="kpi-foot"><span class="badge badge-n" id="b-iva">Sin movimientos</span></div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:18px;position:relative;z-index:1">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <div class="sh">
+            <div><div class="sh-t">Flujo mensual 2026</div><div class="sh-s">Ingresos · Compras · Gastos</div></div>
+          </div>
+          <div class="chart-area" id="mainChart"></div>
+          <div style="display:flex;gap:14px;margin-top:12px;padding-top:10px;border-top:1px solid var(--cream2)">
+            <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--ink3)"><span style="width:10px;height:3px;background:var(--green);border-radius:2px;display:inline-block"></span>Ingresos</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--ink3)"><span style="width:10px;height:3px;background:var(--blue);border-radius:2px;display:inline-block"></span>Compras</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--ink3)"><span style="width:10px;height:3px;background:var(--amber);border-radius:2px;display:inline-block"></span>Gastos</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="sh"><div><div class="sh-t">Crédito fiscal IVA</div><div class="sh-s">Por tasa · Período activo</div></div></div>
+          <div class="donut-row" id="donutWrapper">
+            <!-- Donut dynamically injected here -->
+          </div>
+        </div>
+      </div> <!-- End Left Column -->
+
+      <!-- Right Column: Tributin Alerts -->
+      <div class="card" style="display:flex;flex-direction:column">
+        <div class="sh" style="margin-bottom:12px">
+          <div><div class="sh-t" style="display:flex;align-items:center;gap:6px">🤖 Tributín QA <span class="badge badge-r" id="alertCount" style="display:none">0</span></div><div class="sh-s">Auditoría en tiempo real</div></div>
+        </div>
+        <div id="tributinFeed" style="display:flex;flex-direction:column;gap:8px;flex:1;overflow-y:auto;max-height:300px">
+           <div style="font-size:11px;color:var(--ink3);text-align:center;margin:auto;padding:20px">Sin inconsistencias. Importa un CSV para auditar DTEs.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transactions -->
+    <div class="card" style="position:relative;z-index:1">
+      <div class="sh">
+        <div><div class="sh-t">Transacciones recientes</div><div class="sh-s">Últimas facturas del período</div></div>
+        <span class="sh-a" onclick="go('compras',null)">Ver todas →</span>
+      </div>
+      <div class="tw"><table>
+        <thead><tr>
+          <th>Fecha</th><th>Comprobante</th><th>Tipo</th><th>Descripción</th>
+          <th class="r">Exento</th><th class="r">Grav. 13%</th><th class="r">IVA</th><th class="r">Total</th><th>Estado</th>
+        </tr></thead>
+        <tbody id="lastTx"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- ════════════ MÓDULOS DINÁMICOS ══════════════════════════ -->
+  <div class="page" id="pg-ingresos"><div id="mod-ingresos"></div></div>
+  <div class="page" id="pg-compras"><div id="mod-compras"></div></div>
+  <div class="page" id="pg-gastos"><div id="mod-gastos"></div></div>
+  <div class="page" id="pg-costos"><div id="mod-costos"></div></div>
+  <div class="page" id="pg-obras"><div id="mod-obras"></div></div>
+
+  <!-- ════════════ CXC ═════════════════════════════════════════ -->
+  <div class="page" id="pg-cxc">
+    <div class="g3" style="margin-bottom:18px">
+      <div class="kpi"><div class="kpi-accent" style="background:var(--green)"></div><div class="kpi-lbl">Total por cobrar</div><div class="kpi-num">₡8.450.000</div><div class="kpi-foot"><span class="badge badge-b">12 clientes</span></div></div>
+      <div class="kpi"><div class="kpi-accent" style="background:var(--red)"></div><div class="kpi-lbl">Vencido</div><div class="kpi-num">₡1.200.000</div><div class="kpi-foot"><span class="badge badge-r">3 facturas</span></div></div>
+      <div class="kpi"><div class="kpi-accent" style="background:var(--amber)"></div><div class="kpi-lbl">Por vencer (7 días)</div><div class="kpi-num">₡400.000</div><div class="kpi-foot"><span class="badge badge-a">2 facturas</span></div></div>
+    </div>
+    <div class="card">
+      <div class="sh"><div><div class="sh-t">Cuentas por Cobrar</div><div class="sh-s">Cobros anticipados y saldos pendientes</div></div><button class="btn btn-dark btn-sm">+ Nuevo cobro</button></div>
+      <div class="tw"><table>
+        <thead><tr><th>Fecha emisión</th><th>Cliente</th><th>N° Factura</th><th class="r">Monto</th><th>Vencimiento</th><th>Estado</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">15/01/2026</td><td class="bold">Constructora ABC S.A.</td><td class="mono">001-0023</td><td class="r mono">₡2.500.000</td><td class="mono">15/02/2026</td><td><span class="stag stag-g">Al día</span></td></tr>
+          <tr><td class="mono">22/01/2026</td><td class="bold">Inversiones XYZ Ltda.</td><td class="mono">001-0024</td><td class="r mono">₡1.800.000</td><td class="mono">22/02/2026</td><td><span class="stag stag-g">Al día</span></td></tr>
+          <tr><td class="mono">01/12/2025</td><td class="bold">Grupo Miramar S.A.</td><td class="mono">001-0019</td><td class="r mono">₡800.000</td><td class="mono">01/01/2026</td><td><span class="stag stag-r">Vencido</span></td></tr>
+          <tr><td class="mono">10/12/2025</td><td class="bold">Desarrollo Sur S.A.</td><td class="mono">001-0020</td><td class="r mono">₡400.000</td><td class="mono">10/01/2026</td><td><span class="stag stag-a">Por vencer</span></td></tr>
+        </tbody>
+        <tfoot><tr><td colspan="3">Total</td><td class="r">₡5.500.000</td><td colspan="2"></td></tr></tfoot>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- ════════════ CXP ═════════════════════════════════════════ -->
+  <div class="page" id="pg-cxp">
+    <div class="g3" style="margin-bottom:18px">
+      <div class="kpi"><div class="kpi-accent" style="background:var(--red)"></div><div class="kpi-lbl">Total por pagar</div><div class="kpi-num">₡5.284.355</div><div class="kpi-foot"><span class="badge badge-r">18 proveedores</span></div></div>
+      <div class="kpi"><div class="kpi-accent" style="background:var(--amber)"></div><div class="kpi-lbl">Próximos 7 días</div><div class="kpi-num">₡1.950.000</div><div class="kpi-foot"><span class="badge badge-a">5 facturas</span></div></div>
+      <div class="kpi"><div class="kpi-accent" style="background:var(--teal)"></div><div class="kpi-lbl">Pagado este mes</div><div class="kpi-num">₡3.100.000</div><div class="kpi-foot"><span class="badge badge-t">Completado</span></div></div>
+    </div>
+    <div class="card">
+      <div class="sh"><div><div class="sh-t">Cuentas por Pagar</div></div><button class="btn btn-dark btn-sm">+ Registrar pago</button></div>
+      <div class="tw"><table>
+        <thead><tr><th>Fecha</th><th>Proveedor</th><th>N° Factura</th><th class="r">Monto</th><th>Vencimiento</th><th>Estado</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">03/02/2026</td><td class="bold">Repuestos Musa</td><td class="mono">0010000101</td><td class="r mono">₡19.800</td><td class="mono">03/03/2026</td><td><span class="stag stag-g">Al día</span></td></tr>
+          <tr><td class="mono">01/02/2026</td><td class="bold">ALPEMUSA S.A.</td><td class="mono">0150152010</td><td class="r mono">₡66.400</td><td class="mono">01/03/2026</td><td><span class="stag stag-g">Al día</span></td></tr>
+          <tr><td class="mono">07/01/2026</td><td class="bold">Sabanero S.A.</td><td class="mono">0010004101</td><td class="r mono">₡30.000</td><td class="mono">07/02/2026</td><td><span class="stag stag-r">Vencido</span></td></tr>
+          <tr><td class="mono">10/01/2026</td><td class="bold">Ferretería Jicaral</td><td class="mono">0020045102</td><td class="r mono">₡3.680</td><td class="mono">10/02/2026</td><td><span class="stag stag-a">Por vencer</span></td></tr>
+        </tbody>
+        <tfoot><tr><td colspan="3">Total</td><td class="r">₡119.880</td><td colspan="2"></td></tr></tfoot>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- ════════════ PROPORCIONALIDAD ═══════════════════════════ -->
+  <div class="page" id="pg-prop">
+    <div class="g3" style="margin-bottom:18px">
+      <div class="kpi"><div class="kpi-accent" style="background:var(--green)"></div><div class="kpi-lbl">Ingresos gravados</div><div class="kpi-num">₡18.450.000</div></div>
+      <div class="kpi"><div class="kpi-accent" style="background:var(--amber)"></div><div class="kpi-lbl">Ingresos exentos</div><div class="kpi-num">₡2.100.000</div></div>
+      <div class="kpi"><div class="kpi-accent" style="background:var(--blue)"></div><div class="kpi-lbl">Factor de proporcionalidad</div><div class="kpi-num" style="color:var(--blue)">89.77%</div></div>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <div class="sh"><div><div class="sh-t">Fórmula de cálculo</div><div class="sh-s">Art. 32 — Ley del Impuesto al Valor Agregado</div></div></div>
+        <div class="prop-formula">
+          <div style="font-size:10px;color:rgba(255,255,255,.4);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">Fórmula legal</div>
+          <div style="color:rgba(255,255,255,.7)">Factor =</div>
+          <div style="color:#60a5fa;font-size:14px;font-weight:500">  Ingresos Gravados</div>
+          <div style="color:rgba(255,255,255,.3)">  ──────────────────</div>
+          <div style="color:rgba(255,255,255,.6)">  Total de Ingresos</div>
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1)">
+            <div style="font-size:14px;color:#34d399;font-weight:600">= ₡18.450.000 / ₡20.550.000</div>
+            <div style="font-size:22px;color:#fff;font-family:'Playfair Display';font-weight:700;margin-top:4px">= 89.77%</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="sh"><div><div class="sh-t">IVA acreditable</div></div></div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--cream);border-radius:var(--r);border:1px solid var(--cream3)">
+            <span style="font-size:12px;color:var(--ink2)">IVA total soportado (compras + gastos)</span>
+            <span style="font-family:var(--fm);font-size:12px;font-weight:600;color:var(--ink)">₡583.000</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--cream);border-radius:var(--r);border:1px solid var(--cream3)">
+            <span style="font-size:12px;color:var(--ink2)">× Factor (89.77%)</span>
+            <span style="font-family:var(--fm);font-size:12px;color:var(--ink3)">× 0.8977</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:12px 14px;background:var(--green-l);border-radius:var(--r);border:1px solid var(--green-m)">
+            <span style="font-size:13px;font-weight:600;color:var(--ink)">IVA acreditable</span>
+            <span style="font-family:var(--fm);font-size:14px;font-weight:700;color:var(--green)">₡523.260</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--red-l);border-radius:var(--r);border:1px solid #fecaca">
+            <span style="font-size:12px;color:var(--ink2)">IVA no acreditable (gasto del período)</span>
+            <span style="font-family:var(--fm);font-size:12px;font-weight:600;color:var(--red)">₡59.740</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- ════════════ CONVERTIDOR ════════════════════════════════ -->
+  <div class="page" id="pg-conv">
+    <div class="g2" style="align-items:start">
+      <div class="card">
+        <div class="sh"><div><div class="sh-t">Convertidor de moneda</div><div class="sh-s">Tipo de cambio BCCR referencia</div></div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="fc" style="margin-bottom:0"><div class="flbl">Monto</div><input class="finp" type="number" id="cMonto" value="1000000" oninput="conv()"/></div>
+          <div class="fc" style="margin-bottom:0"><div class="flbl">Moneda</div>
+            <select class="finp" id="cDe" onchange="conv()">
+              <option value="CRC">₡ Colones (CRC)</option>
+              <option value="USD">$ Dólares (USD)</option>
+              <option value="EUR">€ Euros (EUR)</option>
+            </select>
+          </div>
+        </div>
+        <div class="fc"><div class="flbl">Tipo de cambio (₡ por $)</div><input class="finp" type="number" id="cTC" value="520.5" oninput="conv()"/></div>
+        <div style="background:var(--ink);color:#fff;border-radius:var(--r2);padding:20px;text-align:center;margin-top:4px">
+          <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Resultado</div>
+          <div style="font-family:'Playfair Display';font-size:26px;font-weight:600;color:#34d399" id="cRes">$1.921,23 USD</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="sh"><div><div class="sh-t">Calculadora IVA</div><div class="sh-s">Cálculo rápido por tasa</div></div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="fc" style="margin-bottom:0"><div class="flbl">Monto base (sin IVA)</div><input class="finp" type="number" id="iBase" value="100000" oninput="calcIVA()"/></div>
+          <div class="fc" style="margin-bottom:0"><div class="flbl">Tasa IVA</div>
+            <select class="finp" id="iTasa" onchange="calcIVA()">
+              <option value="0.13">13% — Tasa general</option>
+              <option value="0.08">8%</option>
+              <option value="0.04">4% — Salud / seguros</option>
+              <option value="0.02">2% — Canasta básica</option>
+              <option value="0.01">1% — Agropecuario</option>
+              <option value="0.005">0.5%</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--cream);border-radius:var(--r);border:1px solid var(--cream3)">
+            <span style="font-size:12px;color:var(--ink2)">Monto base</span>
+            <span style="font-family:var(--fm);font-weight:600;color:var(--ink)" id="i-base">₡100.000</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--blue-l);border-radius:var(--r);border:1px solid var(--blue-m)">
+            <span style="font-size:12px;color:var(--ink2)">IVA calculado</span>
+            <span style="font-family:var(--fm);font-weight:600;color:var(--blue)" id="i-iva">₡13.000</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--ink);border-radius:var(--r)">
+            <span style="font-size:13px;font-weight:600;color:#fff">Total con IVA</span>
+            <span style="font-family:var(--fm);font-size:16px;font-weight:700;color:#34d399" id="i-tot">₡113.000</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ REPORTE D-150 ══════════════════════════════ -->
+  <div class="page" id="pg-d150"><div id="d150-content"></div></div>
+
+  <!-- ════════════ REPORTE D-105 ══════════════════════════════ -->
+  <div class="page" id="pg-d105"><div id="d105-content"></div></div>
+
+</main>
+
+<!-- MODAL REGISTRO -->
+<dialog id="addModal" class="modal">
+  <div class="sh"><div class="sh-t" id="mTitle">Nuevo registro</div></div>
+  <form id="addForm" onsubmit="saveAddModal(event)">
+    <div class="m-grid" style="margin-bottom:12px; grid-template-columns:1fr 1fr">
+      <div class="fc" style="margin-bottom:0"><div class="flbl">N° Documento / Factura</div><input class="finp" id="m_doc" placeholder="Ej: 001..."/></div>
+      <div class="fc" style="margin-bottom:0"><div class="flbl">Fecha</div><input class="finp" type="date" id="m_date" required/></div>
+    </div>
+    <div class="m-grid" id="m_tipo_wrap" style="margin-bottom:12px; display:none">
+      <div class="fc" style="margin-bottom:0; grid-column: span 2">
+        <div class="flbl">Documento</div>
+        <select class="finp" id="m_tipo">
+          <option value="Contado">Contado</option>
+          <option value="Credito">Crédito</option>
+          <option value="Nota de Credito">Nota de Crédito</option>
+        </select>
+      </div>
+    </div>
+    <div class="m-grid" style="margin-bottom:12px; grid-template-columns:2fr 1fr">
+      <div class="fc" style="margin-bottom:0"><div class="flbl">Descripción</div><input class="finp" id="m_lbl" required placeholder="Ej: Pago de servicios..." list="desc-list" autocomplete="off" ondblclick="if(this.showPicker) this.showPicker()"/></div>
+      <div class="fc" style="margin-bottom:0"><div class="flbl">Total Factura</div><input class="finp" type="text" inputmode="decimal" id="m_tot_fac" value="0" oninput="fmtInp(this)"/></div>
+    </div>
+    <div class="m-grid" oninput="calcModTotal()">
+      <div class="fc" style="margin-bottom:0"><div class="flbl">No Sujetas</div><input class="finp" type="text" inputmode="decimal" id="m_ns" value="0" oninput="fmtInp(this)"/></div>
+      <div class="fc" style="margin-bottom:0"><div class="flbl">Exentas</div><input class="finp" type="text" inputmode="decimal" id="m_ex" value="0" oninput="fmtInp(this)"/></div>
+      <div class="fc" style="margin-bottom:0"><div class="flbl">0.5%</div><input class="finp" type="text" inputmode="decimal" id="m_c05" value="0" oninput="fmtInp(this)"/></div>
+      <div class="fc" style="margin-bottom:0"><div class="flbl">1%</div><input class="finp" type="text" inputmode="decimal" id="m_c1" value="0" oninput="fmtInp(this)"/></div>
+      <div class="fc" style="margin-bottom:0"><div class="flbl">2%</div><input class="finp" type="text" inputmode="decimal" id="m_c2" value="0" oninput="fmtInp(this)"/></div>
+      <div class="fc" style="margin-bottom:0"><div class="flbl">4%</div><input class="finp" type="text" inputmode="decimal" id="m_c4" value="0" oninput="fmtInp(this)"/></div>
+      <div class="fc" style="margin-bottom:0"><div class="flbl">8%</div><input class="finp" type="text" inputmode="decimal" id="m_c8" value="0" oninput="fmtInp(this)"/></div>
+      <div class="fc" style="margin-bottom:0"><div class="flbl">13%</div><input class="finp" type="text" inputmode="decimal" id="m_c13" value="0" oninput="fmtInp(this)"/></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;padding:12px 14px;background:var(--cream2);border-radius:var(--r);margin-top:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em">Total del monto</span>
+        <span style="font-family:var(--fm);font-size:16px;font-weight:700;color:var(--ink)" id="m_total_base">₡0</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--cream3)">
+        <span style="font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em">Total de los impuestos</span>
+        <span style="font-family:var(--fm);font-size:18px;font-weight:700;color:var(--blue)" id="m_total_iva">₡0</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <button type="button" class="btn btn-out" onclick="document.getElementById('addModal').close()">Cancelar</button>
+      <button type="submit" class="btn btn-dark">Guardar</button>
+    </div>
+  </form>
+</dialog>
+<datalist id="desc-list"></datalist>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── DATOS ────────────────────────────────────────────────────────
+const D = {
+  ingresos:18_450_000, compras:4_870_807, gastos:3_200_000, costos:2_150_000,
+  iva:522_274,
+  meses:['E','F','M','A','M','J','J','A','S','O','N','D'],
+  cI:[12,15,11,18,14,18,0,0,0,0,0,0],
+  cC:[4,5,3,5,4,5,0,0,0,0,0,0],
+  cG:[2,3,3,3,2,3,0,0,0,0,0,0],
+};
+const IVA_COLS=['No Sujetas','Exentas','0.5%','1%','2%','4%','8%','13%','Total'];
+const MODS = {
+  ingresos:{title:'Ingresos',sub:'Ventas e ingresos del período',color:'#0a7c52',
+    rows:[
+      {fecha:'2026-06-01',l:'Ingr. por servicios de construcción',ns:0,ex:0,c05:0,c1:0,c2:0,c4:0,c8:0,c13:3_981_869},
+      {fecha:'2026-06-02',l:'Otros ingresos gravados',            ns:0,ex:0,c05:0,c1:1500,c2:0,c4:0,c8:0,c13:0},
+      {fecha:'2026-06-05',l:'Ingresos exentos',                   ns:0,ex:250000,c05:0,c1:0,c2:0,c4:0,c8:0,c13:0},
+      {fecha:'2026-06-10',l:'Ingresos no sujetos',                ns:180000,ex:0,c05:0,c1:0,c2:0,c4:0,c8:0,c13:0},
+    ]},
+  compras:{title:'Compras',sub:'Facturas de compra del período',color:'#1a56db',
+    rows:[
+      {fecha:'2026-06-13',doc:'001-001-01',tipo:'Contado',l:'Materiales de construcción',   ns:0,ex:0,c05:0,c1:0,c2:0,c4:0,c8:0,c13:2_056_913},
+      {fecha:'2026-06-27',doc:'001-001-02',tipo:'Nota de Credito',l:'Material recuperable',ns:0,ex:0,c05:0,c1:0,c2:0,c4:0,c8:0,c13:872_595},
+      {fecha:'2026-06-11',doc:'F-5582',tipo:'Contado',l:'Compras exentas',              ns:0,ex:863_338,c05:0,c1:0,c2:0,c4:0,c8:0,c13:0},
+      {fecha:'2026-06-28',doc:'001-002-44',tipo:'Contado',l:'Equipamiento y maquinaria',    ns:0,ex:0,c05:0,c1:0,c2:0,c4:0,c8:0,c13:184_077},
+    ]},
+  gastos:{title:'Gastos',sub:'Gastos operativos del período',color:'#92400e',
+    rows:[
+      {fecha:'2026-06-01',doc:'EXP-01',tipo:'Contado',l:'Servicios públicos',           ns:0,ex:0,c05:0,c1:0,c2:0,c4:0,c8:0,c13:20_000},
+      {fecha:'2026-06-02',doc:'EXP-02',tipo:'Contado',l:'Mantenimiento maq. y equipos', ns:0,ex:0,c05:0,c1:0,c2:0,c4:0,c8:0,c13:949_801},
+      {fecha:'2026-06-03',doc:'EXP-03',tipo:'Contado',l:'Gastos operativos generales',  ns:0,ex:0,c05:0,c1:0,c2:0,c4:0,c8:0,c13:465_608},
+      {fecha:'2026-06-04',doc:'EXP-04',tipo:'Contado',l:'Combustible y transporte',     ns:0,ex:756_679,c05:0,c1:0,c2:0,c4:0,c8:0,c13:0},
+      {fecha:'2026-06-05',doc:'EXP-05',tipo:'Contado',l:'Software y licencias',         ns:0,ex:0,c05:0,c1:0,c2:0,c4:0,c8:0,c13:10_735},
+    ]},
+  costos:{title:'Costos',sub:'Costos directos de obra',color:'#7c3aed',
+    rows:[
+      {l:'Mano de obra directa',  ns:0,ex:0,c05:0,c1:0,c2:0,c4:0,c8:0,c13:850_000},
+      {l:'Subcontratistas',       ns:0,ex:0,c05:0,c1:0,c2:0,c4:0,c8:0,c13:950_000},
+      {l:'Materiales directos',   ns:0,ex:0,c05:0,c1:0,c2:0,c4:0,c8:0,c13:350_000},
+    ]},
+  obras:{title:'Obras en Proceso',sub:'Proyectos activos de construcción',color:'#0e7490',
+    rows:[
+      {l:'Obra Residencial Norte',  ns:0,ex:0,c05:0,c1:0,c2:0,c4:0,c8:0,c13:1_250_000},
+      {l:'Proyecto Comercial Sur',  ns:0,ex:0,c05:0,c1:0,c2:0,c4:0,c8:0,c13:1_800_000},
+      {l:'Remodelación Industrial', ns:0,ex:320_000,c05:0,c1:0,c2:0,c4:0,c8:0,c13:0},
+    ]},
+};
+const TXS=[
+  {f:'07/01/2026',c:'0010004101',tp:'Compra',d:'Sabanero S.A. — Materiales',ex:'₡4',g:'₡8.846',iva:'₡1.150',tot:'₡10.000',st:'Procesado'},
+  {f:'01/02/2026',c:'0150152010',tp:'Compra',d:'ALPEMUSA S.A. — Operativos',ex:'₡8',g:'₡58.754',iva:'₡7.638',tot:'₡66.400',st:'Procesado'},
+  {f:'02/02/2026',c:'1040019301',tp:'Compra',d:'Petróleos Delta CR — Diesel',ex:'₡40.000',g:'—',iva:'—',tot:'₡40.000',st:'Exento'},
+  {f:'03/02/2026',c:'0010000101',tp:'Gasto',d:'Repuestos Musa — Maquinaria',ex:'—',g:'₡17.515',iva:'₡2.277',tot:'₡19.800',st:'Procesado'},
+  {f:'10/02/2026',c:'0020045102',tp:'Compra',d:'Ferretería Jicaral',ex:'—',g:'₡3.257',iva:'₡423',tot:'₡3.680',st:'Revisión'},
+];
+const ST_CLASS={Procesado:'stag-g',Exento:'stag-t',Revisión:'stag-a',Vencido:'stag-r',Pendiente:'stag-b'};
+const TITLES={
+  dash:['Dashboard','Resumen financiero del período activo'],
+  ingresos:['Ingresos','Registro de ventas e ingresos'],
+  compras:['Compras','Facturas de compra del período'],
+  gastos:['Gastos','Gastos operativos y administrativos'],
+  costos:['Costos','Costos directos de construcción'],
+  obras:['Obras en Proceso','Proyectos activos'],
+  cxc:['Cuentas por Cobrar','Saldos pendientes de cobro'],
+  cxp:['Cuentas por Pagar','Obligaciones con proveedores'],
+  prop:['Proporcionalidad','Factor IVA — Art. 32 Ley IVA'],
+  d150:['Reporte D-150','Declaración de impuestos IVA'],
+  d105:['Reporte D-105','Régimen de Tributación Simplificada'],
+  conv:['Convertidor','Moneda y calculadora IVA'],
+};
+const fmt = n => n===0?'—':'₡'+(n<0?'-':'')+Math.round(Math.abs(n)).toLocaleString('es-CR');
+const getS = t => {
+  if(!t) return 1;
+  const s = String(t).toLowerCase();
+  if(s.includes('nota') && /cr[eé]dito/.test(s)) return -1;
+  return 1;
+};
+
+// ── NAVEGACIÓN ───────────────────────────────────────────────────
+function go(page,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
+  document.getElementById('pg-'+page).classList.add('on');
+  if(el) el.classList.add('on');
+  else{
+    const f=[...document.querySelectorAll('.ni')].find(n=>n.getAttribute('onclick')?.includes(`'${page}'`));
+    if(f) f.classList.add('on');
+  }
+  if(TITLES[page]){
+    document.getElementById('pgTitle').textContent=TITLES[page][0];
+    document.getElementById('pgSub').textContent=TITLES[page][1];
+  }
+  if(['ingresos','compras','gastos','costos','obras'].includes(page)) renderMod(page);
+  if(page==='d150') renderD150();
+  if(page==='d105') renderD105();
+}
+
+// ── FILTRO POR PERÍODO ────────────────────────────────────────────
+const MESES_MAP = {'Enero':1,'Febrero':2,'Marzo':3,'Abril':4,'Mayo':5,'Junio':6,'Julio':7,'Agosto':8,'Septiembre':9,'Octubre':10,'Noviembre':11,'Diciembre':12};
+function filterRows(rows){
+  const anio = document.getElementById('anioSel').value;
+  const mes = document.getElementById('mesSel').value;
+  return rows.filter(r => {
+    if(!r.fecha) return true;
+    const parts = r.fecha.split('-');
+    const rAnio = parts[0];
+    const rMes = parseInt(parts[1],10);
+    if(rAnio !== anio) return false;
+    if(mes && MESES_MAP[mes] !== rMes) return false;
+    return true;
+  });
+}
+
+// ── MÓDULO GENÉRICO ──────────────────────────────────────────────
+function renderMod(key){
+  const m=MODS[key], el=document.getElementById('mod-'+key);
+  if(!m||!el) return;
+  const filtered = filterRows(m.rows);
+  const origIndices = [];
+  m.rows.forEach((r,i) => { if(filtered.includes(r)) origIndices.push(i); });
+  const tots=filtered.reduce((a,r)=>{
+    const s = getS(r.tipo);
+    a.ns+=r.ns*s; a.ex+=r.ex*s; a.c05+=r.c05*s; a.c1+=r.c1*s; a.c2+=r.c2*s; a.c4+=r.c4*s; a.c8+=r.c8*s; a.c13+=r.c13*s;
+    return a;
+  },{ns:0,ex:0,c05:0,c1:0,c2:0,c4:0,c8:0,c13:0});
+  const rt=r=>(r.ns+r.ex+r.c05+r.c1+r.c2+r.c4+r.c8+r.c13) * getS(r.tipo);
+  const gt=Object.values(tots).reduce((a,b)=>a+b,0);
+  const ivaT=Math.round(tots.c05*.005+tots.c1*.01+tots.c2*.02+tots.c4*.04+tots.c8*.08+tots.c13*.13);
+  el.innerHTML=`
+    <div class="g4" style="margin-bottom:10px">
+      <div class="kpi"><div class="kpi-accent" style="background:${m.color}"></div><div class="kpi-lbl">Total ${m.title}</div><div class="kpi-num">₡${gt.toLocaleString('es-CR')}</div></div>
+      <div class="kpi"><div class="kpi-lbl">Total IVA</div><div class="kpi-num" style="font-size:20px;color:var(--blue)">₡${ivaT.toLocaleString('es-CR')}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:18px">
+      <div class="kpi" style="padding:12px 14px"><div class="kpi-lbl" style="font-size:9px">No Sujetas</div><div class="kpi-num" style="font-size:16px">₡${tots.ns.toLocaleString('es-CR')}</div></div>
+      <div class="kpi" style="padding:12px 14px"><div class="kpi-lbl" style="font-size:9px">Exentas</div><div class="kpi-num" style="font-size:16px">₡${tots.ex.toLocaleString('es-CR')}</div></div>
+      <div class="kpi" style="padding:12px 14px"><div class="kpi-lbl" style="font-size:9px">0.5%</div><div class="kpi-num" style="font-size:16px">₡${tots.c05.toLocaleString('es-CR')}</div><div class="kpi-foot"><span class="badge badge-b" style="font-size:8px">IVA: ₡${Math.round(tots.c05*.005).toLocaleString('es-CR')}</span></div></div>
+      <div class="kpi" style="padding:12px 14px"><div class="kpi-lbl" style="font-size:9px">1%</div><div class="kpi-num" style="font-size:16px">₡${tots.c1.toLocaleString('es-CR')}</div><div class="kpi-foot"><span class="badge badge-b" style="font-size:8px">IVA: ₡${Math.round(tots.c1*.01).toLocaleString('es-CR')}</span></div></div>
+      <div class="kpi" style="padding:12px 14px"><div class="kpi-lbl" style="font-size:9px">2%</div><div class="kpi-num" style="font-size:16px">₡${tots.c2.toLocaleString('es-CR')}</div><div class="kpi-foot"><span class="badge badge-b" style="font-size:8px">IVA: ₡${Math.round(tots.c2*.02).toLocaleString('es-CR')}</span></div></div>
+      <div class="kpi" style="padding:12px 14px"><div class="kpi-lbl" style="font-size:9px">4%</div><div class="kpi-num" style="font-size:16px">₡${tots.c4.toLocaleString('es-CR')}</div><div class="kpi-foot"><span class="badge badge-b" style="font-size:8px">IVA: ₡${Math.round(tots.c4*.04).toLocaleString('es-CR')}</span></div></div>
+      <div class="kpi" style="padding:12px 14px"><div class="kpi-lbl" style="font-size:9px">8%</div><div class="kpi-num" style="font-size:16px">₡${tots.c8.toLocaleString('es-CR')}</div><div class="kpi-foot"><span class="badge badge-b" style="font-size:8px">IVA: ₡${Math.round(tots.c8*.08).toLocaleString('es-CR')}</span></div></div>
+      <div class="kpi" style="padding:12px 14px"><div class="kpi-lbl" style="font-size:9px">13%</div><div class="kpi-num" style="font-size:16px;color:var(--blue)">₡${tots.c13.toLocaleString('es-CR')}</div><div class="kpi-foot"><span class="badge badge-b" style="font-size:8px">IVA: ₡${Math.round(tots.c13*.13).toLocaleString('es-CR')}</span></div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button class="btn btn-dark btn-sm" onclick="openAddModal('${key}')">＋ Nuevo registro</button>
+      <button class="btn btn-out btn-sm" onclick="showToast('Exportando datos...')">⬇ Exportar CSV</button>
+    </div>
+    <div class="card">
+      <div class="sh"><div><div class="sh-t">${m.title}</div></div></div>
+      <div class="iva-wrap">
+        <table class="iva-table">
+          <thead><tr>
+            <th style="min-width:100px;text-align:left">Fecha / Folio</th>
+            <th style="min-width:120px;text-align:left">N° Documento / Factura</th>
+            <th style="min-width:100px;text-align:left">Tipo</th>
+            <th style="text-align:left;min-width:180px">Descripción</th>
+            ${IVA_COLS.map(c=>`<th>${c}</th>`).join('')}
+          </tr></thead>
+          <tbody>
+            ${filtered.map((r,fi)=>`<tr ondblclick="editRow('${key}', ${origIndices[fi]})" style="cursor:pointer" title="Doble clic para editar">
+              <td>
+                <div style="font-weight:600;font-size:11px;color:var(--ink)">${r.fecha ? r.fecha.split('-').reverse().join('/') : '—'}</div>
+              </td>
+              <td style="text-align:left;font-family:var(--fm);font-size:11px;color:var(--ink);font-weight:600">${r.doc||'—'}</td>
+              <td style="text-align:left;font-family:var(--fb);font-size:12px;color:var(--ink2);font-weight:500">${r.tipo||'—'}</td>
+              <td style="text-align:left;font-family:var(--fb);font-size:12px;color:var(--ink);font-weight:500">${r.l}</td>
+              <td class="${r.ns===0?'zero':''}">${fmt(r.ns)}</td>
+              <td class="${r.ex===0?'zero':''}">${fmt(r.ex)}</td>
+              <td class="${r.c05===0?'zero':''}">${fmt(r.c05)}</td>
+              <td class="${r.c1===0?'zero':''}">${fmt(r.c1)}</td>
+              <td class="${r.c2===0?'zero':''}">${fmt(r.c2)}</td>
+              <td class="${r.c4===0?'zero':''}">${fmt(r.c4)}</td>
+              <td class="${r.c8===0?'zero':''}">${fmt(r.c8)}</td>
+              <td class="hi">${fmt(r.c13)}</td>
+              <td style="font-weight:700;color:var(--ink)">${fmt(rt(r))}</td>
+            </tr>`).join('')}
+            ${filtered.length===0?'<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--ink3);font-style:italic">No hay registros para este período</td></tr>':''}
+          </tbody>
+          <tfoot><tr>
+            <td colspan="4">TOTALES</td>
+            ${[tots.ns,tots.ex,tots.c05,tots.c1,tots.c2,tots.c4,tots.c8,tots.c13,gt].map(v=>`<td>${fmt(v)}</td>`).join('')}
+          </tr></tfoot>
+        </table>
+      </div>
+    </div>`;
+}
+
+
+
+// ── IMPORTADOR CSV / XML (TRIBUTÍN) ──────────────────────────────
+function importData(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  showToast('Analizando CSV fiscal...');
+  Papa.parse(file, {
+    header: true, skipEmptyLines: true, dynamicTyping: true,
+    complete: function(res) {
+      if(!res.data.length){ showToast('CSV vacío o inválido'); return; }
+      processImport(res.data);
+    }
+  });
+}
+
+function processImport(data) {
+  let ng = 0, n_alert = 0;
+  const tFeed = document.getElementById('tributinFeed');
+  tFeed.innerHTML = '';
+  
+  data.forEach(row => {
+    const tipo = (row.TipoDoc || '').toString().toLowerCase();
+    const cond = (row.CondicionVenta || 'Contado').toString();
+    const iva = parseFloat(row.ImpuestoNeto || row.IVA || 0);
+    const tot = parseFloat(row.TotalComprobante || row.Total || 0);
+    const baseG = parseFloat(row.MontoTotalGravado || row.Gravado || 0);
+    const baseE = parseFloat(row.MontoTotalExento || row.Exento || 0);
+    const cabys = (row.CodigoCABYS || '').toString();
+    const t_iva = parseFloat(row.TarifaIVA || 0);
+    const fec = row.FechaEmision || row.Fecha || 'Hoy';
+    
+    let tp_disp = 'Gasto';
+    if(tipo.includes('ing') || (row.TotalComprobante > 0 && !tipo)) tp_disp = 'Ingreso';
+    if(tipo.includes('gasto') || tipo.includes('compra') || cond.includes('Gasto')) tp_disp = 'Gasto';
+    
+    if(ng < 15) {
+      TXS.unshift({
+        f: fec, c: (row.ClaveHacienda||'000...').toString().substring(0,18)+'...',
+        tp: tp_disp, d: (row.NombreRazonSocial || 'Recibo DTE') + (cond.includes('Cred')?' (Crédito)':''),
+        ex: fmt(baseE), g: fmt(baseG),
+        iva: fmt(iva), tot: fmt(tot), st: 'Procesado'
+      });
+      ng++;
+    }
+    
+    if(tp_disp === 'Gasto' && t_iva === 13 && cabys.startsWith('0')) {
+      n_alert++;
+      tFeed.innerHTML += `
+        <div style="padding:10px;background:var(--amber-l);border-right:3px solid var(--amber);border-radius:8px">
+          <div style="font-size:10px;font-weight:600;color:var(--amber);margin-bottom:2px">⚠️ Alerta CABYS / D-101</div>
+          <div style="font-size:11px;color:var(--ink2)">Gasto de <b>${fmt(tot)}</b> de <i>${row.NombreRazonSocial||'Proveedor'}</i> tiene IVA 13% pero su CABYS (${cabys}) es irregular (Materia prima agro u otros). Revisar prorrata.</div>
+        </div>`;
+    }
+    
+    if(tp_disp === 'Ingreso'){ D.ingresos += (baseG + baseE); }
+    else { D.compras += (baseG*0.7); D.gastos += (baseG*0.3); }
+  });
+  
+  D.iva = (D.ingresos * 0.13) - ((D.compras + D.gastos) * 0.13); 
+  
+  if(n_alert > 0){
+    document.getElementById('alertCount').textContent = n_alert;
+    document.getElementById('alertCount').style.display = 'inline-flex';
+  } else {
+    tFeed.innerHTML = '<div style="font-size:11px;color:var(--ink3);text-align:center;margin:auto;padding:20px">✨ Facturas consistentes. Todo en orden.</div>';
+    document.getElementById('alertCount').style.display = 'none';
+  }
+  
+  if(D.iva > 150000) document.querySelector('.main').classList.add('debt');
+  else document.querySelector('.main').classList.remove('debt');
+  
+  initDash();
+  if(document.getElementById('pg-d150').classList.contains('on')) renderD150();
+  showToast(`¡Papaparse ha cargado ${data.length} documentos DTE!`);
+}
+
+// ── INIT DASHBOARD ───────────────────────────────────────────────
+function initDash(){
+  animN('k-ing',D.ingresos); animN('k-com',D.compras);
+  animN('k-gas',D.gastos);   animN('k-cos',D.costos); animN('k-iva',D.iva);
+  document.getElementById('lastTx').innerHTML=TXS.map(t=>`<tr>
+    <td class="mono">${t.f}</td>
+    <td class="mono" style="color:var(--ink3)">${t.c}</td>
+    <td><span class="stag ${t.tp==='Gasto'?'stag-a':'stag-b'}" style="font-size:9px">${t.tp}</span></td>
+    <td class="bold">${t.d}</td>
+    <td class="mono r">${t.ex}</td><td class="mono r">${t.g}</td>
+    <td class="mono r" style="color:var(--blue)">${t.iva}</td>
+    <td class="mono r bold">${t.tot}</td>
+    <td><span class="stag ${ST_CLASS[t.st]||'stag-b'}">${t.st}</span></td>
+  </tr>`).join('');
+  buildChart();
+  
+  // Update KPI badges
+  if(document.getElementById('b-ing')) document.getElementById('b-ing').textContent = D.cIng + ' facturas';
+  if(document.getElementById('b-com')) document.getElementById('b-com').textContent = D.cCom + ' facturas';
+  if(document.getElementById('b-gas')) document.getElementById('b-gas').textContent = D.cGas + ' facturas';
+  if(document.getElementById('b-cos')) document.getElementById('b-cos').textContent = D.cCos + ' obras';
+  
+  const ivaBadge = document.getElementById('b-iva');
+  if(ivaBadge) {
+    if(D.iva > 0) { ivaBadge.className = 'badge badge-r'; ivaBadge.textContent = 'D-150 Pagar'; }
+    else if(D.iva < 0) { ivaBadge.className = 'badge badge-g'; ivaBadge.textContent = 'D-150 A favor'; }
+    else { ivaBadge.className = 'badge badge-n'; ivaBadge.textContent = 'Sin movimientos'; }
+  }
+
+  // Update Donut
+  const dw = document.getElementById('donutWrapper');
+  if(dw) {
+    const tot = D.iv13 + D.iv4 + D.iv2 + D.iv1;
+    const circ = 188.5; // 2 * PI * 30
+    
+    let offset = 0;
+    const slices = [];
+    [{v:D.iv13,c:'var(--blue)'}, {v:D.iv4,c:'var(--green)'}, {v:D.iv2,c:'var(--amber)'}, {v:D.iv1,c:'#7c3aed'}].forEach(s => {
+      if(s.v > 0) {
+        const strokeLen = (s.v / tot) * circ;
+        slices.push(`<circle cx="40" cy="40" r="30" fill="none" stroke="${s.c}" stroke-width="10" stroke-dasharray="${strokeLen} ${circ}" stroke-dashoffset="${-offset}" stroke-linecap="round"/>`);
+        offset += strokeLen;
+      }
+    });
+    
+    dw.innerHTML = `
+      <svg viewBox="0 0 80 80" width="110" height="110" style="flex-shrink:0">
+        <circle cx="40" cy="40" r="30" fill="none" stroke="var(--cream2)" stroke-width="10"/>
+        ${slices.join('')}
+        <text x="40" y="37" text-anchor="middle" font-size="8" font-family="Playfair Display" fill="var(--ink)" font-weight="600">IVA</text>
+        <text x="40" y="46" text-anchor="middle" font-size="6" font-family="Outfit" fill="var(--ink3)">crédito</text>
+      </svg>
+      <div class="legend">
+        <div class="leg-r"><div class="leg-l"><div class="leg-sq" style="background:var(--blue)"></div>13% — Gravado general</div><div class="leg-v ${D.iv13===0?'zero':''}">${fmt(D.iv13)}</div></div>
+        <div class="leg-r"><div class="leg-l"><div class="leg-sq" style="background:var(--green)"></div>4% — Salud / seguros</div><div class="leg-v ${D.iv4===0?'zero':''}">${fmt(D.iv4)}</div></div>
+        <div class="leg-r"><div class="leg-l"><div class="leg-sq" style="background:var(--amber)"></div>2% — Canasta básica</div><div class="leg-v ${D.iv2===0?'zero':''}">${fmt(D.iv2)}</div></div>
+        <div class="leg-r"><div class="leg-l"><div class="leg-sq" style="background:#7c3aed"></div>1% — Agropecuario</div><div class="leg-v ${D.iv1===0?'zero':''}">${fmt(D.iv1)}</div></div>
+      </div>
+    `;
+  }
+}
+
+function buildChart(){
+  const c=document.getElementById('mainChart'); c.innerHTML='';
+  const mx=Math.max(...D.cI,...D.cC,...D.cG);
+  D.meses.forEach((m,i)=>{
+    const hI=D.cI[i]?(D.cI[i]/mx*100):0;
+    const hC=D.cC[i]?(D.cC[i]/mx*100):0;
+    const hG=D.cG[i]?(D.cG[i]/mx*100):0;
+    const w=document.createElement('div');
+    w.className='bar-g';
+    w.innerHTML=`<div class="bar-inner">
+      <div class="bar" style="height:0%;background:#0a7c52" data-h="${hI}%"></div>
+      <div class="bar" style="height:0%;background:#1a56db" data-h="${hC}%"></div>
+      <div class="bar" style="height:0%;background:#b45309" data-h="${hG}%"></div>
+    </div><span class="bar-lbl">${m}</span>`;
+    c.appendChild(w);
+  });
+  setTimeout(()=>document.querySelectorAll('.bar').forEach(b=>b.style.height=b.dataset.h||'0%'),80);
+}
+
+function refreshDashboard(){
+  const anio = document.getElementById('anioSel').value;
+  const mes = document.getElementById('mesSel').value;
+  
+  // Reset D values
+  D.ingresos = 0; D.compras = 0; D.gastos = 0; D.costos = 0; D.iva = 0;
+  D.cIng = 0; D.cCom = 0; D.cGas = 0; D.cCos = 0;
+  D.iv13 = 0; D.iv4 = 0; D.iv2 = 0; D.iv1 = 0;
+  D.cI = Array(12).fill(0); D.cC = Array(12).fill(0); D.cG = Array(12).fill(0);
+
+  let recentTxs = [];
+
+  Object.keys(MODS).forEach(key => {
+    const m = MODS[key];
+    m.rows.forEach(r => {
+      const parts = r.fecha ? r.fecha.split('-') : [];
+      if(parts.length < 2) return;
+      const rAnio = parts[0], rMesIx = parseInt(parts[1],10) - 1;
+      
+      const s = getS(r.tipo);
+      const rowSum = (Number(r.ns)||0)+(Number(r.ex)||0)+(Number(r.c05)||0)+(Number(r.c1)||0)+(Number(r.c2)||0)+(Number(r.c4)||0)+(Number(r.c8)||0)+(Number(r.c13)||0);
+      const baseTotal = rowSum * s;
+      const ivaRow = (( (Number(r.c05)||0)*.005)+( (Number(r.c1)||0)*.01)+( (Number(r.c2)||0)*.02)+( (Number(r.c4)||0)*.04)+( (Number(r.c8)||0)*.08) +( (Number(r.c13)||0)*.13)) * s;
+
+      // Actualizar datos históricos (siempre se calculan por año completo para el gráfico)
+      if(rAnio === anio){
+        if(key === 'ingresos') D.cI[rMesIx] += baseTotal;
+        if(key === 'compras') D.cC[rMesIx] += baseTotal;
+        if(key === 'gastos') D.cG[rMesIx] += baseTotal;
+      }
+
+      // Actualizar totales del período seleccionado (año o mes específico)
+      const matchesMonth = !mes || MESES_MAP[mes] === (rMesIx+1);
+      if(rAnio === anio && matchesMonth){
+        if(key === 'ingresos') { D.ingresos += baseTotal; D.cIng++; }
+        if(key === 'compras') { D.compras += baseTotal; D.cCom++; }
+        if(key === 'gastos') { D.gastos += baseTotal; D.cGas++; }
+        if(key === 'costos') { D.costos += baseTotal; D.cCos++; }
+        D.iva += ivaRow;
+        
+        if(key === 'compras' || key === 'gastos' || key === 'costos') {
+          D.iv13 += (Number(r.c13)||0) * .13 * s;
+          D.iv4  += (Number(r.c4)||0)  * .04 * s;
+          D.iv2  += (Number(r.c2)||0)  * .02 * s;
+          D.iv1  += (Number(r.c1)||0)  * .01 * s;
+        }
+
+        if(key === 'compras' || key === 'gastos') {
+          const sumGrav = (Number(r.c05)||0)+(Number(r.c1)||0)+(Number(r.c2)||0)+(Number(r.c4)||0)+(Number(r.c8)||0)+(Number(r.c13)||0);
+          recentTxs.push({
+            rawDate: r.fecha,
+            f: r.fecha.split('-').reverse().join('/'),
+            c: r.doc || '—',
+            tp: key === 'compras' ? 'Compra' : 'Gasto',
+            d: r.l,
+            ex: fmt((r.ex || 0) * s),
+            g: fmt(sumGrav * s),
+            iva: fmt(ivaRow),
+            tot: fmt(baseTotal + ivaRow),
+            st: 'Procesado'
+          });
+        }
+      }
+    });
+  });
+
+  recentTxs.sort((a,b) => b.rawDate.localeCompare(a.rawDate));
+  TXS.length = 0;
+  TXS.push(...recentTxs.slice(0, 5));
+  
+  initDash();
+}
+
+function animN(id,end){
+  const el=document.getElementById(id); if(!el) return;
+  const steps=80,inc=end/steps; let cur=0;
+  const t=setInterval(()=>{cur+=inc;if(Math.abs(cur)>=Math.abs(end)){cur=end;clearInterval(t);}
+    el.textContent='₡'+Math.round(cur).toLocaleString('es-CR');},14);
+}
+
+function conv(){
+  const m=parseFloat(document.getElementById('cMonto').value)||0;
+  const de=document.getElementById('cDe').value;
+  const tc=parseFloat(document.getElementById('cTC').value)||520.5;
+  let r='';
+  if(de==='CRC') r='$'+(m/tc).toFixed(2)+' USD';
+  else if(de==='USD') r='₡'+(m*tc).toLocaleString('es-CR')+' CRC';
+  else r='₡'+(m*tc*1.08).toLocaleString('es-CR')+' CRC';
+  document.getElementById('cRes').textContent=r;
+}
+
+function calcIVA(){
+  const base=parseFloat(document.getElementById('iBase').value)||0;
+  const tasa=parseFloat(document.getElementById('iTasa').value)||0.13;
+  const iva=Math.round(base*tasa), tot=base+iva;
+  document.getElementById('i-base').textContent='₡'+base.toLocaleString('es-CR');
+  document.getElementById('i-iva').textContent='₡'+iva.toLocaleString('es-CR');
+  document.getElementById('i-tot').textContent='₡'+tot.toLocaleString('es-CR');
+}
+
+function getPeriodoLabel(){
+  const a=document.getElementById('anioSel').value;
+  const m=document.getElementById('mesSel').value;
+  return m ? m+' '+a : 'Total Anual '+a;
+}
+function changePer(){
+  const lbl=getPeriodoLabel();
+  document.getElementById('pgSub').textContent='Período: '+lbl;
+  // Re-renderizar la página activa con el nuevo filtro
+  const activePage = document.querySelector('.page.on');
+  if(activePage){
+    const id = activePage.id.replace('pg-','');
+    if(['ingresos','compras','gastos','costos','obras'].includes(id)) renderMod(id);
+    if(id==='d150') renderD150();
+    if(id==='d104') renderD150();
+    if(id==='dash') refreshDashboard();
+  }
+  refreshDashboard();
+}
+
+let toastTimer;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent='✓  '+msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+let activeModKey = null;
+let editIndex = null;
+
+function updateDescHistory(key){
+  const list = document.getElementById('desc-list');
+  if(!list || !key) return;
+  const history = new Set();
+  if(MODS[key]) {
+    MODS[key].rows.forEach(r => { if(r.l) history.add(r.l.trim()); });
+  }
+  list.innerHTML = Array.from(history).sort().map(h => `<option value="${h}">`).join('');
+}
+
+function openAddModal(key){
+  activeModKey = key;
+  editIndex = null;
+  document.getElementById('mTitle').textContent = 'Nuevo registro';
+  document.getElementById('addForm').reset();
+  const numParams = ['tot_fac', 'ns','ex','c05','c1','c2','c4','c8','c13'];
+  numParams.forEach(k => document.getElementById('m_'+k).value = '0');
+  const tw = document.getElementById('m_tipo_wrap');
+  if(key==='compras'||key==='gastos'||key==='costos'){
+    updateDescHistory(key);
+    if(key!=='costos'){
+      tw.style.display = 'grid';
+      document.getElementById('m_tipo').value = 'Contado';
+    } else {
+      tw.style.display = 'none';
+    }
+  } else {
+    tw.style.display = 'none';
+  }
+  calcModTotal();
+  document.getElementById('addModal').showModal();
+}
+function fmtInp(el) {
+  let val = el.value.replace(/[^0-9.]/g, '');
+  const parts = val.split('.');
+  if(parts.length > 2) parts.pop();
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  el.value = parts.join('.');
+}
+function editRow(key, idx){
+  activeModKey = key;
+  editIndex = idx;
+  const r = MODS[key].rows[idx];
+  document.getElementById('mTitle').textContent = 'Editar registro';
+  document.getElementById('m_doc').value = r.doc || '';
+  document.getElementById('m_date').value = r.fecha || '';
+  const tfInp = document.getElementById('m_tot_fac');
+  tfInp.value = r.tf || 0;
+  fmtInp(tfInp);
+  const tw = document.getElementById('m_tipo_wrap');
+  if(key==='compras'||key==='gastos'||key==='costos'){
+    updateDescHistory(key);
+    if(key!=='costos'){
+      tw.style.display = 'grid';
+      document.getElementById('m_tipo').value = r.tipo || 'Contado';
+    } else {
+      tw.style.display = 'none';
+    }
+  } else {
+    tw.style.display = 'none';
+  }
+  document.getElementById('m_lbl').value = r.l || '';
+  const numParams = ['ns','ex','c05','c1','c2','c4','c8','c13'];
+  numParams.forEach(k => {
+    const el = document.getElementById('m_'+k);
+    el.value = r[k] || 0;
+    fmtInp(el);
+  });
+  calcModTotal();
+  document.getElementById('addModal').showModal();
+}
+function calcModTotal(){
+  const kArr = ['ns','ex','c05','c1','c2','c4','c8','c13'];
+  let t = 0;
+  const v = {};
+  kArr.forEach(k => {
+    v[k] = parseFloat(document.getElementById('m_'+k).value.replace(/\s/g, ''))||0;
+    t += v[k];
+  });
+  const iva = (v.c05*0.005) + (v.c1*0.01) + (v.c2*0.02) + (v.c4*0.04) + (v.c8*0.08) + (v.c13*0.13);
+  document.getElementById('m_total_base').textContent = '₡'+t.toLocaleString('es-CR');
+  document.getElementById('m_total_iva').textContent = '₡'+Math.round(iva).toLocaleString('es-CR');
+}
+function saveAddModal(e){
+  e.preventDefault();
+  if(!activeModKey || !MODS[activeModKey]) return;
+  const numParams = ['ns','ex','c05','c1','c2','c4','c8','c13'];
+  const newRow = { 
+    doc: document.getElementById('m_doc').value,
+    fecha: document.getElementById('m_date').value,
+    tf: parseFloat(document.getElementById('m_tot_fac').value.replace(/\s/g, ''))||0,
+    l: document.getElementById('m_lbl').value,
+    tipo: (activeModKey==='compras'||activeModKey==='gastos') ? document.getElementById('m_tipo').value : null
+  };
+  numParams.forEach(k => newRow[k] = parseFloat(document.getElementById('m_'+k).value.replace(/\s/g, ''))||0);
+  
+  if (editIndex !== null) {
+    MODS[activeModKey].rows[editIndex] = newRow;
+    showToast('Registro actualizado');
+  } else {
+    MODS[activeModKey].rows.push(newRow);
+    showToast('Registro guardado correctamente');
+  }
+  document.getElementById('addModal').close();
+  updateDescHistory(activeModKey);
+  renderMod(activeModKey);
+  refreshDashboard();
+}
+
+// ── REPORTE D-150 (Declaración de impuestos) ─────────────────────
+function renderD150(){
+  const el=document.getElementById('d150-content');if(!el)return;
+  const I=(l,id,ro)=>`<div class="fd104-r"><label>${l}</label><input class="fd-inp${ro?' auto':''}" id="d_${id}" type="text" value="0.00" ${ro?'readonly ':''}oninput="d150Calc()" onblur="d150BlurInp(this)"/></div>`;
+  const G=(t)=>`<div class="fd104-grp">${t}</div>`;
+  const T=(l,id)=>`<div class="fd104-tot"><label>${l}</label><span class="fd-val" id="d_${id}">0.00</span></div>`;
+  // Section 1 — Ventas
+  const vr=[{r:'0.5%',id:'v05',p:.005},{r:'1%',id:'v1',p:.01},{r:'2%',id:'v2',p:.02},{r:'3%',id:'v3',p:.03},{r:'4%',id:'v4',p:.04},{r:'4%',id:'v4e',p:.04,lbl:'Tarifa 4% (Servicios aéreos internacionales exclusivos)'},{r:'13%',id:'v13',p:.13}];
+  let s1='';
+  vr.forEach(v=>{s1+=G(v.lbl||'Tarifa '+v.r);s1+=I('Total ventas a '+v.r,v.id+'_b');s1+=I('Monto de impuesto a '+v.r,v.id+'_i',true);});
+  s1+=G('Otras ventas sin IVA con derecho a crédito pleno');
+  s1+=I('Total ventas exentas con derecho a crédito pleno','v_excp');
+  s1+=I('Total ventas exoneradas con derecho a crédito pleno','v_eocp');
+  s1+=I('Total ventas no sujetas con derecho a crédito pleno','v_nscp');
+  s1+=G('Otras ventas sin IVA sin derecho a crédito');
+  s1+=I('Total ventas exentas sin derecho a crédito','v_exsc');
+  s1+=I('Total ventas exoneradas sin derecho a crédito','v_eosc');
+  s1+=I('Total ventas no sujetas sin derecho a crédito','v_nssc');
+  s1+=I('Total ventas de bienes de capital exentas sin derecho a crédito','v_bkex');
+  s1+=T('Total ventas generales','vt_gen');
+  s1+=T('Total ventas generales gravadas','vt_grav');
+  s1+=T('Monto del impuesto ventas generales','vt_imp');
+  // Section 2 — Compras
+  let s2='';
+  s2+='<div class="fd104-info">Pago diferido del impuesto por ventas a crédito del periodo a presentar o de periodos anteriores</div>';
+  s2+='<div class="fd104-sel">Quiero realizar el pago diferido del impuesto por ventas a crédito del periodo: <span class="fd-link" onclick="this.textContent=this.textContent===\'No lo utilizaré\'?\'Sí lo utilizaré\':\'No lo utilizaré\'">No lo utilizaré</span></div>';
+  s2+='<div class="fd104-info">Compras y cálculo de proporcionalidad</div>';
+  s2+='<div class="fd104-sel">Conoce a qué tipo de ventas destinó las compras: <span class="fd-link blue" onclick="this.textContent=this.textContent===\'Sí lo conozco\'?\'No lo conozco\':\'Sí lo conozco\'">Sí lo conozco</span></div>';
+  const cr=[{r:'0.5%',id:'c05',p:.005,first:true},{r:'1%',id:'c1',p:.01},{r:'2%',id:'c2',p:.02},{r:'3%',id:'c3',p:.03},{r:'4%',id:'c4',p:.04},{r:'13%',id:'c13',p:.13}];
+  s2+=G('Compras totales del periodo');
+  cr.forEach(c=>{if(!c.first)s2+=G('Compras a '+c.r);s2+=I('Total importe compras a '+c.r,c.id+'_t');s2+=I('Importe compras a '+c.r+' identificadas',c.id+'_d');s2+=I('Impuesto soportado a '+c.r,c.id+'_i',true);});
+  s2+=I('Compras sin IVA soportado o no acreditable','c_siva');
+  s2+=I('Bienes y servicios adquiridos a otros regímenes','c_oreg');
+  s2+=I('Bienes y servicios exentos','c_exen');
+  s2+=I('Bienes y servicios no sujetos','c_nsuj');
+  s2+=I('Compras autorizadas sin impuesto','c_auto');
+  s2+=I('Bienes y servicios según artículo 19 de la LIVA','c_a19');
+  s2+=I('Compras bajo el sistema especial de determinación de IVA a nivel de fábrica, mayorista y aduanas','c_esp');
+  s2+=T('Total importe compras','ct_tot');
+  s2+=T('Total importe compras sin IVA soportado o no acreditable','ct_siva');
+  s2+=T('Total importe de compras con IVA soportado','ct_civa');
+  s2+=T('Total importe de compras identificadas','ct_iden');
+  s2+=T('Total impuesto soportado','ct_isop');
+  const per=getPeriodoLabel();
+  el.innerHTML=`<div class="fd104">
+    <div style="background:var(--white);border:1px solid var(--cream3);border-radius:var(--r2);overflow:hidden;margin-bottom:16px;box-shadow:var(--shadow)">
+      <div class="d150-head"><div>
+        <div style="font-size:11px;font-weight:500;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Formulario oficial</div>
+        <div style="font-family:var(--ff);font-size:20px;font-weight:600">Declaración D-150</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:3px">Impuesto al Valor Agregado · ${per}</div>
+      </div>
+      <div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+        <div><div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.09em">Empresa</div><div style="font-size:14px;font-weight:600">Contabilidad LVM</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-out btn-sm" style="border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);background:transparent" onclick="window.print()">🖨 Imprimir</button>
+          <button class="btn btn-blue btn-sm" onclick="showToast('Exportando D-150...')">⬇ Exportar</button>
+        </div>
+      </div></div>
+      <div class="d150-stripe"></div>
+    </div>
+    <div class="tabs" style="margin-bottom:0">
+      <div class="tab on" id="d150tab-ventas" onclick="d150Tab('ventas')">Ventas</div>
+      <div class="tab" id="d150tab-compras" onclick="d150Tab('compras')">Compras</div>
+    </div>
+    <div id="d150p-ventas"><div class="fd104-sec" style="border-radius:0 0 var(--r2) var(--r2)"><div class="fd104-hd">150 - Impuesto al valor agregado</div>${s1}</div></div>
+    <div id="d150p-compras" style="display:none"><div class="fd104-sec" style="border-radius:0 0 var(--r2) var(--r2)"><div class="fd104-hd">Compras y Proporcionalidad</div>${s2}</div></div>
+  </div>`;
+  // ── Auto-populate from Ingresos, Compras, Gastos ──
+  const setF=(id,val)=>{const e=document.getElementById('d_'+id);if(e)e.value=val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');};
+  const agg=(keys)=>{const t={c05:0,c1:0,c2:0,c4:0,c8:0,c13:0,ex:0,ns:0};keys.forEach(k=>{if(!MODS[k])return;filterRows(MODS[k].rows).forEach(r=>{const s=getS(r.tipo);t.c05+=(r.c05||0)*s;t.c1+=(r.c1||0)*s;t.c2+=(r.c2||0)*s;t.c4+=(r.c4||0)*s;t.c8+=(r.c8||0)*s;t.c13+=(r.c13||0)*s;t.ex+=(r.ex||0)*s;t.ns+=(r.ns||0)*s;});});return t;};
+  // Ventas ← Ingresos
+  const v=agg(['ingresos']);
+  setF('v05_b',v.c05);setF('v1_b',v.c1);setF('v2_b',v.c2);setF('v4_b',v.c4);setF('v13_b',v.c13);
+  setF('v_excp',v.ex);setF('v_nscp',v.ns);
+  // Compras ← Compras + Gastos
+  const c=agg(['compras','gastos']);
+  setF('c05_t',c.c05);setF('c1_t',c.c1);setF('c2_t',c.c2);setF('c4_t',c.c4);setF('c13_t',c.c13);
+  setF('c_exen',c.ex);setF('c_nsuj',c.ns);
+  d150Calc();
+}
+function d150BlurInp(el){let v=parseFloat(el.value.replace(/,/g,''))||0;el.value=v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');d150Calc();}
+function d150Tab(t){
+  ['ventas','compras'].forEach(k=>{
+    const p=document.getElementById('d150p-'+k),tb=document.getElementById('d150tab-'+k);
+    if(p)p.style.display=k===t?'block':'none';
+    if(tb){tb.classList.toggle('on',k===t);}
+  });
+}
+function d150Calc(){
+  const gv=id=>{const e=document.getElementById('d_'+id);return e?parseFloat(e.value.replace(/,/g,''))||0:0;};
+  const sv=(id,val)=>{const e=document.getElementById('d_'+id);if(!e)return;const s=val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');if(e.tagName==='INPUT')e.value=s;else e.textContent=s;};
+  const vr=[{id:'v05',p:.005},{id:'v1',p:.01},{id:'v2',p:.02},{id:'v3',p:.03},{id:'v4',p:.04},{id:'v4e',p:.04},{id:'v13',p:.13}];
+  let vtG=0,vtGr=0,vtI=0;
+  vr.forEach(v=>{const b=gv(v.id+'_b'),imp=b*v.p;sv(v.id+'_i',imp);vtG+=b;vtGr+=b;vtI+=imp;});
+  ['v_excp','v_eocp','v_nscp','v_exsc','v_eosc','v_nssc','v_bkex'].forEach(f=>vtG+=gv(f));
+  sv('vt_gen',vtG);sv('vt_grav',vtGr);sv('vt_imp',vtI);
+  const cr=[{id:'c05',p:.005},{id:'c1',p:.01},{id:'c2',p:.02},{id:'c3',p:.03},{id:'c4',p:.04},{id:'c13',p:.13}];
+  let ctT=0,ctId=0,ctIs=0;
+  cr.forEach(c=>{const t=gv(c.id+'_t'),d=gv(c.id+'_d'),imp=t*c.p;sv(c.id+'_i',imp);ctT+=t;ctId+=d;ctIs+=imp;});
+  let ctS=0;['c_siva','c_oreg','c_exen','c_nsuj','c_auto','c_a19','c_esp'].forEach(f=>{const v=gv(f);ctS+=v;ctT+=v;});
+  sv('ct_tot',ctT);sv('ct_siva',ctS);sv('ct_civa',ctT-ctS);sv('ct_iden',ctId);sv('ct_isop',ctIs);
+}
+
+// ── REPORTE D-105 (Régimen Tributación Simplificada) ──────────
+function renderD105(){
+  const el=document.getElementById('d105-content');if(!el)return;
+  const anio=document.getElementById('anioSel').value;
+  const mes=document.getElementById('mesSel').value;
+  const triMap={'Enero':'MAR','Febrero':'MAR','Marzo':'MAR','Abril':'JUN','Mayo':'JUN','Junio':'JUN','Julio':'SET','Agosto':'SET','Septiembre':'SET','Octubre':'DIC','Noviembre':'DIC','Diciembre':'DIC'};
+  const triActivo=mes?triMap[mes]||'DIC':'DIC';
+  const fN=(n)=>n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  el.innerHTML=`<div class="fd104" style="max-width:700px">
+    <div style="background:var(--white);border:1px solid var(--cream3);border-radius:var(--r2);overflow:hidden;margin-bottom:16px;box-shadow:var(--shadow)">
+      <div class="d150-head"><div>
+        <div style="font-size:11px;font-weight:500;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Formulario oficial</div>
+        <div style="font-family:var(--ff);font-size:18px;font-weight:600">Declaración Jurada Régimen de Tributación Simplificada D-105</div>
+      </div>
+      <div style="text-align:right;display:flex;gap:8px;align-items:center">
+        <button class="btn btn-out btn-sm" style="border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);background:transparent" onclick="window.print()">🖨 Imprimir</button>
+        <button class="btn btn-blue btn-sm" onclick="showToast('Exportando D-105...')">⬇ Exportar</button>
+      </div></div>
+      <div class="d150-stripe"></div>
+    </div>
+    <div class="fd104-sec">
+      <div class="fd104-hd" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;align-items:center;gap:8px"><span style="font-size:12px;color:var(--ink3)">Contribuyente:</span><input class="finp" id="d105_nombre" value="" placeholder="Nombre completo" style="width:220px;font-size:12px;padding:6px 10px"/></div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="font-size:12px;color:var(--ink3)">Cédula:</span><input class="finp" id="d105_cedula" value="" placeholder="000000000" style="width:140px;font-size:12px;padding:6px 10px"/></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid var(--cream2);flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:600;color:var(--ink)">Trimestre:</span>
+        ${['MAR','JUN','SET','DIC'].map(q=>`<span onclick="this.parentElement.querySelectorAll('.d105q').forEach(e=>e.style.background='var(--cream)');this.style.background='var(--blue)';this.style.color='#fff'" class="d105q" style="padding:5px 14px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;background:${q===triActivo?'var(--blue)':'var(--cream)'};color:${q===triActivo?'#fff':'var(--ink2)'};border:1px solid var(--cream3)">${q}</span>`).join('')}
+        <span style="margin-left:auto;font-size:13px;font-weight:700;color:var(--blue)">Año: ${anio}</span>
+      </div>
+      <div class="fd104-r" style="padding-left:20px"><label>ACTIVIDAD:</label><input class="fd-inp" id="d105_act" type="text" value="" placeholder="Descripción de actividad" style="width:260px;text-align:left"/></div>
+    </div>
+    <div class="fd104-sec">
+      <div class="fd104-hd">Compras del período</div>
+      <div class="fd104-r"><label style="font-weight:600;color:var(--ink)">Compras Exentas, Gravadas + IVA</label><span class="fd-val" style="width:160px;text-align:right;font-family:var(--fm);font-size:12px;padding:5px 4px">${fN(t.ex+t.ns)}</span></div>
+      <div class="fd104-r"><label>Total</label><input class="fd-inp" id="d105_cex" type="text" value="${fN(t.ex+t.ns)}" oninput="d105Calc()" onblur="d105BlurInp(this)"/></div>
+      <div class="fd104-grp">Compras Gravadas + IVA</div>
+      <div class="fd104-r"><label>Total</label><input class="fd-inp" id="d105_cgr" type="text" value="${fN(t.grav+t.iva)}" oninput="d105Calc()" onblur="d105BlurInp(this)"/></div>
+      <div class="fd104-tot"><label>COMPRAS</label><span class="fd-val" id="d105_ctot">${fN(t.ex+t.ns+t.grav+t.iva)}</span></div>
+    </div>
+    <div class="fd104-sec">
+      <div class="fd104-hd">Cálculo de impuestos</div>
+      <div class="fd104-r"><label style="font-weight:600">Factor I.S.R.</label><input class="fd-inp" id="d105_fisr" type="text" value="0.0000" style="width:100px" oninput="d105Calc()" onblur="d105BlurF(this)"/></div>
+      <div class="fd104-r"><label>= Impuesto sobre Renta</label><span class="fd-val" id="d105_isr" style="width:160px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:var(--ink);padding:5px 4px">0.00</span></div>
+      <div class="fd104-r"><label style="font-weight:600">Factor I.V.A.</label><input class="fd-inp" id="d105_fiva" type="text" value="0.0000" style="width:100px" oninput="d105Calc()" onblur="d105BlurF(this)"/></div>
+      <div class="fd104-r"><label>= Impuesto sobre Ventas</label><span class="fd-val" id="d105_iiva" style="width:160px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:var(--ink);padding:5px 4px">0.00</span></div>
+      <div class="fd104-tot"><label>Total Impuestos Netos</label><span class="fd-val" id="d105_timp">0.00</span></div>
+    </div>
+    <div class="fd104-sec">
+      <div class="fd104-hd">Liquidación</div>
+      <div class="fd104-r"><label>INTERESES</label><input class="fd-inp" id="d105_int" type="text" value="0.00" oninput="d105Calc()" onblur="d105BlurInp(this)"/></div>
+      <div class="fd104-r"><label>COMPENSACIÓN</label><input class="fd-inp" id="d105_comp" type="text" value="0.00" oninput="d105Calc()" onblur="d105BlurInp(this)"/></div>
+      <div class="fd104-tot" style="background:var(--ink);border-radius:0 0 var(--r2) var(--r2)"><label style="color:#fff;font-size:14px">Total Deuda a Pagar</label><span class="fd-val" id="d105_deuda" style="color:#34d399;font-size:16px">0.00</span></div>
+    </div>
+  </div>`;
+  d105Calc();
+}
+function d105BlurInp(el){let v=parseFloat(el.value.replace(/,/g,''))||0;el.value=v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');d105Calc();}
+function d105BlurF(el){let v=parseFloat(el.value)||0;el.value=v.toFixed(4);d105Calc();}
+function d105Calc(){
+  const gv=id=>{const e=document.getElementById(id);return e?parseFloat(e.value.replace(/,/g,''))||0:0;};
+  const sv=(id,val)=>{const e=document.getElementById(id);if(e)e.textContent=val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');};
+  const cex=gv('d105_cex'),cgr=gv('d105_cgr');
+  sv('d105_ctot',cex+cgr);
+  const fisr=parseFloat(document.getElementById('d105_fisr')?.value)||0;
+  const fiva=parseFloat(document.getElementById('d105_fiva')?.value)||0;
+  const isr=(cex+cgr)*fisr, iva=cgr*fiva;
+  sv('d105_isr',isr);sv('d105_iiva',iva);
+  const timp=isr+iva;sv('d105_timp',timp);
+  const inter=gv('d105_int'),comp=gv('d105_comp');
+  sv('d105_deuda',timp+inter-comp);
+}
+
+document.addEventListener('DOMContentLoaded',()=>{refreshDashboard();conv();calcIVA();});
+</script>
+</body>
+</html>
