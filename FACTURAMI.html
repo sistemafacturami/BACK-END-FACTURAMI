@@ -3131,29 +3131,29 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
       <!-- Fila de KPIs -->
       <div style="display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px;">
         <div style="background:#1c3557; border-radius:10px; padding:14px 16px; color:#fff; box-shadow:0 4px 12px rgba(28,53,87,0.2);">
-          <div style="font-size:10px; font-weight:700; color:rgba(255,255,255,0.6); letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Deuda Total Inicial</div>
-          <div id="pf_kpi_total" style="font-size:18px; font-weight:800; color:#fff;">₡0</div>
-          <div style="font-size:10px; color:rgba(255,255,255,0.6); margin-top:3px;">Operaciones: <span id="pf_kpi_cnt" style="font-weight:700; color:#93c5fd;">0</span></div>
+          <div style="font-size:10px; font-weight:700; color:rgba(255,255,255,0.7); letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Total Pagado</div>
+          <div id="pf_kpi_total_pagado" style="font-size:18px; font-weight:800; color:#fff;">₡0,00</div>
+          <div style="font-size:10px; color:rgba(255,255,255,0.7); margin-top:3px;">Cuotas pagadas: <span id="pf_kpi_cuotas_pagadas_cnt" style="font-weight:700; color:#93c5fd;">0</span></div>
         </div>
         <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
-          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Saldo Capital Pendiente</div>
-          <div id="pf_kpi_saldo" style="font-size:18px; font-weight:800; color:#1e3a8a;">₡0</div>
-          <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Al corte contable seleccionado</div>
+          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Total Intereses</div>
+          <div id="pf_kpi_total_intereses" style="font-size:18px; font-weight:800; color:#dc2626;">₡0,00</div>
+          <div style="font-size:10px; color:#9ca3af; margin-top:3px;">De las cuotas pagadas</div>
         </div>
         <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
-          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Porción Corriente (12m)</div>
-          <div id="pf_kpi_corriente" style="font-size:18px; font-weight:800; color:#dc2626;">₡0</div>
-          <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Pasivo Corto Plazo (2.1)</div>
+          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Total Amortizado</div>
+          <div id="pf_kpi_total_amortizado" style="font-size:18px; font-weight:800; color:#059669;">₡0,00</div>
+          <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Capital de cuotas pagadas</div>
         </div>
         <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
-          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Porción Largo Plazo</div>
-          <div id="pf_kpi_nocorriente" style="font-size:18px; font-weight:800; color:#d97706;">₡0</div>
-          <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Pasivo No Corriente (2.2)</div>
+          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Saldo de Deuda</div>
+          <div id="pf_kpi_saldo_deuda" style="font-size:18px; font-weight:800; color:#1e40af;">₡0,00</div>
+          <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Capital pendiente actual</div>
         </div>
         <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
-          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Próximo Vencimiento</div>
-          <div id="pf_kpi_prox_monto" style="font-size:18px; font-weight:800; color:#059669;">₡0</div>
-          <div id="pf_kpi_prox_fecha" style="font-size:10px; color:#6b7280; margin-top:3px; font-weight:600;">-- / -- / ----</div>
+          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Deuda Inicial</div>
+          <div id="pf_kpi_deuda_inicial" style="font-size:18px; font-weight:800; color:#1f2937;">₡0,00</div>
+          <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Operaciones: <span id="pf_kpi_cnt" style="font-weight:700; color:#1e3a8a;">0</span></div>
         </div>
       </div>
 
@@ -4533,54 +4533,71 @@ function pfGetListaFiltrada() {
 
 function pfRenderKPIs() {
   const lista = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
-  const hoyStr = new Date().toISOString().slice(0, 10);
-  const corte12m = new Date();
-  corte12m.setMonth(corte12m.getMonth() + 12);
-  const corte12mStr = corte12m.toISOString().slice(0, 10);
 
-  let totDeuda = 0;
-  let totSaldo = 0;
-  let totCorriente = 0;
-  let totNoCorriente = 0;
-  let proxCuotaMonto = 0;
-  let proxCuotaFecha = '';
+  let totDeudaInicial = 0;
+  let totSaldoDeuda = 0;
+  let totAmortizado = 0;
+  let totIntereses = 0;
+  let totPagado = 0;
+  let cantCuotasPagadas = 0;
 
   lista.forEach(p => {
-    totDeuda += parseFloat(p.monto_principal) || 0;
-    totSaldo += parseFloat(p.saldo_capital_actual) || 0;
+    const princ = parseFloat(p.monto_principal) || 0;
+    const saldo = (p.saldo_capital_actual !== undefined && p.saldo_capital_actual !== null) ? parseFloat(p.saldo_capital_actual) : princ;
+    totDeudaInicial += princ;
+    totSaldoDeuda += (!isNaN(saldo) ? saldo : princ);
 
     const vActiva = (p.versiones_plan || []).find(v => v.version_id === p.version_activa) || (p.versiones_plan || [])[0];
     if (vActiva && Array.isArray(vActiva.cuotas)) {
       vActiva.cuotas.forEach(c => {
-        if (c.estado !== 'Pagada') {
-          if (c.fecha_vencimiento <= corte12mStr) {
-            totCorriente += parseFloat(c.amortizacion_capital) || 0;
-          } else {
-            totNoCorriente += parseFloat(c.amortizacion_capital) || 0;
-          }
+        if (c.estado === 'Pagada') {
+          const cap = parseFloat(c.capital_pagado !== undefined && c.capital_pagado !== null ? c.capital_pagado : c.amortizacion_capital) || 0;
+          const inte = parseFloat(c.interes_pagado !== undefined && c.interes_pagado !== null ? c.interes_pagado : c.interes) || 0;
+          const cuo = parseFloat(c.cuota_total) || (cap + inte);
 
-          if (!proxCuotaFecha || c.fecha_vencimiento < proxCuotaFecha) {
-            proxCuotaFecha = c.fecha_vencimiento;
-            proxCuotaMonto = c.cuota_total;
-          }
+          totAmortizado += cap;
+          totIntereses += inte;
+          totPagado += cuo;
+          cantCuotasPagadas++;
+        }
+      });
+    }
+
+    // Incluir abonos extraordinarios del historial no asociados a cuotas
+    if (Array.isArray(p.pagos)) {
+      p.pagos.forEach(pg => {
+        if (pg.estado !== 'reversado' && pg.tipo !== 'cuota_ordinaria') {
+          const capExtra = parseFloat(pg.monto_capital) || 0;
+          const intExtra = parseFloat(pg.monto_interes) || 0;
+          const totExtra = parseFloat(pg.monto_total) || (capExtra + intExtra);
+          totAmortizado += capExtra;
+          totIntereses += intExtra;
+          totPagado += totExtra;
         }
       });
     }
   });
 
-  document.getElementById('pf_kpi_total').textContent = '₡' + fmtCRC(totDeuda);
-  document.getElementById('pf_kpi_cnt').textContent = lista.length;
-  document.getElementById('pf_kpi_saldo').textContent = '₡' + fmtCRC(totSaldo);
-  document.getElementById('pf_kpi_corriente').textContent = '₡' + fmtCRC(totCorriente);
-  document.getElementById('pf_kpi_nocorriente').textContent = '₡' + fmtCRC(totNoCorriente);
+  const elPagado = document.getElementById('pf_kpi_total_pagado');
+  if (elPagado) elPagado.textContent = '₡' + fmtCRC(totPagado);
 
-  if (proxCuotaFecha) {
-    document.getElementById('pf_kpi_prox_monto').textContent = '₡' + fmtCRC(proxCuotaMonto);
-    document.getElementById('pf_kpi_prox_fecha').textContent = proxCuotaFecha;
-  } else {
-    document.getElementById('pf_kpi_prox_monto').textContent = '₡0.00';
-    document.getElementById('pf_kpi_prox_fecha').textContent = 'Sin cuotas pendientes';
-  }
+  const elCuotasCnt = document.getElementById('pf_kpi_cuotas_pagadas_cnt');
+  if (elCuotasCnt) elCuotasCnt.textContent = `${cantCuotasPagadas} cuotas`;
+
+  const elIntereses = document.getElementById('pf_kpi_total_intereses');
+  if (elIntereses) elIntereses.textContent = '₡' + fmtCRC(totIntereses);
+
+  const elAmortizado = document.getElementById('pf_kpi_total_amortizado');
+  if (elAmortizado) elAmortizado.textContent = '₡' + fmtCRC(totAmortizado);
+
+  const elSaldo = document.getElementById('pf_kpi_saldo_deuda');
+  if (elSaldo) elSaldo.textContent = '₡' + fmtCRC(totSaldoDeuda);
+
+  const elDeuda = document.getElementById('pf_kpi_deuda_inicial');
+  if (elDeuda) elDeuda.textContent = '₡' + fmtCRC(totDeudaInicial);
+
+  const elCnt = document.getElementById('pf_kpi_cnt');
+  if (elCnt) elCnt.textContent = lista.length;
 }
 
 function pfRenderTabla() {
