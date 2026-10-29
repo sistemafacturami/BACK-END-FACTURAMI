@@ -99,21 +99,28 @@
 #pasivoAmortModal {
   position: fixed; inset: 0; background: #f0f4f8; z-index: 10000; overflow-y: auto; font-family: 'Segoe UI', Arial, sans-serif;
 }
-[data-theme="dark"] #pasivoAmortModal {
-  background: #080c14 !important;
+[data-theme="dark"] #pasivoAmortModal,
+[data-theme="dark"] #pg-cxp {
   color: var(--ink) !important;
 }
 [data-theme="dark"] #pasivoAmortModal .dr-card,
+[data-theme="dark"] #pg-cxp .dr-card,
 [data-theme="dark"] #pasivoAmortModal div[style*="background:#fff"],
+[data-theme="dark"] #pg-cxp div[style*="background:#fff"],
 [data-theme="dark"] #pasivoAmortModal div[style*="background: #fff"],
+[data-theme="dark"] #pg-cxp div[style*="background: #fff"],
 [data-theme="dark"] #pasivoAmortModal div[style*="background:#f9fafb"],
-[data-theme="dark"] #pasivoAmortModal div[style*="background: #f9fafb"] {
+[data-theme="dark"] #pg-cxp div[style*="background:#f9fafb"],
+[data-theme="dark"] #pasivoAmortModal div[style*="background: #f9fafb"],
+[data-theme="dark"] #pg-cxp div[style*="background: #f9fafb"] {
   background: #0f172a !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
   color: var(--ink) !important;
 }
 [data-theme="dark"] #pasivoAmortModal td,
-[data-theme="dark"] #pasivoAmortModal th {
+[data-theme="dark"] #pg-cxp td,
+[data-theme="dark"] #pasivoAmortModal th,
+[data-theme="dark"] #pg-cxp th {
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 [data-theme="dark"] #nuevoPasivoModalBox,
@@ -3095,7 +3102,196 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
 
   <!-- ════════════ CXP ═════════════════════════════════════════ -->
   <div class="page" id="pg-cxp">
-    <div id="cxp-dynamic"><!-- Rendered by renderCXP() --></div>
+    <div id="cxp-dynamic">
+    <!-- Encabezado de Cuentas por Pagar / Plan de Pagos -->
+    <div style="background:#1c3557; color:#fff; padding:14px 24px; display:flex; justify-content:space-between; align-items:center; border-radius:12px; margin-bottom:18px; box-shadow:0 4px 14px rgba(0,0,0,0.15); flex-wrap:wrap; gap:10px;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="font-size:22px;">🏛️</span>
+        <div>
+          <div style="font-size:16px; font-weight:700; letter-spacing:0.02em;">Plan de Pagos / Tabla de Amortización de Deuda</div>
+          <div style="font-size:11px; opacity:0.8;">Gestión de pasivos financieros, cuentas por pagar, cuotas niveladas y abonos extraordinarios (NIIF)</div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span id="pf_fecha_topbar" style="font-size:12px; opacity:0.85; margin-right:4px;"></span>
+        <button type="button" onclick="openNuevoPasivoModal()" class="btn btn-blue btn-sm" style="background:#2563eb; color:#fff; font-weight:700; border-radius:7px; padding:7px 15px; font-size:12px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(37,99,235,0.4);">
+          <span>+</span> Registrar Pasivo Financiero
+        </button>
+        <button type="button" onclick="fmAbrirReporteFinanciero('vencimientos_pasivos')" style="background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.25); border-radius:7px; padding:7px 13px; font-size:12px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:5px;">
+          🖨️ Resumen Vencimientos
+        </button>
+      </div>
+    </div>
+
+<!-- Content -->
+    <div style="max-width:1280px; margin:0 auto; padding:0 0 50px; display:flex; flex-direction:column; gap:20px;">
+
+      <!-- Fila de KPIs -->
+      <div style="display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px;">
+        <div style="background:#1c3557; border-radius:10px; padding:14px 16px; color:#fff; box-shadow:0 4px 12px rgba(28,53,87,0.2);">
+          <div style="font-size:10px; font-weight:700; color:rgba(255,255,255,0.6); letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Deuda Total Inicial</div>
+          <div id="pf_kpi_total" style="font-size:18px; font-weight:800; color:#fff;">₡0</div>
+          <div style="font-size:10px; color:rgba(255,255,255,0.6); margin-top:3px;">Operaciones: <span id="pf_kpi_cnt" style="font-weight:700; color:#93c5fd;">0</span></div>
+        </div>
+        <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Saldo Capital Pendiente</div>
+          <div id="pf_kpi_saldo" style="font-size:18px; font-weight:800; color:#1e3a8a;">₡0</div>
+          <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Al corte contable seleccionado</div>
+        </div>
+        <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Porción Corriente (12m)</div>
+          <div id="pf_kpi_corriente" style="font-size:18px; font-weight:800; color:#dc2626;">₡0</div>
+          <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Pasivo Corto Plazo (2.1)</div>
+        </div>
+        <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Porción Largo Plazo</div>
+          <div id="pf_kpi_nocorriente" style="font-size:18px; font-weight:800; color:#d97706;">₡0</div>
+          <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Pasivo No Corriente (2.2)</div>
+        </div>
+        <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Próximo Vencimiento</div>
+          <div id="pf_kpi_prox_monto" style="font-size:18px; font-weight:800; color:#059669;">₡0</div>
+          <div id="pf_kpi_prox_fecha" style="font-size:10px; color:#6b7280; margin-top:3px; font-weight:600;">-- / -- / ----</div>
+        </div>
+      </div>
+
+      <!-- Tabla de Pasivos Registrados -->
+      <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 18px; border-bottom:1px solid #f3f4f6; background:#f9fafb; flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:12px; font-weight:700; color:#374151; letter-spacing:.05em; text-transform:uppercase;">Pasivos y Préstamos Registrados</span>
+            <span id="pf_tabla_cnt" style="background:#e0e7ff; color:#3730a3; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700;">0</span>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;" id="pf_chips">
+            <select id="pf_acreedor_filter" onchange="pfFiltrarAcreedor(this.value)" style="padding:4px 10px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#374151; background:#fff; height:28px;">
+              <option value="TODOS">Todos los acreedores</option>
+            </select>
+            <div style="width:1px; height:18px; background:#e5e7eb;"></div>
+            <button type="button" onclick="pfFiltrar(this,'TODOS')" style="padding:3px 10px; border-radius:8px; font-size:11px; border:1px solid #1c3557; cursor:pointer; color:#fff; background:#1c3557; font-weight:600;">Todos</button>
+            <button type="button" onclick="pfFiltrar(this,'ACTIVOS')" style="padding:3px 10px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#6b7280; background:transparent; font-weight:600;">Activos</button>
+            <button type="button" onclick="pfFiltrar(this,'EN_MORA')" style="padding:3px 10px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#6b7280; background:transparent; font-weight:600;">En Mora</button>
+            <button type="button" onclick="pfFiltrar(this,'CANCELADOS')" style="padding:3px 10px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#6b7280; background:transparent; font-weight:600;">Cancelados</button>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead>
+              <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
+                <th style="padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Descripción / Documento</th>
+                <th style="padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Acreedor</th>
+                <th style="padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Tipo</th>
+                <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Inicio</th>
+                <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Plazo</th>
+                <th style="padding:10px 12px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Tasa Anual</th>
+                <th style="padding:10px 12px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Principal</th>
+                <th style="padding:10px 12px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Saldo Capital</th>
+                <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Amortizado</th>
+                <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Próx. Vencimiento</th>
+                <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="pf_tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Panel de Detalle del Pasivo Seleccionado -->
+      <div id="pf_detalle_drawer" style="display:none; background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.06);" class="dr-card">
+        
+        <!-- Drawer Header -->
+        <div style="background:#1c3557; color:#fff; padding:12px 20px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:14px; font-weight:700;" id="pf_det_titulo">Detalle del Pasivo</div>
+            <div style="font-size:11px; opacity:0.75;" id="pf_det_sub">Acreedor y condiciones de amortización</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" onclick="openRegistrarPagoModal('cuota')" class="btn btn-sm" style="background:#10b981; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
+              + Registrar Pago Cuota
+            </button>
+            <button type="button" onclick="openRegistrarPagoModal('abono')" class="btn btn-sm" style="background:#f59e0b; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
+              ⚡ Abono Extraordinario
+            </button>
+            <button type="button" onclick="openRegistrarPagoModal('cancelacion')" class="btn btn-sm" style="background:#6366f1; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
+              ✓ Cancelar Totalmente
+            </button>
+            <button type="button" onclick="imprimirTablaAmortizacionPasivo()" class="btn btn-sm" style="background:rgba(255,255,255,0.18); color:#fff; border:1px solid rgba(255,255,255,0.3); padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
+              🖨️ Imprimir Plan
+            </button>
+            <button type="button" onclick="pfCerrarDetalle()" style="background:none; border:none; color:#fff; font-size:16px; cursor:pointer; opacity:0.8; padding:0 6px;">✕</button>
+          </div>
+        </div>
+
+        <!-- Tabs Bar -->
+        <div style="display:flex; border-bottom:1px solid #e5e7eb; background:#f9fafb; padding:0 16px;">
+          <button type="button" class="pf-tab-btn active" id="pftab_btn_plan" onclick="pfCambiarTab('plan')">Plan de Pagos / Tabla de Amortización</button>
+          <button type="button" class="pf-tab-btn" id="pftab_btn_hist" onclick="pfCambiarTab('hist')">Historial de Pagos y Abonos</button>
+          <button type="button" class="pf-tab-btn" id="pftab_btn_asientos" onclick="pfCambiarTab('asientos')">Asientos Contables Vinculados</button>
+        </div>
+
+        <!-- Contenido Tab 1: Plan de Pagos -->
+        <div id="pftab_cont_plan" style="padding:16px 20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:12px; font-weight:700; color:#374151;">Versión del Plan:</span>
+              <select id="pf_version_sel" onchange="pfCambiarVersion(this.value)" style="padding:4px 10px; border-radius:6px; font-size:12px; border:1px solid #d1d5db; font-weight:600; color:#1f2937;">
+              </select>
+            </div>
+            <div id="pf_version_info" style="font-size:11px; color:#6b7280; font-weight:600;"></div>
+          </div>
+
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:11.5px;">
+              <thead>
+                <tr style="background:#f9fafb; border-bottom:2px solid #e5e7eb;">
+                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">N.°</th>
+                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Vencimiento</th>
+                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Saldo Inicial</th>
+                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#1e40af; text-transform:uppercase;">Cuota Total</th>
+                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#dc2626; text-transform:uppercase;">Interés</th>
+                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#059669; text-transform:uppercase;">Amort. Capital</th>
+                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#374151; text-transform:uppercase;">Saldo Final</th>
+                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Estado</th>
+                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Fecha Pago</th>
+                </tr>
+              </thead>
+              <tbody id="pf_amort_tbody"></tbody>
+              <tfoot id="pf_amort_tfoot" style="background:#f9fafb; font-weight:700; border-top:2px solid #d1d5db;"></tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- Contenido Tab 2: Historial de Pagos -->
+        <div id="pftab_cont_hist" style="display:none; padding:16px 20px;">
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:11.5px;">
+              <thead>
+                <tr style="background:#f9fafb; border-bottom:2px solid #e5e7eb;">
+                  <th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Fecha</th>
+                  <th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Tipo de Pago</th>
+                  <th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Comprobante</th>
+                  <th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Origen Fondos</th>
+                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#059669; text-transform:uppercase;">Capital</th>
+                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#dc2626; text-transform:uppercase;">Interés</th>
+                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#1e40af; text-transform:uppercase;">Total Pagado</th>
+                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Estado</th>
+                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="pf_hist_tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Contenido Tab 3: Asientos Contables -->
+        <div id="pftab_cont_asientos" style="display:none; padding:16px 20px;">
+          <div id="pf_asientos_list" style="display:flex; flex-direction:column; gap:12px;"></div>
+        </div>
+
+      </div>
+
+    </div>
+    </div>
   </div>
 
   <!-- ════════════ PROPORCIONALIDAD ═══════════════════════════ -->
@@ -3635,7 +3831,7 @@ const TITLES={
   costos:['Costos','Costos directos de construcción'],
   obras:['Obras en Proceso','Proyectos activos'],
   cxc:['Cuentas por Cobrar','Saldos pendientes de cobro'],
-  cxp:['Cuentas por Pagar','Obligaciones con proveedores'],
+  cxp:['Cuentas por Pagar','Plan de pagos, tabla de amortización de deuda y gestión de pasivos financieros'],
   prop:['Proporcionalidad','Factor IVA — Art. 32 Ley IVA'],
   estres:['Estado de Resultados','Pérdidas y Ganancias del Período'],
   balgeneral:['Balance General','Estado de Situación Financiera'],
@@ -4258,31 +4454,23 @@ function recalcularPorAbonoJS(cuotasAnteriores, cuotaCorteIdx, montoAbono, tipoR
 
 // ── Control UI Modal de Amortización ────────────────────────────────
 function openPasivoAmortModal() {
-  ensurePasivosStructure();
-  const m = document.getElementById('pasivoAmortModal');
-  if (!m) return;
-  m.style.display = 'block';
-
-  const hoy = new Date();
-  const elF = document.getElementById('pf_fecha_topbar');
-  if (elF) {
-    elF.textContent = hoy.toLocaleDateString('es-CR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-  }
-
-  pfCargar();
+  go('cxp');
 }
 
 function closePasivoAmortModal() {
-  const m = document.getElementById('pasivoAmortModal');
-  if (m) m.style.display = 'none';
+  // Ahora Cuentas por Pagar es una página nativa del sistema
 }
 
 function pfCargar() {
   ensurePasivosStructure();
+  const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  if (pfSelIdx === null && todos.length > 0) {
+    pfSelIdx = 0;
+  }
   pfRenderKPIs();
   pfRenderTabla();
   pfPopulateAcreedorFilter();
-  if (pfSelIdx !== null) {
+  if (pfSelIdx !== null && todos[pfSelIdx]) {
     pfMostrarDetalle(pfSelIdx);
   }
 }
@@ -9260,55 +9448,13 @@ function getCXPData(){
 }
 
 function renderCXP(){
-  const el = document.getElementById('cxp-dynamic'); if(!el) return;
-  const rows = getCXPData();
-  const today = new Date();
-  const in7 = new Date(); in7.setDate(in7.getDate() + 7);
-
-  let totalPagar=0, totalVencido=0, totalPorVencer=0, totalPagado=0, nVencido=0, nPorVencer=0;
-  rows.forEach(r=>{
-    if(r.pagado){ totalPagado += r.monto||0; return; }
-    totalPagar += r.monto||0;
-    const venc = new Date(r.vencimiento);
-    if(venc < today){ totalVencido += r.monto||0; nVencido++; }
-    else if(venc <= in7){ totalPorVencer += r.monto||0; nPorVencer++; }
-  });
-
-  const rowsHtml = rows.map((r,i)=>{
-    const venc = new Date(r.vencimiento);
-    const isVenc = !r.pagado && venc < today;
-    const isPorV = !r.pagado && venc >= today && venc <= in7;
-    const status = r.pagado ? '<span class="stag stag-t">Pagado</span>' : isVenc ? '<span class="stag stag-r">Vencido</span>' : isPorV ? '<span class="stag stag-a">Por vencer</span>' : '<span class="stag stag-g">Al día</span>';
-    const fmtDate = d => d ? d.split('-').reverse().join('/') : '—';
-    return `<tr style="${r.pagado?'opacity:.5':''}">
-      <td class="mono">${fmtDate(r.fecha)}</td>
-      <td class="bold">${r.proveedor||'—'}</td>
-      <td class="mono">${r.doc||'—'}</td>
-      <td class="r mono">${fmt(r.monto||0)}</td>
-      <td class="mono">${fmtDate(r.vencimiento)}</td>
-      <td>${status}</td>
-      <td style="text-align:center">
-        ${!r.pagado ? `<button class="btn btn-sm" style="font-size:10px;padding:3px 8px" onclick="toggleCXPPaid(${i})">✔ Pagar</button>` : '✅'}
-        <button class="btn-del-row" onclick="deleteCXPRow(${i})" title="Eliminar">🗑️</button>
-      </td>
-    </tr>`;
-  }).join('');
-
-  el.innerHTML = `
-    <div class="g3" style="margin-bottom:18px">
-      <div class="kpi"><div class="kpi-accent" style="background:var(--red)"></div><div class="kpi-lbl">Total por pagar</div><div class="kpi-num">${fmt(totalPagar)}</div><div class="kpi-foot"><span class="badge badge-r">${rows.filter(r=>!r.pagado).length} pendientes</span></div></div>
-      <div class="kpi"><div class="kpi-accent" style="background:var(--amber)"></div><div class="kpi-lbl">Próximos 7 días</div><div class="kpi-num">${fmt(totalPorVencer)}</div><div class="kpi-foot"><span class="badge badge-a">${nPorVencer} facturas</span></div></div>
-      <div class="kpi"><div class="kpi-accent" style="background:var(--teal)"></div><div class="kpi-lbl">Pagado</div><div class="kpi-num">${fmt(totalPagado)}</div><div class="kpi-foot"><span class="badge badge-t">${rows.filter(r=>r.pagado).length} completados</span></div></div>
-    </div>
-    <div style="margin-bottom:16px"><button class="btn btn-dark btn-sm" onclick="openCXPModal()">+ Nueva Cuenta por Pagar</button></div>
-    <div class="card">
-      <div class="sh"><div><div class="sh-t">Cuentas por Pagar</div><div class="sh-s">Obligaciones con proveedores</div></div></div>
-      <div class="tw"><table>
-        <thead><tr><th>Fecha</th><th>Proveedor</th><th>N° Factura</th><th class="r">Monto</th><th>Vencimiento</th><th>Estado</th><th style="text-align:center">Acciones</th></tr></thead>
-        <tbody>${rowsHtml || '<tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📤</div><div class="empty-state-title">Sin cuentas por pagar</div><div class="empty-state-desc">Registra tus obligaciones pendientes con proveedores.</div><button class="btn btn-dark btn-sm" onclick="openCXPModal()">+ Nueva CXP</button></div></td></tr>'}</tbody>
-        ${rows.length > 0 ? `<tfoot><tr><td colspan="3">Total pendiente</td><td class="r">${fmt(totalPagar)}</td><td colspan="3"></td></tr></tfoot>` : ''}
-      </table></div>
-    </div>`;
+  ensurePasivosStructure();
+  const hoy = new Date();
+  const elF = document.getElementById('pf_fecha_topbar');
+  if (elF) {
+    elF.textContent = hoy.toLocaleDateString('es-CR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  }
+  pfCargar();
 }
 
 function openCXPModal(){
@@ -10995,200 +11141,7 @@ document.addEventListener('DOMContentLoaded', () => {
   <!-- ══════════════════════════════════════════════════════════════════════ -->
   <!-- ── MODAL: PLAN DE PAGOS / TABLA DE AMORTIZACIÓN DE DEUDA ───────────── -->
   <!-- ══════════════════════════════════════════════════════════════════════ -->
-  <div id="pasivoAmortModal" style="display:none; position:fixed; inset:0; background:#f0f4f8; z-index:10000; overflow-y:auto; font-family:'Segoe UI',Arial,sans-serif;">
-
-    <!-- Topbar -->
-    <div style="background:#1c3557; color:#fff; padding:14px 28px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:20; box-shadow:0 4px 14px rgba(0,0,0,0.15);">
-      <div style="display:flex; align-items:center; gap:12px;">
-        <span style="font-size:18px;">📋</span>
-        <div>
-          <div style="font-size:16px; font-weight:700; letter-spacing:0.02em;">Plan de Pagos / Tabla de Amortización de Deuda</div>
-          <div style="font-size:11px; opacity:0.75;">Gestión integral de pasivos financieros, cuotas niveladas y abonos extraordinarios (NIIF)</div>
-        </div>
-      </div>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <span id="pf_fecha_topbar" style="font-size:12px; opacity:0.8; margin-right:6px;"></span>
-        <button type="button" onclick="openNuevoPasivoModal()" class="btn btn-blue btn-sm" style="background:#2563eb; color:#fff; font-weight:700; border-radius:7px; padding:6px 14px; font-size:12px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(37,99,235,0.4);">
-          <span>+</span> Registrar Pasivo Financiero
-        </button>
-        <button type="button" onclick="fmAbrirReporteFinanciero('vencimientos_pasivos')" style="background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.25); border-radius:7px; padding:6px 12px; font-size:12px; cursor:pointer; font-weight:600;">
-          🖨️ Resumen Vencimientos
-        </button>
-        <button type="button" onclick="closePasivoAmortModal()" style="background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.3); border-radius:7px; padding:6px 14px; font-size:12px; cursor:pointer; font-weight:700;">
-          ✕ Cerrar
-        </button>
-      </div>
-    </div>
-
-    <!-- Content -->
-    <div style="max-width:1280px; margin:0 auto; padding:24px 24px 60px; display:flex; flex-direction:column; gap:20px;">
-
-      <!-- Fila de KPIs -->
-      <div style="display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px;">
-        <div style="background:#1c3557; border-radius:10px; padding:14px 16px; color:#fff; box-shadow:0 4px 12px rgba(28,53,87,0.2);">
-          <div style="font-size:10px; font-weight:700; color:rgba(255,255,255,0.6); letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Deuda Total Inicial</div>
-          <div id="pf_kpi_total" style="font-size:18px; font-weight:800; color:#fff;">₡0</div>
-          <div style="font-size:10px; color:rgba(255,255,255,0.6); margin-top:3px;">Operaciones: <span id="pf_kpi_cnt" style="font-weight:700; color:#93c5fd;">0</span></div>
-        </div>
-        <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
-          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Saldo Capital Pendiente</div>
-          <div id="pf_kpi_saldo" style="font-size:18px; font-weight:800; color:#1e3a8a;">₡0</div>
-          <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Al corte contable seleccionado</div>
-        </div>
-        <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
-          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Porción Corriente (12m)</div>
-          <div id="pf_kpi_corriente" style="font-size:18px; font-weight:800; color:#dc2626;">₡0</div>
-          <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Pasivo Corto Plazo (2.1)</div>
-        </div>
-        <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
-          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Porción Largo Plazo</div>
-          <div id="pf_kpi_nocorriente" style="font-size:18px; font-weight:800; color:#d97706;">₡0</div>
-          <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Pasivo No Corriente (2.2)</div>
-        </div>
-        <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
-          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Próximo Vencimiento</div>
-          <div id="pf_kpi_prox_monto" style="font-size:18px; font-weight:800; color:#059669;">₡0</div>
-          <div id="pf_kpi_prox_fecha" style="font-size:10px; color:#6b7280; margin-top:3px; font-weight:600;">-- / -- / ----</div>
-        </div>
-      </div>
-
-      <!-- Tabla de Pasivos Registrados -->
-      <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 18px; border-bottom:1px solid #f3f4f6; background:#f9fafb; flex-wrap:wrap; gap:8px;">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span style="font-size:12px; font-weight:700; color:#374151; letter-spacing:.05em; text-transform:uppercase;">Pasivos y Préstamos Registrados</span>
-            <span id="pf_tabla_cnt" style="background:#e0e7ff; color:#3730a3; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700;">0</span>
-          </div>
-          <div style="display:flex; gap:8px; align-items:center;" id="pf_chips">
-            <select id="pf_acreedor_filter" onchange="pfFiltrarAcreedor(this.value)" style="padding:4px 10px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#374151; background:#fff; height:28px;">
-              <option value="TODOS">Todos los acreedores</option>
-            </select>
-            <div style="width:1px; height:18px; background:#e5e7eb;"></div>
-            <button type="button" onclick="pfFiltrar(this,'TODOS')" style="padding:3px 10px; border-radius:8px; font-size:11px; border:1px solid #1c3557; cursor:pointer; color:#fff; background:#1c3557; font-weight:600;">Todos</button>
-            <button type="button" onclick="pfFiltrar(this,'ACTIVOS')" style="padding:3px 10px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#6b7280; background:transparent; font-weight:600;">Activos</button>
-            <button type="button" onclick="pfFiltrar(this,'EN_MORA')" style="padding:3px 10px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#6b7280; background:transparent; font-weight:600;">En Mora</button>
-            <button type="button" onclick="pfFiltrar(this,'CANCELADOS')" style="padding:3px 10px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#6b7280; background:transparent; font-weight:600;">Cancelados</button>
-          </div>
-        </div>
-
-        <div style="overflow-x:auto;">
-          <table style="width:100%; border-collapse:collapse; font-size:12px;">
-            <thead>
-              <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
-                <th style="padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Descripción / Documento</th>
-                <th style="padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Acreedor</th>
-                <th style="padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Tipo</th>
-                <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Inicio</th>
-                <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Plazo</th>
-                <th style="padding:10px 12px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Tasa Anual</th>
-                <th style="padding:10px 12px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Principal</th>
-                <th style="padding:10px 12px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Saldo Capital</th>
-                <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Amortizado</th>
-                <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Próx. Vencimiento</th>
-                <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Estado</th>
-              </tr>
-            </thead>
-            <tbody id="pf_tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Panel de Detalle del Pasivo Seleccionado -->
-      <div id="pf_detalle_drawer" style="display:none; background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.06);" class="dr-card">
-        
-        <!-- Drawer Header -->
-        <div style="background:#1c3557; color:#fff; padding:12px 20px; display:flex; justify-content:space-between; align-items:center;">
-          <div>
-            <div style="font-size:14px; font-weight:700;" id="pf_det_titulo">Detalle del Pasivo</div>
-            <div style="font-size:11px; opacity:0.75;" id="pf_det_sub">Acreedor y condiciones de amortización</div>
-          </div>
-          <div style="display:flex; gap:8px;">
-            <button type="button" onclick="openRegistrarPagoModal('cuota')" class="btn btn-sm" style="background:#10b981; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
-              + Registrar Pago Cuota
-            </button>
-            <button type="button" onclick="openRegistrarPagoModal('abono')" class="btn btn-sm" style="background:#f59e0b; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
-              ⚡ Abono Extraordinario
-            </button>
-            <button type="button" onclick="openRegistrarPagoModal('cancelacion')" class="btn btn-sm" style="background:#6366f1; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
-              ✓ Cancelar Totalmente
-            </button>
-            <button type="button" onclick="imprimirTablaAmortizacionPasivo()" class="btn btn-sm" style="background:rgba(255,255,255,0.18); color:#fff; border:1px solid rgba(255,255,255,0.3); padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
-              🖨️ Imprimir Plan
-            </button>
-            <button type="button" onclick="pfCerrarDetalle()" style="background:none; border:none; color:#fff; font-size:16px; cursor:pointer; opacity:0.8; padding:0 6px;">✕</button>
-          </div>
-        </div>
-
-        <!-- Tabs Bar -->
-        <div style="display:flex; border-bottom:1px solid #e5e7eb; background:#f9fafb; padding:0 16px;">
-          <button type="button" class="pf-tab-btn active" id="pftab_btn_plan" onclick="pfCambiarTab('plan')">Plan de Pagos / Tabla de Amortización</button>
-          <button type="button" class="pf-tab-btn" id="pftab_btn_hist" onclick="pfCambiarTab('hist')">Historial de Pagos y Abonos</button>
-          <button type="button" class="pf-tab-btn" id="pftab_btn_asientos" onclick="pfCambiarTab('asientos')">Asientos Contables Vinculados</button>
-        </div>
-
-        <!-- Contenido Tab 1: Plan de Pagos -->
-        <div id="pftab_cont_plan" style="padding:16px 20px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="font-size:12px; font-weight:700; color:#374151;">Versión del Plan:</span>
-              <select id="pf_version_sel" onchange="pfCambiarVersion(this.value)" style="padding:4px 10px; border-radius:6px; font-size:12px; border:1px solid #d1d5db; font-weight:600; color:#1f2937;">
-              </select>
-            </div>
-            <div id="pf_version_info" style="font-size:11px; color:#6b7280; font-weight:600;"></div>
-          </div>
-
-          <div style="overflow-x:auto;">
-            <table style="width:100%; border-collapse:collapse; font-size:11.5px;">
-              <thead>
-                <tr style="background:#f9fafb; border-bottom:2px solid #e5e7eb;">
-                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">N.°</th>
-                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Vencimiento</th>
-                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Saldo Inicial</th>
-                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#1e40af; text-transform:uppercase;">Cuota Total</th>
-                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#dc2626; text-transform:uppercase;">Interés</th>
-                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#059669; text-transform:uppercase;">Amort. Capital</th>
-                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#374151; text-transform:uppercase;">Saldo Final</th>
-                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Estado</th>
-                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Fecha Pago</th>
-                </tr>
-              </thead>
-              <tbody id="pf_amort_tbody"></tbody>
-              <tfoot id="pf_amort_tfoot" style="background:#f9fafb; font-weight:700; border-top:2px solid #d1d5db;"></tfoot>
-            </table>
-          </div>
-        </div>
-
-        <!-- Contenido Tab 2: Historial de Pagos -->
-        <div id="pftab_cont_hist" style="display:none; padding:16px 20px;">
-          <div style="overflow-x:auto;">
-            <table style="width:100%; border-collapse:collapse; font-size:11.5px;">
-              <thead>
-                <tr style="background:#f9fafb; border-bottom:2px solid #e5e7eb;">
-                  <th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Fecha</th>
-                  <th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Tipo de Pago</th>
-                  <th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Comprobante</th>
-                  <th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Origen Fondos</th>
-                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#059669; text-transform:uppercase;">Capital</th>
-                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#dc2626; text-transform:uppercase;">Interés</th>
-                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#1e40af; text-transform:uppercase;">Total Pagado</th>
-                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Estado</th>
-                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Acción</th>
-                </tr>
-              </thead>
-              <tbody id="pf_hist_tbody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Contenido Tab 3: Asientos Contables -->
-        <div id="pftab_cont_asientos" style="display:none; padding:16px 20px;">
-          <div id="pf_asientos_list" style="display:flex; flex-direction:column; gap:12px;"></div>
-        </div>
-
-      </div>
-
-    </div>
-  </div>
+  <!-- pasivoAmortModal movido a pg-cxp (Cuentas por Pagar) -->
 
   <!-- ══════════════════════════════════════════════════════════════════════ -->
   <!-- ── MODAL: NUEVO PASIVO FINANCIERO / CRÉDITO ────────────────────────── -->
