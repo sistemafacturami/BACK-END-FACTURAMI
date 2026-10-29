@@ -3256,6 +3256,7 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
                   <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#374151; text-transform:uppercase;">Saldo Final</th>
                   <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Estado</th>
                   <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Fecha Pago</th>
+                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Acción</th>
                 </tr>
               </thead>
               <tbody id="pf_amort_tbody"></tbody>
@@ -4739,11 +4740,17 @@ function pfRenderTabContenido(p) {
       totCuo += c.cuota_total;
 
       const esVencida = (c.estado === 'Pendiente' && c.fecha_vencimiento < hoyStr);
-      let badge = '<span style="background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:6px; font-size:10px; font-weight:700;">Pendiente</span>';
+      let badge = '';
+      let btnAccion = '';
       if (c.estado === 'Pagada') {
-        badge = '<span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:6px; font-size:10px; font-weight:700;">Pagada</span>';
+        badge = `<span onclick="pfToggleEstadoCuota(${idx}, ${pfSelIdx})" style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:6px; font-size:10px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:3px; border:1px solid #bbf7d0;" title="Clic para revertir a Pendiente">✔ Pagada</span>`;
+        btnAccion = `<button type="button" class="btn btn-sm" onclick="pfToggleEstadoCuota(${idx}, ${pfSelIdx})" style="background:#f3f4f6; color:#4b5563; border:1px solid #d1d5db; padding:2px 8px; border-radius:5px; font-size:10px; font-weight:600; cursor:pointer;" title="Revertir cuota a pendiente">↩ Revertir</button>`;
       } else if (esVencida) {
-        badge = '<span style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:6px; font-size:10px; font-weight:700;">Vencida</span>';
+        badge = `<span onclick="pfToggleEstadoCuota(${idx}, ${pfSelIdx})" style="background:#fee2e2; color:#b91c1c; padding:2px 8px; border-radius:6px; font-size:10px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:3px; border:1px solid #fecaca;" title="Cuota Vencida - Clic para marcar Pagada">⚠️ Vencida</span>`;
+        btnAccion = `<button type="button" class="btn btn-sm" onclick="pfToggleEstadoCuota(${idx}, ${pfSelIdx})" style="background:#10b981; color:#fff; border:none; padding:3px 10px; border-radius:6px; font-size:10.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 4px rgba(16,185,129,0.3);" title="Cambiar cuota vencida a Pagada">✔ Pagar</button>`;
+      } else {
+        badge = `<span onclick="pfToggleEstadoCuota(${idx}, ${pfSelIdx})" style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:6px; font-size:10px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:3px; border:1px solid #fde68a;" title="Cuota Pendiente - Clic para marcar Pagada">🕒 Pendiente</span>`;
+        btnAccion = `<button type="button" class="btn btn-sm" onclick="pfToggleEstadoCuota(${idx}, ${pfSelIdx})" style="background:#10b981; color:#fff; border:none; padding:3px 10px; border-radius:6px; font-size:10.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 4px rgba(16,185,129,0.3);" title="Cambiar a Pagada">✔ Pagar</button>`;
       }
 
       const tr = document.createElement('tr');
@@ -4758,6 +4765,7 @@ function pfRenderTabContenido(p) {
         <td style="padding:6px 10px; text-align:right; border-bottom:1px solid #f3f4f6;">₡${fmtCRC(c.saldo_final)}</td>
         <td style="padding:6px 10px; text-align:center; border-bottom:1px solid #f3f4f6;">${badge}</td>
         <td style="padding:6px 10px; text-align:center; font-size:10.5px; color:#6b7280; border-bottom:1px solid #f3f4f6;">${c.fecha_real_pago || '--'}</td>
+        <td style="padding:6px 10px; text-align:center; border-bottom:1px solid #f3f4f6; white-space:nowrap;">${btnAccion}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -4768,7 +4776,7 @@ function pfRenderTabContenido(p) {
         <td style="padding:8px 10px; text-align:right; color:#1e40af;">₡${fmtCRC(totCuo)}</td>
         <td style="padding:8px 10px; text-align:right; color:#dc2626;">₡${fmtCRC(totInt)}</td>
         <td style="padding:8px 10px; text-align:right; color:#059669;">₡${fmtCRC(totCap)}</td>
-        <td colspan="3"></td>
+        <td colspan="4"></td>
       </tr>
     `;
   } else if (pfTabActiva === 'hist') {
@@ -5337,6 +5345,99 @@ function guardarPagoPasivo(e) {
   renderPasivos();
   if (typeof bgCalc === 'function') bgCalc();
   showToast('Pago registrado y asiento de partida doble generado');
+}
+
+function pfToggleEstadoCuota(cuotaIdx, pasivoIdx = null) {
+  ensurePasivosStructure();
+  const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  const pIdx = (pasivoIdx !== null && pasivoIdx !== undefined) ? pasivoIdx : pfSelIdx;
+  if (pIdx === null || !todos[pIdx]) return;
+  const p = todos[pIdx];
+  const plan = (p.versiones_plan || []).find(v => v.version_id === p.version_activa) || (p.versiones_plan || [])[0];
+  if (!plan || !plan.cuotas || !plan.cuotas[cuotaIdx]) return;
+
+  const c = plan.cuotas[cuotaIdx];
+  const hoyStr = new Date().toISOString().slice(0, 10);
+
+  if (c.estado === 'Pagada') {
+    if (!confirm(`¿Desea cambiar la cuota #${c.num_cuota} de Pagada a Pendiente?`)) return;
+
+    const capAmort = parseFloat(c.capital_pagado || c.amortizacion_capital) || 0;
+    const pagoId = c.pago_id;
+
+    c.estado = 'Pendiente';
+    c.fecha_real_pago = null;
+    c.capital_pagado = 0.0;
+    c.interes_pagado = 0.0;
+    c.pago_id = null;
+
+    // Restaurar saldo capital
+    p.saldo_capital_actual = Math.round((parseFloat(p.saldo_capital_actual || 0) + capAmort) * 100) / 100;
+    if (p.estado === 'cancelado') p.estado = 'activo';
+
+    // Anular registro en historial de pagos
+    if (p.pagos && pagoId) {
+      const pg = p.pagos.find(x => x.id === pagoId);
+      if (pg) pg.estado = 'reversado';
+    }
+
+    saveAllData();
+    pfRenderKPIs();
+    pfRenderTabla();
+    pfMostrarDetalle(pfSelIdx);
+    renderPasivos();
+    if (typeof bgCalc === 'function') bgCalc();
+    showToast(`Cuota #${c.num_cuota} cambiada a Pendiente`);
+  } else {
+    const capAmort = parseFloat(c.amortizacion_capital) || 0;
+    const interes = parseFloat(c.interes) || 0;
+    const total = parseFloat(c.cuota_total) || (capAmort + interes);
+    const pagoId = 'pago_cuota_' + Date.now() + '_' + c.num_cuota;
+
+    c.estado = 'Pagada';
+    c.fecha_real_pago = hoyStr;
+    c.capital_pagado = capAmort;
+    c.interes_pagado = interes;
+    c.pago_id = pagoId;
+
+    // Reducir saldo de capital actual
+    const saldoPrev = parseFloat(p.saldo_capital_actual || 0);
+    p.saldo_capital_actual = Math.max(0, Math.round((saldoPrev - capAmort) * 100) / 100);
+
+    // Verificar si todas las cuotas están pagadas
+    const pendientes = plan.cuotas.filter(q => q.estado !== 'Pagada');
+    if (pendientes.length === 0 || p.saldo_capital_actual <= 0.01) {
+      p.estado = 'cancelado';
+    } else {
+      p.estado = 'activo';
+    }
+
+    // Registrar en historial de pagos
+    if (!p.pagos) p.pagos = [];
+    p.pagos.push({
+      id: pagoId,
+      fecha: hoyStr,
+      tipo: 'cuota_ordinaria',
+      monto_total: total,
+      monto_capital: capAmort,
+      monto_interes: interes,
+      monto_mora: 0.0,
+      origen_fondos: 'banco',
+      cuenta_bancaria_codigo: '1.1.1.02.01',
+      comprobante: `CUOTA-#${c.num_cuota}`,
+      num_cuota: c.num_cuota,
+      estado: 'aplicado',
+      version_plan_resultante: p.version_activa
+    });
+
+    saveAllData();
+    pfRenderKPIs();
+    pfRenderTabla();
+    pfMostrarDetalle(pfSelIdx);
+    renderPasivos();
+    if (typeof bgCalc === 'function') bgCalc();
+    showToast(`Cuota #${c.num_cuota} cambiada a Pagada exitosamente`);
+  }
 }
 
 function pfAnularPago(pagoId) {
