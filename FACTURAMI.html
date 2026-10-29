@@ -3189,6 +3189,7 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
                 <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Amortizado</th>
                 <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Próx. Vencimiento</th>
                 <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Estado</th>
+                <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Acciones</th>
               </tr>
             </thead>
             <tbody id="pf_tbody"></tbody>
@@ -4579,7 +4580,7 @@ function pfRenderTabla() {
   document.getElementById('pf_tabla_cnt').textContent = lista.length;
 
   if (lista.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:35px; color:#9ca3af;">No hay pasivos financieros registrados con los filtros aplicados. Haga clic en "+ Registrar Pasivo Financiero" para agregar uno.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center; padding:35px; color:#9ca3af;">No hay pasivos financieros registrados con los filtros aplicados. Haga clic en "+ Registrar Pasivo Financiero" para agregar uno.</td></tr>`;
     return;
   }
 
@@ -4602,9 +4603,11 @@ function pfRenderTabla() {
     const tr = document.createElement('tr');
     tr.style.cursor = 'pointer';
     tr.style.background = isSel ? '#dbeafe' : '';
+    tr.title = 'Clic para ver plan de pagos | Doble clic para editar';
     tr.onmouseover = () => { if (pfSelIdx !== idxReal) tr.style.background = '#f0f7ff'; };
     tr.onmouseout = () => { tr.style.background = (pfSelIdx === idxReal) ? '#dbeafe' : ''; };
     tr.onclick = () => { pfSeleccionar(idxReal); };
+    tr.ondblclick = (ev) => { ev.stopPropagation(); pfEditarPasivo(idxReal); };
 
     tr.innerHTML = `
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6;">
@@ -4612,7 +4615,9 @@ function pfRenderTabla() {
         <div style="font-size:10px; color:#6b7280; font-family:monospace;">${p.doc_respaldo || 'Sin doc.'}</div>
       </td>
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; font-weight:600;">${p.acreedor || '--'}</td>
-      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-transform:capitalize; font-size:11px;">${(p.tipo || '').replace('_', ' ')}</td>
+      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; font-size:11px; font-weight:600; color:${(p.tipo === 'pasivo_no_corriente' || p.tipo === 'no_corriente') ? '#b45309' : '#1d4ed8'};">
+        ${(p.tipo === 'pasivo_no_corriente' || p.tipo === 'no_corriente') ? 'Pasivo No Corriente' : 'Pasivo Corriente'}
+      </td>
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:center; font-family:monospace;">${p.fecha_inicio || '--'}</td>
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:center; font-weight:600;">${p.plazo_meses || 12}m</td>
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:right; font-weight:700; color:#dc2626;">${parseFloat(p.tasa_anual || 0).toFixed(2)}%</td>
@@ -4626,6 +4631,10 @@ function pfRenderTabla() {
       </td>
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:center; font-family:monospace; font-weight:600;">${p.fecha_vencimiento || '--'}</td>
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:center;">${badge}</td>
+      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:center; white-space:nowrap;">
+        <button type="button" class="btn btn-sm" onclick="event.stopPropagation(); pfEditarPasivo(${idxReal})" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700; margin-right:4px;" title="Editar pasivo (o doble clic)">✏️ Editar</button>
+        <button type="button" class="btn btn-sm" onclick="event.stopPropagation(); pfEliminarPasivo(${idxReal})" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700;" title="Eliminar pasivo">🗑️</button>
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -4843,16 +4852,82 @@ function pfRenderTabContenido(p) {
 }
 
 // ── Control Modal Nuevo Pasivo ───────────────────────────────────────
+let pfEditIdx = null;
+
 function openNuevoPasivoModal() {
+  pfEditIdx = null;
   const m = document.getElementById('nuevoPasivoFinancieroModal');
   if (!m) return;
   m.style.display = 'flex';
+  const tEl = document.getElementById('npf_modal_title');
+  if (tEl) tEl.textContent = 'Registrar Nuevo Pasivo Financiero';
+  const bSub = document.getElementById('npf_submit_btn');
+  if (bSub) bSub.textContent = 'Confirmar y Generar Plan V1';
   document.getElementById('formNuevoPasivo').reset();
   document.getElementById('npf_fecha').value = new Date().toISOString().slice(0, 10);
   document.getElementById('npf_plazo').value = 12;
   document.getElementById('npf_tasa').value = '12.00';
   document.getElementById('npf_dia').value = 1;
+  document.getElementById('npf_tipo').value = 'pasivo_corriente';
   npfRecalcularPreview();
+}
+
+function pfEditarPasivo(idxReal) {
+  ensurePasivosStructure();
+  const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  if (idxReal === null || idxReal === undefined || !todos[idxReal]) return;
+  const p = todos[idxReal];
+  pfEditIdx = idxReal;
+
+  const m = document.getElementById('nuevoPasivoFinancieroModal');
+  if (!m) return;
+  m.style.display = 'flex';
+
+  const tEl = document.getElementById('npf_modal_title');
+  if (tEl) tEl.textContent = 'Editar Pasivo Financiero';
+  const bSub = document.getElementById('npf_submit_btn');
+  if (bSub) bSub.textContent = 'Guardar Cambios';
+
+  document.getElementById('npf_desc').value = p.descripcion || '';
+  document.getElementById('npf_acreedor').value = p.acreedor || '';
+  document.getElementById('npf_tipo').value = (p.tipo === 'pasivo_no_corriente' || p.tipo === 'no_corriente') ? 'pasivo_no_corriente' : 'pasivo_corriente';
+  document.getElementById('npf_monto').value = (p.monto_principal || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.getElementById('npf_fecha').value = p.fecha_inicio || new Date().toISOString().slice(0, 10);
+  document.getElementById('npf_plazo').value = p.plazo_meses || 12;
+  document.getElementById('npf_period').value = p.periodicidad || 'mensual';
+  document.getElementById('npf_dia').value = p.dia_pago || 1;
+  document.getElementById('npf_tasa').value = parseFloat(p.tasa_anual || 0).toFixed(2);
+  document.getElementById('npf_sistema').value = p.sistema || 'frances';
+  document.getElementById('npf_gracia').value = p.periodo_gracia_capital || 0;
+  document.getElementById('npf_comision').value = (p.comision_formalizacion || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.getElementById('npf_doc').value = p.doc_respaldo || '';
+  npfRecalcularPreview();
+}
+
+function pfEliminarPasivo(idxReal) {
+  ensurePasivosStructure();
+  const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  if (idxReal === null || idxReal === undefined || !todos[idxReal]) return;
+  const p = todos[idxReal];
+
+  const desc = p.descripcion || 'este pasivo';
+  const acreedor = p.acreedor || '';
+  if (!confirm(`¿Está seguro de eliminar ${desc} (${acreedor})?\n\nEsta acción eliminará el pasivo, su tabla de amortización e historial de pagos.`)) {
+    return;
+  }
+
+  todos.splice(idxReal, 1);
+  if (pfSelIdx === idxReal) {
+    pfSelIdx = todos.length > 0 ? 0 : null;
+  } else if (pfSelIdx > idxReal) {
+    pfSelIdx--;
+  }
+
+  saveAllData();
+  pfCargar();
+  renderPasivos();
+  if (typeof bgCalc === 'function') bgCalc();
+  showToast('Pasivo financiero eliminado correctamente');
 }
 
 function closeNuevoPasivoModal() {
@@ -4959,6 +5034,57 @@ function guardarNuevoPasivo(e) {
     ],
     pagos: []
   };
+
+  if (pfEditIdx !== null && MODS.pasivos.financieros[pfEditIdx]) {
+    const pExist = MODS.pasivos.financieros[pfEditIdx];
+    // Calcular saldo restante si ya tenía pagos
+    const pagosExist = pExist.pagos || [];
+    let saldoRestante = principal;
+    pagosExist.forEach(pg => {
+      if (pg.estado !== 'reversado') {
+        saldoRestante = Math.max(0, saldoRestante - (parseFloat(pg.monto_capital) || 0));
+      }
+    });
+
+    pExist.descripcion = desc;
+    pExist.acreedor = acreedor;
+    pExist.tipo = tipo;
+    pExist.monto_principal = principal;
+    pExist.saldo_capital_actual = Math.round(saldoRestante * 100) / 100;
+    pExist.fecha_inicio = fecha;
+    pExist.fecha_vencimiento = resPlan.cuotas[resPlan.cuotas.length - 1].fecha_vencimiento;
+    pExist.plazo_meses = plazo;
+    pExist.periodicidad = period;
+    pExist.dia_pago = dia;
+    pExist.tasa_anual = tasa;
+    pExist.sistema = sistema;
+    pExist.periodo_gracia_capital = gracia;
+    pExist.comision_formalizacion = comision;
+    pExist.doc_respaldo = doc;
+    pExist.destino = desc;
+    pExist.versiones_plan = [
+      {
+        version_id: 1,
+        fecha_creacion: fecha,
+        motivo: 'Plan Actualizado / Editado',
+        saldo_base: principal,
+        cuotas_totales: resPlan.cuotas.length,
+        total_intereses_proyectados: resPlan.tot_interes,
+        total_pagar_proyectado: resPlan.tot_pagar,
+        cuotas: resPlan.cuotas
+      }
+    ];
+    pExist.version_activa = 1;
+
+    pfEditIdx = null;
+    saveAllData();
+    closeNuevoPasivoModal();
+    pfCargar();
+    renderPasivos();
+    if (typeof bgCalc === 'function') bgCalc();
+    showToast('Pasivo financiero actualizado exitosamente');
+    return;
+  }
 
   MODS.pasivos.financieros.push(nuevoPasivo);
   saveAllData();
@@ -11142,7 +11268,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <div id="nuevoPasivoModalBox" style="background:#fff; border-radius:12px; width:95%; max-width:680px; max-height:90vh; overflow-y:auto; box-shadow:0 25px 60px rgba(0,0,0,0.3); display:flex; flex-direction:column;">
       
       <div style="background:#1c3557; color:#fff; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; border-radius:12px 12px 0 0;">
-        <span style="font-size:15px; font-weight:700;">Registrar Nuevo Pasivo Financiero / Crédito</span>
+        <span style="font-size:15px; font-weight:700;" id="npf_modal_title">Registrar Nuevo Pasivo Financiero</span>
         <button type="button" onclick="closeNuevoPasivoModal()" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer;">✕</button>
       </div>
 
@@ -11161,13 +11287,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
           <div>
-            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Tipo de Pasivo</label>
-            <select id="npf_tipo" class="fd-inp" style="width:100%;">
-              <option value="prestamo_bancario">Préstamo Bancario</option>
-              <option value="financiamiento_activo">Financiamiento de Activo Fijo</option>
-              <option value="arrendamiento">Arrendamiento Financiero (Leasing)</option>
-              <option value="tarjeta">Tarjeta de Crédito Corporativa</option>
-              <option value="otro">Otro Pasivo Financiero</option>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Clasificación del Pasivo *</label>
+            <select id="npf_tipo" class="fd-inp" style="width:100%; font-weight:600;">
+              <option value="pasivo_corriente">Pasivo Corriente (Corto Plazo)</option>
+              <option value="pasivo_no_corriente">Pasivo No Corriente (Largo Plazo)</option>
             </select>
           </div>
           <div>
@@ -11274,8 +11397,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
           <button type="button" onclick="closeNuevoPasivoModal()" class="btn btn-outline btn-sm" style="font-weight:600;">Cancelar</button>
-          <button type="submit" class="btn btn-blue btn-sm" style="font-weight:700; background:#2563eb; color:#fff; box-shadow:0 2px 8px rgba(37,99,235,0.4);">
-            Guardar Pasivo y Generar Plan V1
+          <button type="submit" id="npf_submit_btn" class="btn btn-blue btn-sm" style="font-weight:700; background:#2563eb; color:#fff; box-shadow:0 2px 8px rgba(37,99,235,0.4);">
+            Confirmar y Generar Plan V1
           </button>
         </div>
 
