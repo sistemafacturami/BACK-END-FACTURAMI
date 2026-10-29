@@ -4823,7 +4823,7 @@ function pfRenderTabContenido(p) {
           </span>
         </td>
         <td style="padding:8px 10px; text-align:center; border-bottom:1px solid #f3f4f6;">
-          ${!isRev ? `<button type="button" onclick="pfAnularPago('${pago.id}')" style="background:#fee2e2; color:#b91c1c; border:none; border-radius:5px; padding:3px 8px; font-size:10.5px; font-weight:700; cursor:pointer;" title="Anular este pago">Anular</button>` : '--'}
+          <button type="button" onclick="pfEliminarPago('${pago.id}')" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; border-radius:6px; padding:3px 9px; font-size:10.5px; font-weight:700; cursor:pointer;" title="Anular este pago y eliminar el registro">🗑️ Anular</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -5392,10 +5392,12 @@ function pfToggleEstadoCuota(cuotaIdx, pasivoIdx = null) {
     p.saldo_capital_actual = Math.round((parseFloat(p.saldo_capital_actual || 0) + capAmort) * 100) / 100;
     if (p.estado === 'cancelado') p.estado = 'activo';
 
-    // Anular registro en historial de pagos
-    if (p.pagos && pagoId) {
-      const pg = p.pagos.find(x => x.id === pagoId);
-      if (pg) pg.estado = 'reversado';
+    // Eliminar registro del historial de pagos
+    if (p.pagos && (pagoId || c.num_cuota)) {
+      const pgIdx = p.pagos.findIndex(x => (pagoId && x.id === pagoId) || (x.tipo === 'cuota_ordinaria' && x.num_cuota === c.num_cuota));
+      if (pgIdx !== -1) {
+        p.pagos.splice(pgIdx, 1);
+      }
     }
 
     saveAllData();
@@ -5457,44 +5459,86 @@ function pfToggleEstadoCuota(cuotaIdx, pasivoIdx = null) {
   }
 }
 
-function pfAnularPago(pagoId) {
-  if (!confirm('¿Confirma la anulación de este pago? Se generará un contrasiento de reversión contable y se restaurará el plan de pagos.')) return;
+function pfEliminarPago(pagoId) {
   const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
-  const p = todos[pfSelIdx];
-  if (!p || !p.pagos) return;
+  let p = (pfSelIdx !== null && todos[pfSelIdx]) ? todos[pfSelIdx] : null;
+  let pgIdx = -1;
 
-  const pg = p.pagos.find(item => item.id === pagoId);
-  if (!pg || pg.estado === 'reversado') return;
-
-  pg.estado = 'reversado';
-  p.saldo_capital_actual = Math.round((p.saldo_capital_actual + pg.monto_capital) * 100) / 100;
-  if (p.estado === 'cancelado') p.estado = 'activo';
-
-  if (pg.tipo.startsWith('abono_extraordinario')) {
-    if (p.versiones_plan.length > 1) {
-      p.versiones_plan.pop();
-      p.version_activa = p.versiones_plan[p.versiones_plan.length - 1].version_id;
-    }
-  } else if (pg.tipo === 'cuota_ordinaria') {
-    const plan = (p.versiones_plan || []).find(v => v.version_id === p.version_activa);
-    if (plan) {
-      const c = plan.cuotas.find(item => item.num_cuota === pg.num_cuota);
-      if (c) {
-        c.estado = 'Pendiente';
-        c.fecha_real_pago = null;
-        c.pago_id = null;
-        c.capital_pagado = 0;
-        c.interes_pagado = 0;
+  if (p && p.pagos) {
+    pgIdx = p.pagos.findIndex(item => item.id === pagoId);
+  }
+  if (pgIdx === -1) {
+    for (let i = 0; i < todos.length; i++) {
+      if (todos[i] && todos[i].pagos) {
+        const found = todos[i].pagos.findIndex(item => item.id === pagoId);
+        if (found !== -1) {
+          p = todos[i];
+          pgIdx = found;
+          pfSelIdx = i;
+          break;
+        }
       }
     }
   }
+  if (!p || !p.pagos || pgIdx === -1) return;
+  const pg = p.pagos[pgIdx];
+
+  const descTipo = (pg.tipo || 'pago').replace(/_/g, ' ');
+  const montoFmt = fmtCRC(pg.monto_total || pg.monto_capital || 0);
+
+  if (!confirm(`¿Está seguro de anular y eliminar este registro de ${descTipo} por ₡${montoFmt}?\n\nEsta acción eliminará el registro del historial y restaurará el saldo del pasivo.`)) {
+    return;
+  }
+
+  // Restaurar saldo capital y plan si no estaba previamente reversado
+  if (pg.estado !== 'reversado') {
+    const montoCap = parseFloat(pg.monto_capital) || 0;
+    p.saldo_capital_actual = Math.round((parseFloat(p.saldo_capital_actual || 0) + montoCap) * 100) / 100;
+    if (p.estado === 'cancelado') p.estado = 'activo';
+
+    if (pg.tipo && pg.tipo.startsWith('abono_extraordinario')) {
+      if (p.versiones_plan && p.versiones_plan.length > 1) {
+        p.versiones_plan.pop();
+        p.version_activa = p.versiones_plan[p.versiones_plan.length - 1].version_id;
+      }
+    } else if (pg.tipo === 'cuota_ordinaria' || pg.num_cuota) {
+      const plan = (p.versiones_plan || []).find(v => v.version_id === p.version_activa) || (p.versiones_plan || [])[0];
+      if (plan && plan.cuotas) {
+        const c = plan.cuotas.find(item => item.num_cuota === pg.num_cuota || item.pago_id === pg.id);
+        if (c) {
+          c.estado = 'Pendiente';
+          c.fecha_real_pago = null;
+          c.pago_id = null;
+          c.capital_pagado = 0;
+          c.interes_pagado = 0;
+        }
+      }
+    } else if (pg.tipo === 'cancelacion_total') {
+      const plan = (p.versiones_plan || []).find(v => v.version_id === p.version_activa) || (p.versiones_plan || [])[0];
+      if (plan && plan.cuotas) {
+        plan.cuotas.forEach(c => {
+          if (c.estado === 'Cancelada' && (!c.pago_id || c.pago_id === pg.id)) {
+            c.estado = 'Pendiente';
+            c.fecha_real_pago = null;
+            c.pago_id = null;
+          }
+        });
+      }
+    }
+  }
+
+  // Eliminar físicamente el registro de la lista de pagos
+  p.pagos.splice(pgIdx, 1);
 
   saveAllData();
   pfCargar();
   renderPasivos();
   if (typeof bgCalc === 'function') bgCalc();
-  showToast('Pago anulado y plan restaurado');
+  showToast('Registro de pago eliminado y saldo restaurado');
 }
+const pfAnularPago = pfEliminarPago;
+window.pfEliminarPago = pfEliminarPago;
+window.pfAnularPago = pfAnularPago;
 
 function imprimirTablaAmortizacionPasivo() {
   const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
