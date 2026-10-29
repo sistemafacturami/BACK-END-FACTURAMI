@@ -5,6 +5,7 @@ Lógica de partida doble, libro diario, conciliación histórica y depreciación
 import uuid
 import datetime
 import json
+from typing import Any, Dict, List, Optional
 import db as database
 
 def get_compras_sin_contrapartida(cliente_id, db_path=None):
@@ -568,7 +569,7 @@ def calcular_tabla_amortizacion(principal, tasa_anual, plazo_meses, periodicidad
         'tot_pagar': round(tot_interes + tot_capital, 2)
     }
 
-def recalcular_por_abono_extraordinario(cuotas_anteriores, cuota_corte_idx, monto_abono, tipo_recalculo='reducir_plazo', tasa_anual=12.0, periodicidad='mensual', sistema='frances'):
+def recalcular_por_abono_extraordinario(cuotas_anteriores, cuota_corte_idx, monto_abono, tipo_recalculo='reducir_plazo', tasa_anual=12.0, periodicidad='mensual', sistema='frances') -> Dict[str, Any]:
     """
     Genera una nueva versión de la tabla de amortización tras aplicar un abono extraordinario a capital.
     Soporta:
@@ -863,7 +864,7 @@ def registrar_pago_pasivo(cliente_id, pasivo, datos_pago, db_path=None):
             corte_idx = 0
             
         tipo_rec = 'reducir_plazo' if tipo_pago == 'abono_extraordinario_plazo' else 'reducir_cuota'
-        res_rec = recalcular_por_abono_extraordinario(
+        res_rec: Dict[str, Any] = recalcular_por_abono_extraordinario(
             cuotas_anteriores=plan_activo['cuotas'],
             cuota_corte_idx=corte_idx,
             monto_abono=monto_capital,
