@@ -479,6 +479,8 @@ def calcular_tabla_amortizacion(principal, tasa_anual, plazo_meses, periodicidad
     i = (float(tasa_anual) / 100.0) / float(periodos_por_ano)
     
     n_amort = max(1, n - int(gracia))
+    c_fija = 0.0
+    amort_fija = 0.0
     if sistema == 'frances':
         if i > 0 and n_amort > 0:
             c_fija = float(principal) * (i / (1.0 - (1.0 + i) ** (-n_amort)))
@@ -596,12 +598,14 @@ def recalcular_por_abono_extraordinario(cuotas_anteriores, cuota_corte_idx, mont
             'cuotas': nuevas_cuotas,
             'saldo_final': 0.0,
             'tot_interes_nuevo': round(sum(c['interes'] for c in nuevas_cuotas), 2),
+            'total_pagar_proyectado': round(sum(c['cuota_total'] for c in nuevas_cuotas), 2),
             'ahorro_intereses': round(sum(c['interes'] for c in cuotas_anteriores) - sum(c['interes'] for c in nuevas_cuotas), 2),
             'num_cuotas_totales': len(nuevas_cuotas)
         }
         
     saldo = nuevo_saldo
     
+    c_fija = float(c_original)
     if tipo_recalculo == 'reducir_plazo' and sistema == 'frances' and i > 0:
         term = 1.0 - (saldo * i / c_original)
         if term > 0:
@@ -656,9 +660,11 @@ def recalcular_por_abono_extraordinario(cuotas_anteriores, cuota_corte_idx, mont
     tot_int_orig = sum(c['interes'] for c in cuotas_anteriores)
     tot_int_nuevo = sum(c['interes'] for c in nuevas_cuotas)
     ahorro = round(tot_int_orig - tot_int_nuevo, 2)
+    tot_pagar = round(sum(c['cuota_total'] for c in nuevas_cuotas), 2)
     return {
         'cuotas': nuevas_cuotas,
         'tot_interes_nuevo': round(tot_int_nuevo, 2),
+        'total_pagar_proyectado': tot_pagar,
         'ahorro_intereses': ahorro,
         'num_cuotas_totales': len(nuevas_cuotas)
     }
@@ -820,6 +826,7 @@ def registrar_pago_pasivo(cliente_id, pasivo, datos_pago, db_path=None):
     
     monto_capital = 0.0
     monto_interes = 0.0
+    nueva_version_id = int(pasivo.get('version_activa', 1))
     
     if tipo_pago == 'cuota_ordinaria':
         # Buscar la cuota correspondiente
@@ -867,16 +874,18 @@ def registrar_pago_pasivo(cliente_id, pasivo, datos_pago, db_path=None):
         )
         
         nueva_version_id = len(versiones) + 1
+        cuotas_nuevas = res_rec.get('cuotas')
+        cuotas_list = cuotas_nuevas if isinstance(cuotas_nuevas, list) else []
         nuevo_plan = {
             'version_id': nueva_version_id,
             'fecha_creacion': fecha,
             'motivo': f"Abono Extraordinario ({'Reducción de Plazo' if tipo_rec == 'reducir_plazo' else 'Reducción de Cuota'})",
             'saldo_base': round(pasivo['saldo_capital_actual'] - monto_capital, 2),
-            'cuotas_totales': res_rec['num_cuotas_totales'],
-            'total_intereses_proyectados': res_rec['tot_interes_nuevo'],
-            'total_pagar_proyectado': round(sum(c['cuota_total'] for c in res_rec['cuotas']), 2),
-            'ahorro_intereses': res_rec['ahorro_intereses'],
-            'cuotas': res_rec['cuotas']
+            'cuotas_totales': int(res_rec.get('num_cuotas_totales', len(cuotas_list))),
+            'total_intereses_proyectados': float(res_rec.get('tot_interes_nuevo', 0.0)),
+            'total_pagar_proyectado': float(res_rec.get('total_pagar_proyectado', 0.0)),
+            'ahorro_intereses': float(res_rec.get('ahorro_intereses', 0.0)),
+            'cuotas': cuotas_list
         }
         versiones.append(nuevo_plan)
         pasivo['version_activa'] = nueva_version_id
