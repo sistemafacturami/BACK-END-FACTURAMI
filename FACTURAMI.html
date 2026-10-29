@@ -3103,23 +3103,8 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
   <!-- ════════════ CXP ═════════════════════════════════════════ -->
   <div class="page" id="pg-cxp">
     <div id="cxp-dynamic">
-      <!-- Selector de Subpestañas CXP -->
-      <div style="display:flex; gap:10px; margin-bottom:18px; border-bottom:1px solid var(--cream3, #e2e8f0); padding-bottom:12px; flex-wrap:wrap; align-items:center;">
-        <button type="button" id="cxp_subtab_prov" onclick="cxpCambiarSubtab('proveedores')" class="btn btn-sm btn-dark" style="font-weight:700; padding:8px 18px; border-radius:8px; display:inline-flex; align-items:center; gap:8px; cursor:pointer; background:#1c3557; color:#fff; border:none; box-shadow:0 2px 6px rgba(0,0,0,0.1);">
-          📦 Facturas de Proveedores
-        </button>
-        <button type="button" id="cxp_subtab_fin" onclick="cxpCambiarSubtab('financieros')" class="btn btn-sm btn-out" style="font-weight:700; padding:8px 18px; border-radius:8px; display:inline-flex; align-items:center; gap:8px; cursor:pointer; background:transparent; color:#1c3557; border:1px solid #cbd5e1;">
-          🏛️ Pasivos Financieros y Amortización
-        </button>
-      </div>
-
-      <!-- Sección 1: Proveedores Tradicionales (MODS.cxp.rows) -->
-      <div id="cxp_sec_proveedores">
-        <!-- Rendered by renderCXPProveedores() -->
-      </div>
-
-      <!-- Sección 2: Pasivos Financieros / Tabla de Amortización -->
-      <div id="cxp_sec_financieros" style="display:none;">
+      <!-- Sección: Pasivos Financieros / Plan de Pagos / Tabla de Amortización -->
+      <div id="cxp_sec_financieros">
     <!-- Encabezado de Cuentas por Pagar / Plan de Pagos -->
     <div style="background:#1c3557; color:#fff; padding:14px 24px; display:flex; justify-content:space-between; align-items:center; border-radius:12px; margin-bottom:18px; box-shadow:0 4px 14px rgba(0,0,0,0.15); flex-wrap:wrap; gap:10px;">
       <div style="display:flex; align-items:center; gap:12px;">
@@ -9561,63 +9546,25 @@ function toggleCXCPaid(i){ getCXCData()[i].pagado = !getCXCData()[i].pagado; sav
 function deleteCXCRow(i){ if(!confirm('¿Eliminar esta cuenta por cobrar?')) return; getCXCData().splice(i,1); saveAllData(); renderCXC(); showToast('Registro eliminado'); }
 
 // ── CXP DYNAMIC ──────────────────────────────────────────────
-let cxpCurrentSubtab = 'proveedores';
-
 function getCXPData(){
   if(!MODS.cxp) MODS.cxp = { rows: [] };
   return MODS.cxp.rows;
 }
 
 function cxpCambiarSubtab(tipo) {
-  cxpCurrentSubtab = tipo;
-  const bProv = document.getElementById('cxp_subtab_prov');
-  const bFin = document.getElementById('cxp_subtab_fin');
-  const secProv = document.getElementById('cxp_sec_proveedores');
-  const secFin = document.getElementById('cxp_sec_financieros');
-
-  if (tipo === 'proveedores') {
-    if (bProv) {
-      bProv.style.background = '#1c3557';
-      bProv.style.color = '#fff';
-      bProv.style.border = 'none';
-      bProv.style.boxShadow = '0 2px 6px rgba(0,0,0,0.15)';
-    }
-    if (bFin) {
-      bFin.style.background = 'transparent';
-      bFin.style.color = '#1c3557';
-      bFin.style.border = '1px solid #cbd5e1';
-      bFin.style.boxShadow = 'none';
-    }
-    if (secProv) secProv.style.display = 'block';
-    if (secFin) secFin.style.display = 'none';
-    renderCXPProveedores();
-  } else {
-    if (bProv) {
-      bProv.style.background = 'transparent';
-      bProv.style.color = '#1c3557';
-      bProv.style.border = '1px solid #cbd5e1';
-      bProv.style.boxShadow = 'none';
-    }
-    if (bFin) {
-      bFin.style.background = '#1c3557';
-      bFin.style.color = '#fff';
-      bFin.style.border = 'none';
-      bFin.style.boxShadow = '0 2px 6px rgba(0,0,0,0.15)';
-    }
-    if (secProv) secProv.style.display = 'none';
-    if (secFin) secFin.style.display = 'block';
-    ensurePasivosStructure();
-    const hoy = new Date();
-    const elF = document.getElementById('pf_fecha_topbar');
-    if (elF) {
-      elF.textContent = hoy.toLocaleDateString('es-CR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-    }
-    pfCargar();
-  }
+  renderCXP();
 }
 
 function renderCXP(){
-  cxpCambiarSubtab(cxpCurrentSubtab || 'proveedores');
+  ensurePasivosStructure();
+  const hoy = new Date();
+  const elF = document.getElementById('pf_fecha_topbar');
+  if (elF) {
+    elF.textContent = hoy.toLocaleDateString('es-CR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  }
+  const secFin = document.getElementById('cxp_sec_financieros');
+  if (secFin) secFin.style.display = 'block';
+  pfCargar();
 }
 
 function renderCXPProveedores(){
