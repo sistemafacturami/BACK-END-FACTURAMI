@@ -3853,6 +3853,14 @@ const TITLES={
   n8n:['Registrar Facturas','Bandeja de facturas escaneadas por registrar'],
 };
 const fmt = n => n===0?'—':'₡'+(n<0?'-':'')+Math.round(Math.abs(n)).toLocaleString('es-CR');
+function fmtCRC(n, forceMinus = false) {
+  if (n === null || n === undefined || n === '') return '0.00';
+  const num = typeof n === 'number' ? n : (parseFloat(String(n).replace(/\s/g, '').replace(/,/g, '')) || 0);
+  const isNeg = (num < -0.0001) || forceMinus;
+  const absStr = Math.abs(num).toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (isNeg && Math.abs(num) > 0.0001) ? `- ${absStr}` : absStr;
+}
+window.fmtCRC = fmtCRC;
 const getS = t => {
   if(!t) return 1;
   const s = String(t).toLowerCase();
@@ -12116,7 +12124,6 @@ function fmObtenerDatosReporte() {
       if (b !== 0) detalleActivos.depre.push({ name, monto: b });
     });
   }
-  const totActivos = sumCor + sumNoCor + sumIntan - sumDepre;
 
   let sumPasCor = 0, sumPasNoCor = 0, sumPatrimonio = 0;
   const detallePasivos = { pas_cor: [], pas_ncor: [] };
