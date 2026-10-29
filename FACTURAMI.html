@@ -3550,9 +3550,10 @@ function renderMod(key){
       <div class="kpi" style="padding:12px 14px"><div class="kpi-lbl" style="font-size:9px">8%</div><div class="kpi-num" style="font-size:16px">₡${tots.c8.toLocaleString('es-CR')}</div></div>
       <div class="kpi" style="padding:12px 14px"><div class="kpi-lbl" style="font-size:9px">13%</div><div class="kpi-num" style="font-size:16px;color:var(--blue)">₡${tots.c13.toLocaleString('es-CR')}</div></div>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:16px">
+    <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-dark btn-sm" onclick="openAddModal('${key}')">＋ Nuevo registro</button>
       <button class="btn btn-out btn-sm" onclick="exportModuleCSV('${key}')">⬇ Exportar CSV</button>
+      <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('${key}')">🖨 Imprimir Reporte</button>
     </div>
     <div class="card">
       <div class="sh"><div><div class="sh-t">${m.title}</div></div></div>
@@ -3619,7 +3620,11 @@ function renderActivos() {
     depre: { color:'#ef4444', bg:'linear-gradient(135deg, #991b1b 0%, #ef4444 100%)', icon:'📉' }
   };
 
-  let html = `<div class="asset-grid">`;
+  let html = `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+      <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('activos')">🖨 Imprimir Reporte de Activos</button>
+    </div>
+    <div class="asset-grid">`;
   
   Object.keys(ACTIVOS_SCHEMA).forEach(catKey => {
     const cat = ACTIVOS_SCHEMA[catKey];
@@ -3822,7 +3827,11 @@ function renderPasivos() {
     pas_ncor: { color:'#f59e0b', bg:'linear-gradient(135deg, #92400e 0%, #f59e0b 100%)', icon:'📑' }
   };
 
-  let html = `<div class="asset-grid">`;
+  let html = `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+      <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('pasivos')">🖨 Imprimir Reporte de Pasivos</button>
+    </div>
+    <div class="asset-grid">`;
 
   Object.keys(PASIVOS_SCHEMA).forEach(catKey => {
     const cat = PASIVOS_SCHEMA[catKey];
@@ -4168,7 +4177,8 @@ function renderPatrimNeto() {
       <div class="asset-header" style="border-left:4px solid ${acc.color}">
         <div style="display:flex; align-items:center; gap:12px; overflow:hidden;">
           <div class="asset-title" style="flex:1;">${cat.title}</div>
-          <div style="display:flex; gap:6px;">
+          <div style="display:flex; gap:6px; align-items:center;">
+            <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('patrimonio')">🖨 Imprimir Reporte</button>
             <button class="btn-asset-reg" onclick="openPatrimModal()"><span>+</span> Nuevo registro</button>
             <button class="btn-asset-reg" onclick="openPatrimHistory()" style="padding:0 10px;" title="Ver Historial">📋</button>
           </div>
@@ -5767,8 +5777,8 @@ function renderD150(){
       <div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end">
         <div><div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.09em">Empresa</div><div style="font-size:14px;font-weight:600">${activeClient.name}</div><div style="font-size:10px;color:rgba(255,255,255,0.4)">ID: ${activeClient.id}</div></div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-out btn-sm" style="border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);background:transparent" onclick="window.print()">🖨 Imprimir</button>
-          <button class="btn btn-blue btn-sm" onclick="showToast('Exportando D-150...')">⬇ Exportar</button>
+          <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('d150')">🖨 Imprimir Reporte</button>
+          <button class="btn btn-out btn-sm" style="border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);background:transparent" onclick="showToast('Exportando D-150...')">⬇ Exportar</button>
         </div>
       </div></div>
       <div class="d150-stripe"></div>
@@ -5847,8 +5857,8 @@ function renderD105(){
         <div style="font-family:var(--ff);font-size:18px;font-weight:600">Declaración Jurada Régimen de Tributación Simplificada D-105</div>
       </div>
       <div style="text-align:right;display:flex;gap:8px;align-items:center">
-        <button class="btn btn-out btn-sm" style="border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);background:transparent" onclick="window.print()">🖨 Imprimir</button>
-        <button class="btn btn-blue btn-sm" onclick="showToast('Exportando D-105...')">⬇ Exportar</button>
+        <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('d105')">🖨 Imprimir Reporte</button>
+        <button class="btn btn-out btn-sm" style="border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);background:transparent" onclick="showToast('Exportando D-105...')">⬇ Exportar</button>
       </div></div>
       <div class="d150-stripe"></div>
     </div>
@@ -5972,8 +5982,8 @@ function renderD113(){
       <div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end">
         <div><div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.09em">Empresa</div><div style="font-size:14px;font-weight:600">${activeClient.name}</div></div>
         <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn btn-out btn-sm" style="border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);background:transparent" onclick="window.print()">🖨 Imprimir</button>
-          <button class="btn btn-blue btn-sm" onclick="showToast('Exportando D-113...')">⬇ Exportar</button>
+          <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('d113')">🖨 Imprimir Reporte</button>
+          <button class="btn btn-out btn-sm" style="border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);background:transparent" onclick="showToast('Exportando D-113...')">⬇ Exportar</button>
         </div>
       </div></div>
       <div class="d150-stripe"></div>
@@ -6030,8 +6040,8 @@ function renderD116(){
       <div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end">
         <div><div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.09em">Empresa</div><div style="font-size:14px;font-weight:600">${activeClient.name}</div></div>
         <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn btn-out btn-sm" style="border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);background:transparent" onclick="window.print()">🖨 Imprimir</button>
-          <button class="btn btn-blue btn-sm" onclick="showToast('Exportando D-116...')">⬇ Exportar</button>
+          <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('d116')">🖨 Imprimir Reporte</button>
+          <button class="btn btn-out btn-sm" style="border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);background:transparent" onclick="showToast('Exportando D-116...')">⬇ Exportar</button>
         </div>
       </div></div>
       <div class="d150-stripe"></div>
@@ -6111,8 +6121,8 @@ function renderD101(){
       <div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end">
         <div><div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.09em">Empresa</div><div style="font-size:14px;font-weight:600">${activeClient.name}</div></div>
         <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn btn-out btn-sm" style="border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);background:transparent" onclick="window.print()">🖨 Imprimir</button>
-          <button class="btn btn-blue btn-sm" onclick="showToast('Exportando D-101...')">⬇ Exportar</button>
+          <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('d101')">🖨 Imprimir Reporte</button>
+          <button class="btn btn-out btn-sm" style="border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);background:transparent" onclick="showToast('Exportando D-101...')">⬇ Exportar</button>
         </div>
       </div></div>
       <div class="d150-stripe"></div>
@@ -7754,6 +7764,9 @@ function renderProp(){
   const content = el.querySelector('.prop-dynamic');
   if(!content) return;
   content.innerHTML = `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+      <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('prop')">🖨 Imprimir Reporte de Proporcionalidad</button>
+    </div>
     <div class="g3" style="margin-bottom:18px">
       <div class="kpi"><div class="kpi-accent" style="background:var(--green)"></div><div class="kpi-lbl">Ingresos gravados</div><div class="kpi-num">${fmt(gravados)}</div></div>
       <div class="kpi"><div class="kpi-accent" style="background:var(--amber)"></div><div class="kpi-lbl">Ingresos exentos + no sujetos</div><div class="kpi-num">${fmt(exentos + noSujetos)}</div></div>
@@ -10152,8 +10165,8 @@ document.addEventListener('DOMContentLoaded', () => {
           📄
         </div>
         <div>
-          <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;color:#ffffff;line-height:1.2;">Reportes Financieros Oficiales (NIIF)</div>
-          <div id="fmRepModalSubtitle" style="font-size:11.5px;color:#94a3b8;font-family:'Roboto Mono',monospace;">FACTURAMI · Sistema Contable</div>
+          <div id="fmRepModalTitle" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;color:#ffffff;line-height:1.2;">Reportes Financieros y Tributarios Oficiales</div>
+          <div id="fmRepModalSubtitle" style="font-size:11.5px;color:#94a3b8;font-family:'Roboto Mono',monospace;">FACTURAMI · Sistema Contable Profesional de Costa Rica</div>
         </div>
       </div>
       
@@ -10168,15 +10181,9 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     </div>
 
-    <!-- TABS DE NAVEGACIÓN ENTRE ESTADOS -->
-    <div style="padding:10px 18px;background:#080e1e;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;gap:8px;overflow-x:auto;flex-shrink:0;align-items:center;">
-      <button class="fm-rep-tab" id="fm-tab-estres" onclick="fmCambiarTabReporte('estres')">📊 Estado de Resultados</button>
-      <button class="fm-rep-tab" id="fm-tab-balgeneral" onclick="fmCambiarTabReporte('balgeneral')">⚖️ Balance General</button>
-      <button class="fm-rep-tab" id="fm-tab-efectivo" onclick="fmCambiarTabReporte('efectivo')">💵 Flujo de Efectivo</button>
-      <button class="fm-rep-tab" id="fm-tab-patrimonio" onclick="fmCambiarTabReporte('patrimonio')">📑 Cambios en el Patrimonio</button>
-      <button class="fm-rep-tab" id="fm-tab-comprobacion" onclick="fmCambiarTabReporte('comprobacion')">📋 Balance Comprobación</button>
-      <button class="fm-rep-tab" id="fm-tab-mayor" onclick="fmCambiarTabReporte('mayor')">📖 Libro Mayor</button>
-      <button class="fm-rep-tab" id="fm-tab-juego_completo" onclick="fmCambiarTabReporte('juego_completo')" style="border-left:1px solid rgba(255,255,255,0.12);padding-left:14px;color:#38bdf8;">📚 Juego Completo NIIF</button>
+    <!-- SELECTOR DE FAMILIAS Y TABS DINÁMICOS -->
+    <div id="fm-rep-tabs-bar" style="padding:10px 18px;background:#080e1e;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;gap:8px;overflow-x:auto;flex-shrink:0;align-items:center;">
+      <!-- Inyectado dinámicamente con fmActualizarTabsUI -->
     </div>
 
     <!-- ÁREA DE VISTA PREVIA TIPO HOJA IMPRESA (LIMITADA A 1 HOJA POR REPORTE) -->
@@ -10212,8 +10219,17 @@ function fmObtenerDatosReporte() {
   const anio = (document.getElementById('anioSel') ? document.getElementById('anioSel').value : '') || new Date().getFullYear().toString();
   const mesStr = (document.getElementById('mesSel') ? document.getElementById('mesSel').value : '') || '';
   const periodoTxt = mesStr ? `${mesStr} de ${anio}` : `Ejercicio Anual ${anio}`;
-  
-  // Asegurar recálculo en vivo
+  const cliente = (typeof activeClient !== 'undefined' && activeClient) ? activeClient : { name: 'Empresa Principal', id: '3-101-000000', act: 'Actividad Económica' };
+
+  // Helper para leer valores de inputs o spans
+  const gv = id => {
+    const e = document.getElementById(id);
+    if (!e) return 0;
+    const valStr = e.tagName === 'INPUT' ? e.value : e.textContent;
+    return parseFloat(String(valStr).replace(/\s/g, '').replace(/,/g, '')) || 0;
+  };
+
+  // Asegurar recálculo de estados financieros
   if (typeof getERVars === 'function') getERVars();
   if (typeof erCalc === 'function') erCalc();
   if (typeof bgCalc === 'function') bgCalc();
@@ -10222,8 +10238,7 @@ function fmObtenerDatosReporte() {
 
   // 1. Estado de Resultados
   const d = (typeof getERVars === 'function') ? getERVars() : { v:0, cmv:0, ub:0, go:0, uo:0, oi:0, og:0, uai:0, imp:0 };
-  const gvER = id => { const e = document.getElementById('er_' + id); return e ? (parseFloat(e.value.replace(/,/g, '')) || 0) : 0; };
-  const oi = gvER('oi'), og = gvER('og'), imp = gvER('imp');
+  const oi = gv('er_oi'), og = gv('er_og'), imp = gv('er_imp');
   const uai = d.uo + oi - og;
   const utilNeta = typeof utilNetaG !== 'undefined' ? utilNetaG : (uai - imp);
 
@@ -10285,35 +10300,113 @@ function fmObtenerDatosReporte() {
   const totPasivoPatrimonio = totPasivos + totPatrimonio;
 
   // 3. Flujo de Efectivo
-  const gvFE = id => { const e = document.getElementById('fe_' + id); return e ? (parseFloat(e.value.replace(/,/g, '')) || 0) : 0; };
-  const dep = gvFE('dep'), cxc = gvFE('cxc'), cxp = gvFE('cxp'), inv = gvFE('inv');
+  const dep = gv('fe_dep'), cxc = gv('fe_cxc'), cxp = gv('fe_cxp'), inv = gv('fe_inv');
   const ao = utilNeta + dep + cxc + cxp + inv;
-  const af = gvFE('af'), oiFE = gvFE('oi');
+  const af = gv('fe_af'), oiFE = gv('fe_oi');
   const ai = af + oiFE;
-  const presFE = gvFE('pres'), capFE = gvFE('cap'), divFE = gvFE('div');
+  const presFE = gv('fe_pres'), capFE = gv('fe_cap'), divFE = gv('fe_div');
   const af_tot = presFE + capFE + divFE;
   const inc = ao + ai + af_tot;
-  const ini = gvFE('ini');
+  const ini = gv('fe_ini');
   const fin = inc + ini;
 
   // 4. Cambios en el Patrimonio
-  const gvCP = id => { const e = document.getElementById('cp_' + id); return e ? (parseFloat(e.value.replace(/,/g, '')) || 0) : 0; };
-  const siCP = gvCP('si'), apCP = gvCP('ap'), retCP = gvCP('ret');
+  const siCP = gv('cp_si'), apCP = gv('cp_ap'), retCP = gv('cp_ret');
   const finCP = siCP + apCP - retCP + utilNeta;
 
+  // 5. Registros Operativos Filtrados
+  const getRows = k => (typeof MODS !== 'undefined' && MODS[k] && Array.isArray(MODS[k].rows)) ? (typeof filterRows === 'function' ? filterRows(MODS[k].rows) : MODS[k].rows) : [];
+  const rowsIng = getRows('ingresos');
+  const rowsCom = getRows('compras');
+  const rowsGas = getRows('gastos');
+  const rowsCos = getRows('costos').length > 0 ? getRows('costos') : getRows('obras');
+
+  const calcTots = rows => rows.reduce((acc, r) => {
+    const s = (typeof getS === 'function') ? getS(r.tipo) : (r.tipo === 'NC' ? -1 : 1);
+    acc.ns += (parseFloat(r.ns) || 0) * s;
+    acc.ex += (parseFloat(r.ex) || 0) * s;
+    acc.c05 += (parseFloat(r.c05) || 0) * s;
+    acc.c1 += (parseFloat(r.c1) || 0) * s;
+    acc.c2 += (parseFloat(r.c2) || 0) * s;
+    acc.c4 += (parseFloat(r.c4) || 0) * s;
+    acc.c8 += (parseFloat(r.c8) || 0) * s;
+    acc.c13 += (parseFloat(r.c13) || 0) * s;
+    const taxes = ((parseFloat(r.c05)||0) + (parseFloat(r.c1)||0) + (parseFloat(r.c2)||0) + (parseFloat(r.c4)||0) + (parseFloat(r.c8)||0) + (parseFloat(r.c13)||0)) * s;
+    acc.baseGrav += taxes;
+    const tf = (r.tf && parseFloat(r.tf) > 0) ? (parseFloat(r.tf) * s) : (((parseFloat(r.ns)||0) + (parseFloat(r.ex)||0)) * s + taxes);
+    acc.tf += tf;
+    return acc;
+  }, { ns: 0, ex: 0, c05: 0, c1: 0, c2: 0, c4: 0, c8: 0, c13: 0, baseGrav: 0, tf: 0 });
+
+  const totsIng = calcTots(rowsIng);
+  const totsCom = calcTots(rowsCom);
+  const totsGas = calcTots(rowsGas);
+  const totsCos = calcTots(rowsCos);
+
+  const ivaVentas = Math.round(totsIng.c05 * 0.005 + totsIng.c1 * 0.01 + totsIng.c2 * 0.02 + totsIng.c4 * 0.04 + totsIng.c8 * 0.08 + totsIng.c13 * 0.13);
+  const ivaCompras = Math.round(totsCom.c05 * 0.005 + totsCom.c1 * 0.01 + totsCom.c2 * 0.02 + totsCom.c4 * 0.04 + totsCom.c8 * 0.08 + totsCom.c13 * 0.13);
+  const ivaGastos = Math.round(totsGas.c05 * 0.005 + totsGas.c1 * 0.01 + totsGas.c2 * 0.02 + totsGas.c4 * 0.04 + totsGas.c8 * 0.08 + totsGas.c13 * 0.13);
+  const ivaSopTotal = ivaCompras + ivaGastos;
+
+  // Proporcionalidad Art. 32
+  const gravadosIng = totsIng.c05 + totsIng.c1 + totsIng.c2 + totsIng.c4 + totsIng.c8 + totsIng.c13;
+  const totIngresos = gravadosIng + totsIng.ex + totsIng.ns;
+  const factor = totIngresos > 0 ? (gravadosIng / totIngresos) : 1;
+  const factorPct = (factor * 100).toFixed(2);
+  const ivaAcred = Math.round(ivaSopTotal * factor);
+  const ivaNoAcred = Math.round(ivaSopTotal - ivaAcred);
+
+  // D-150 Declaración IVA
+  const d150_vt_gen = gv('d_vt_gen') || totIngresos;
+  const d150_vt_grav = gv('d_vt_grav') || gravadosIng;
+  const d150_vt_imp = gv('d_vt_imp') || ivaVentas;
+  const d150_ct_tot = gv('d_ct_tot') || (totsCom.tf + totsGas.tf);
+  const d150_ct_isop = gv('d_ct_isop') || ivaSopTotal;
+  const d150_ct_iden = gv('d_ct_iden') || ivaAcred;
+  const d150_saldo = d150_vt_imp - d150_ct_iden;
+
+  // D-105 Simplificado
+  const d105_compras = gv('d105_cgr') || (totsCom.tf + totsGas.tf);
+  const d105_fisr = parseFloat(document.getElementById('d105_fisr')?.value) || 1.0;
+  const d105_fiva = parseFloat(document.getElementById('d105_fiva')?.value) || 2.0;
+  const d105_isr = gv('d105_isr') || (d105_compras * (d105_fisr / 100));
+  const d105_iva = gv('d105_iiva') || (d105_compras * (d105_fiva / 100));
+  const d105_deuda = gv('d105_deuda') || (d105_isr + d105_iva);
+
+  // D-113 Capital Mobiliario
+  const d113_base = gv('d113_base') || gv('d113_rcm');
+  const d113_imp = gv('d113_imp') || (d113_base * 0.15);
+
+  // D-116 Capital Inmobiliario
+  const d116_bruta = gv('d116_rci');
+  const d116_gd = gv('d116_gd') || (d116_bruta * 0.15);
+  const d116_ri = gv('d116_ri') || Math.max(0, d116_bruta - d116_gd);
+  const d116_imp = gv('d116_imp') || (d116_ri * 0.15);
+
   return {
-    anio, mesStr, periodoTxt,
-    cliente: (typeof activeClient !== 'undefined' && activeClient) ? activeClient : { name: 'Empresa Principal', id: '3-101-000000', act: 'Actividad Económica' },
-    er: { v: d.v, cmv: d.cmv, ub: d.ub, go: d.go, uo: d.uo, oi, og, uai, imp, utilNeta },
+    anio, mesStr, periodoTxt, cliente,
+    er: { v: d.v, cmv: d.cmv, ub: d.ub, go: d.go, uo: d.uo, oi, og, uai, imp, utilNeta, gastoDeprec: (d.gastoDeprec || 0) },
     bg: { sumCor, sumNoCor, sumIntan, sumDepre, totActivos, sumPasCor, sumPasNoCor, totPasivos, cap, res, sumPatrimonio, totPatrimonio, totPasivoPatrimonio, detalleActivos, detallePasivos, detallePatrimonio },
     fe: { utilNeta, dep, cxc, cxp, inv, ao, af, oi: oiFE, ai, pres: presFE, cap: capFE, div: divFE, af_tot, inc, ini, fin },
-    cp: { si: siCP, ap: apCP, ret: retCP, utilNeta, fin: finCP }
+    cp: { si: siCP, ap: apCP, ret: retCP, utilNeta, fin: finCP },
+    ops: {
+      ing: { rows: rowsIng, tots: totsIng, iva: ivaVentas },
+      com: { rows: rowsCom, tots: totsCom, iva: ivaCompras },
+      gas: { rows: rowsGas, tots: totsGas, iva: ivaGastos },
+      cos: { rows: rowsCos, tots: totsCos }
+    },
+    prop: { gravados: gravadosIng, exentos: totsIng.ex, noSujetos: totsIng.ns, totalIng: totIngresos, factor, factorPct, ivaSop: ivaSopTotal, ivaAcred, ivaNoAcred },
+    d150: { vtGen: d150_vt_gen, vtGrav: d150_vt_grav, vtImp: d150_vt_imp, ctTot: d150_ct_tot, ctIsop: d150_ct_isop, ctIden: d150_ct_iden, saldo: d150_saldo },
+    d105: { compras: d105_compras, fisr: d105_fisr, fiva: d105_fiva, isr: d105_isr, iva: d105_iva, deuda: d105_deuda },
+    d113: { base: d113_base, imp: d113_imp },
+    d116: { bruta: d116_bruta, gd: d116_gd, ri: d116_ri, imp: d116_imp }
   };
 }
 
-function fmFirmasHTML(cliente) {
+function fmFirmasHTML(cliente, extraLegend = '') {
   const cName = cliente ? (cliente.name || 'Representante Legal') : 'Representante Legal';
   const cId = cliente ? (cliente.id || '') : '';
+  const leg = extraLegend || 'Estados Financieros y Reportes Oficiales elaborados conforme al Marco NIIF para Pymes / NIIF Completas, Código de Comercio y DGT Costa Rica (Ley N° 9635).';
   return `
     <div class="fm-rep-firmas">
       <div class="fm-rep-firma-box">
@@ -10328,13 +10421,91 @@ function fmFirmasHTML(cliente) {
       </div>
     </div>
     <div class="fm-rep-legal">
-      Estados Financieros elaborados conforme al Marco NIIF para Pymes / NIIF Completas, Código de Comercio y DGT Costa Rica (Ley N° 9635).
+      ${leg}
       <br/>Emitido por FACTURAMI · ${new Date().toLocaleDateString('es-CR')} ${new Date().toLocaleTimeString('es-CR', {hour:'2-digit',minute:'2-digit'})}
     </div>
   `;
 }
 
+const TITULOS_REPORTES = {
+  // Financieros
+  'estres': 'Estado de Resultados Integral (NIIF)',
+  'balgeneral': 'Balance General · Estado de Situación Financiera',
+  'efectivo': 'Estado de Flujos de Efectivo',
+  'patrimonio': 'Estado de Cambios en el Patrimonio Neto',
+  'comprobacion': 'Balance de Comprobación de Sumas y Saldos',
+  'mayor': 'Libro Mayor de Cuentas Contables',
+  'juego_completo': 'Juego Completo de Estados Financieros NIIF',
+  // Operativos
+  'ingresos': 'Libro Oficial de Registro de Ventas e Ingresos',
+  'compras': 'Libro Oficial de Registro de Compras y Crédito Fiscal',
+  'gastos': 'Libro Oficial de Gastos Operativos y Deducibles',
+  'costos': 'Libro Oficial de Costos Directos y Operación',
+  'activos': 'Informe Detallado de Activos y PPE (NIIF Secc. 17)',
+  'pasivos': 'Informe Detallado de Pasivos y Obligaciones',
+  // Tributarios
+  'd150': 'Declaración Jurada D-150 / D-104-2 (Impuesto al Valor Agregado)',
+  'd101': 'Declaración Jurada D-101 (Impuesto sobre la Renta)',
+  'd105': 'Declaración Jurada D-105 (Régimen de Tributación Simplificada)',
+  'd113': 'Declaración Jurada D-113 (Rentas de Capital Mobiliario)',
+  'd116': 'Declaración Jurada D-116 (Rentas de Capital Inmobiliario)',
+  'prop': 'Informe Técnico de Proporcionalidad del IVA (Art. 32 Ley N° 9635)'
+};
+
+const FAMILIAS_REPORTES = {
+  financieros: {
+    nombre: 'Estados Financieros',
+    icono: '🏛️',
+    items: [
+      { id: 'estres', label: '📊 Resultados' },
+      { id: 'balgeneral', label: '⚖️ Balance General' },
+      { id: 'efectivo', label: '💵 Flujo Efectivo' },
+      { id: 'patrimonio', label: '📑 Cambios Patrimonio' },
+      { id: 'comprobacion', label: '📋 Bal. Comprobación' },
+      { id: 'mayor', label: '📖 Libro Mayor' },
+      { id: 'juego_completo', label: '📚 Juego Completo' }
+    ]
+  },
+  operativos: {
+    nombre: 'Libros Operativos',
+    icono: '📋',
+    items: [
+      { id: 'ingresos', label: '💰 Ventas' },
+      { id: 'compras', label: '🛒 Compras' },
+      { id: 'gastos', label: '📉 Gastos' },
+      { id: 'costos', label: '🏗️ Costos' },
+      { id: 'activos', label: '🚗 Activos / PPE' },
+      { id: 'pasivos', label: '💳 Pasivos' }
+    ]
+  },
+  tributarios: {
+    nombre: 'Declaraciones Tributarias (DGT)',
+    icono: '🧾',
+    items: [
+      { id: 'd150', label: '📄 D-150 IVA' },
+      { id: 'd101', label: '📑 D-101 Renta' },
+      { id: 'd105', label: '🏷️ D-105 Simplificado' },
+      { id: 'd113', label: '💎 D-113 Mobiliario' },
+      { id: 'd116', label: '🏢 D-116 Inmobiliario' },
+      { id: 'prop', label: '📐 Proporcionalidad Art.32' }
+    ]
+  }
+};
+
+function fmDetectarFamilia(tipo) {
+  if (FAMILIAS_REPORTES.financieros.items.some(i => i.id === tipo)) return 'financieros';
+  if (FAMILIAS_REPORTES.tributarios.items.some(i => i.id === tipo)) return 'tributarios';
+  return 'operativos';
+}
+
 function fmGenerarHTMLReporte(tipo, data) {
+  // Normalizar alias
+  if (tipo === 'ing') tipo = 'ingresos';
+  if (tipo === 'obras') tipo = 'costos';
+  if (tipo === 'patrim') tipo = 'patrimonio';
+  if (tipo === 'd104') tipo = 'd150';
+
+  // 1. ESTADO DE RESULTADOS INTEGRAL
   if (tipo === 'estres') {
     return `
       <div class="fm-rep-card">
@@ -10388,6 +10559,7 @@ function fmGenerarHTMLReporte(tipo, data) {
     `;
   }
 
+  // 2. BALANCE GENERAL / ESTADO DE SITUACIÓN FINANCIERA
   if (tipo === 'balgeneral') {
     let actCorRows = data.bg.detalleActivos.cor.map(a => `<tr><td class="fm-rep-item">${a.name}</td><td class="fm-rep-num">${fmtCRC(a.monto)}</td></tr>`).join('');
     if (!actCorRows) actCorRows = `<tr><td class="fm-rep-item">Efectivo, Bancos e Inversiones Corrientes</td><td class="fm-rep-num">${fmtCRC(data.bg.sumCor)}</td></tr>`;
@@ -10423,29 +10595,29 @@ function fmGenerarHTMLReporte(tipo, data) {
           <div class="fm-bg-grid">
             <!-- COLUMNA IZQUIERDA: ACTIVOS -->
             <div>
-              <table class="fm-rep-table" style="margin:0;">
+              <table class="fm-rep-table">
                 <thead>
                   <tr>
                     <th style="text-align:left">1. ACTIVO</th>
-                    <th style="text-align:right;width:105px">Saldo (₡)</th>
+                    <th style="text-align:right;width:110px">SALDO (₡)</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr class="fm-rep-cat"><td colspan="2">1.1 ACTIVO CORRIENTE</td></tr>
                   ${actCorRows}
                   <tr class="fm-rep-subtot"><td>TOTAL ACTIVO CORRIENTE</td><td class="fm-rep-num">${fmtCRC(data.bg.sumCor)}</td></tr>
-
+                  
                   <tr class="fm-rep-cat"><td colspan="2">1.2 ACTIVO NO CORRIENTE</td></tr>
                   ${actNoCorRows}
-                  ${actNoCorRows ? `<tr class="fm-rep-subtot"><td>TOTAL ACTIVO NO CORRIENTE</td><td class="fm-rep-num">${fmtCRC(data.bg.sumNoCor)}</td></tr>` : ''}
-
-                  ${actIntanRows ? `
-                  <tr class="fm-rep-cat"><td colspan="2">1.3 ACTIVOS INTANGIBLES</td></tr>
-                  ${actIntanRows}
-                  <tr class="fm-rep-subtot"><td>TOTAL ACTIVOS INTANGIBLES</td><td class="fm-rep-num">${fmtCRC(data.bg.sumIntan)}</td></tr>
+                  <tr class="fm-rep-subtot"><td>TOTAL ACTIVO NO CORRIENTE</td><td class="fm-rep-num">${fmtCRC(data.bg.sumNoCor)}</td></tr>
+                  ${data.bg.sumDepre > 0 ? `<tr><td class="fm-rep-item" style="color:#dc2626;"><span style="font-weight:700;">( - )</span> Depreciación Acumulada</td><td class="fm-rep-num">${fmtCRC(data.bg.sumDepre, true)}</td></tr>` : ''}
+                  
+                  ${data.bg.sumIntan > 0 ? `
+                    <tr class="fm-rep-cat"><td colspan="2">1.3 ACTIVOS INTANGIBLES</td></tr>
+                    ${actIntanRows}
+                    <tr class="fm-rep-subtot"><td>TOTAL INTANGIBLES</td><td class="fm-rep-num">${fmtCRC(data.bg.sumIntan)}</td></tr>
                   ` : ''}
 
-                  ${data.bg.sumDepre > 0 ? `<tr><td class="fm-rep-item" style="color:#dc2626;"><span style="font-weight:700;">( - )</span> Depreciación Acumulada</td><td class="fm-rep-num">${fmtCRC(data.bg.sumDepre, true)}</td></tr>` : ''}
                   <tr class="fm-rep-grandtot"><td>TOTAL ACTIVO NETO</td><td class="fm-rep-num">${fmtCRC(data.bg.totActivos)}</td></tr>
                 </tbody>
               </table>
@@ -10453,26 +10625,24 @@ function fmGenerarHTMLReporte(tipo, data) {
 
             <!-- COLUMNA DERECHA: PASIVO Y PATRIMONIO -->
             <div>
-              <table class="fm-rep-table" style="margin:0;">
+              <table class="fm-rep-table">
                 <thead>
                   <tr>
                     <th style="text-align:left">2. PASIVO Y PATRIMONIO</th>
-                    <th style="text-align:right;width:105px">Saldo (₡)</th>
+                    <th style="text-align:right;width:110px">SALDO (₡)</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr class="fm-rep-cat"><td colspan="2">2.1 PASIVO CORRIENTE</td></tr>
                   ${pasCorRows}
                   <tr class="fm-rep-subtot"><td>TOTAL PASIVO CORRIENTE</td><td class="fm-rep-num">${fmtCRC(data.bg.sumPasCor)}</td></tr>
-
+                  
                   <tr class="fm-rep-cat"><td colspan="2">2.2 PASIVO NO CORRIENTE</td></tr>
                   ${pasNoCorRows}
                   <tr class="fm-rep-subtot"><td>TOTAL PASIVO NO CORRIENTE</td><td class="fm-rep-num">${fmtCRC(data.bg.sumPasNoCor)}</td></tr>
-                  <tr class="fm-rep-subtot" style="font-weight:700"><td>TOTAL PASIVO</td><td class="fm-rep-num">${fmtCRC(data.bg.totPasivos)}</td></tr>
-
+                  <tr class="fm-rep-subtot" style="font-weight:800;background:#f8fafc"><td>TOTAL PASIVO</td><td class="fm-rep-num">${fmtCRC(data.bg.totPasivos)}</td></tr>
+                  
                   <tr class="fm-rep-cat"><td colspan="2">2.3 PATRIMONIO NETO</td></tr>
-                  ${data.bg.cap > 0 ? `<tr><td class="fm-rep-item">Capital Social</td><td class="fm-rep-num">${fmtCRC(data.bg.cap)}</td></tr>` : ''}
-                  ${data.bg.res > 0 ? `<tr><td class="fm-rep-item">Reservas y Utilidades Acum.</td><td class="fm-rep-num">${fmtCRC(data.bg.res)}</td></tr>` : ''}
                   ${patRows}
                   <tr><td class="fm-rep-item">Utilidad Neta del Ejercicio</td><td class="fm-rep-num">${fmtCRC(data.er.utilNeta)}</td></tr>
                   <tr class="fm-rep-subtot"><td>TOTAL PATRIMONIO NETO</td><td class="fm-rep-num">${fmtCRC(data.bg.totPatrimonio)}</td></tr>
@@ -10480,11 +10650,9 @@ function fmGenerarHTMLReporte(tipo, data) {
                   <tr class="fm-rep-grandtot"><td>TOTAL PASIVO Y PATRIMONIO</td><td class="fm-rep-num">${fmtCRC(data.bg.totPasivoPatrimonio)}</td></tr>
                 </tbody>
               </table>
-            </div>
-          </div>
 
-          <div style="margin: 4px 0 6px; font-size:8.5px; font-weight:700; color:${cuadra ? '#059669' : '#dc2626'}; text-align:right;">
-            ${cuadra ? '✔ Ecuación Contable Balanceada: Activo = Pasivo + Patrimonio' : '⚠ Diferencia de Cuadre: ₡' + fmtCRC(data.bg.totActivos - data.bg.totPasivoPatrimonio)}
+              ${!cuadra ? `<div style="margin-top:4px;font-size:8.5px;font-weight:700;color:#dc2626;text-align:right;">⚠ Diferencia de Cuadre: ₡${fmtCRC(Math.abs(data.bg.totActivos - data.bg.totPasivoPatrimonio))}</div>` : ''}
+            </div>
           </div>
         </div>
 
@@ -10495,17 +10663,111 @@ function fmGenerarHTMLReporte(tipo, data) {
     `;
   }
 
+  // 3. ESTADO DE FLUJOS DE EFECTIVO
+  if (tipo === 'efectivo') {
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Cédula / Identificación: ${data.cliente.id}</div>
+            <div class="fm-rep-title">ESTADO DE FLUJOS DE EFECTIVO (MÉTODO INDIRECTO)</div>
+            <div class="fm-rep-sub">Para el período terminado al ${data.periodoTxt}</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Norma Internacional NIC 7 / NIIF)</div>
+          </div>
+
+          <table class="fm-rep-table">
+            <thead>
+              <tr>
+                <th style="text-align:left">Flujos y Movimientos de Efectivo</th>
+                <th style="text-align:right;width:150px">Monto (₡)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="fm-rep-cat"><td colspan="2">1. ACTIVIDADES DE OPERACIÓN</td></tr>
+              <tr><td class="fm-rep-item">Utilidad o Pérdida Neta del Ejercicio</td><td class="fm-rep-num">${fmtCRC(data.fe.utilNeta)}</td></tr>
+              <tr><td class="fm-rep-item">( + ) Depreciación y Amortización del período</td><td class="fm-rep-num">${fmtCRC(data.fe.dep)}</td></tr>
+              <tr><td class="fm-rep-item">(+/-) Variación neta en Cuentas por Cobrar</td><td class="fm-rep-num">${fmtCRC(data.fe.cxc)}</td></tr>
+              <tr><td class="fm-rep-item">(+/-) Variación neta en Cuentas por Pagar</td><td class="fm-rep-num">${fmtCRC(data.fe.cxp)}</td></tr>
+              <tr><td class="fm-rep-item">(+/-) Variación neta en Inventarios</td><td class="fm-rep-num">${fmtCRC(data.fe.inv)}</td></tr>
+              <tr class="fm-rep-subtot"><td>FLUJO NETO DE ACTIVIDADES DE OPERACIÓN</td><td class="fm-rep-num">${fmtCRC(data.fe.ao)}</td></tr>
+
+              <tr class="fm-rep-cat"><td colspan="2">2. ACTIVIDADES DE INVERSIÓN</td></tr>
+              <tr><td class="fm-rep-item">Adquisición / Enajenación de Propiedad, Planta y Equipo</td><td class="fm-rep-num">${fmtCRC(data.fe.af)}</td></tr>
+              <tr><td class="fm-rep-item">Inversiones de capital y otros activos</td><td class="fm-rep-num">${fmtCRC(data.fe.oi)}</td></tr>
+              <tr class="fm-rep-subtot"><td>FLUJO NETO DE ACTIVIDADES DE INVERSIÓN</td><td class="fm-rep-num">${fmtCRC(data.fe.ai)}</td></tr>
+
+              <tr class="fm-rep-cat"><td colspan="2">3. ACTIVIDADES DE FINANCIAMIENTO</td></tr>
+              <tr><td class="fm-rep-item">Contratación o pago de préstamos</td><td class="fm-rep-num">${fmtCRC(data.fe.pres)}</td></tr>
+              <tr><td class="fm-rep-item">Aportes nuevos de capital</td><td class="fm-rep-num">${fmtCRC(data.fe.cap)}</td></tr>
+              <tr><td class="fm-rep-item" style="color:#dc2626;"><span style="font-weight:700;">( - )</span> Pago de dividendos / retiros de socios</td><td class="fm-rep-num">${fmtCRC(data.fe.div, true)}</td></tr>
+              <tr class="fm-rep-subtot"><td>FLUJO NETO DE ACTIVIDADES DE FINANCIAMIENTO</td><td class="fm-rep-num">${fmtCRC(data.fe.af_tot)}</td></tr>
+
+              <tr class="fm-rep-subtot" style="font-weight:800;background:#f8fafc"><td>INCREMENTO / DISMINUCIÓN NETO DE EFECTIVO</td><td class="fm-rep-num">${fmtCRC(data.fe.inc)}</td></tr>
+              <tr><td class="fm-rep-item">Efectivo y equivalentes de efectivo al inicio del período</td><td class="fm-rep-num">${fmtCRC(data.fe.ini)}</td></tr>
+              <tr class="fm-rep-grandtot"><td>EFECTIVO Y EQUIVALENTES DE EFECTIVO AL FINAL DEL PERÍODO</td><td class="fm-rep-num">${fmtCRC(data.fe.fin)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          ${fmFirmasHTML(data.cliente)}
+        </div>
+      </div>
+    `;
+  }
+
+  // 4. ESTADO DE CAMBIOS EN EL PATRIMONIO NETO
+  if (tipo === 'patrimonio') {
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Cédula / Identificación: ${data.cliente.id}</div>
+            <div class="fm-rep-title">ESTADO DE CAMBIOS EN EL PATRIMONIO NETO</div>
+            <div class="fm-rep-sub">Para el período terminado al ${data.periodoTxt}</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Norma Internacional NIC 1 / NIIF)</div>
+          </div>
+
+          <table class="fm-rep-table">
+            <thead>
+              <tr>
+                <th style="text-align:left">Concepto y Movimientos Patrimoniales</th>
+                <th style="text-align:right;width:150px">Monto (₡)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="fm-rep-cat"><td colspan="2">ANÁLISIS DEL CAPITAL Y RESERVAS</td></tr>
+              <tr><td class="fm-rep-item"><strong>Saldo del Patrimonio al Inicio del Ejercicio</strong></td><td class="fm-rep-num">${fmtCRC(data.cp.si)}</td></tr>
+              <tr><td class="fm-rep-item">( + ) Nuevos Aportes de Capital / Emisión de Acciones</td><td class="fm-rep-num">${fmtCRC(data.cp.ap)}</td></tr>
+              <tr><td class="fm-rep-item" style="color:#dc2626;"><span style="font-weight:700;">( - )</span> Retiros de Capital / Dividendos Distribuidos a Socios</td><td class="fm-rep-num">${fmtCRC(data.cp.ret, true)}</td></tr>
+              <tr><td class="fm-rep-item">(+/-) Utilidad o Pérdida Neta del Ejercicio</td><td class="fm-rep-num">${fmtCRC(data.er.utilNeta)}</td></tr>
+              <tr class="fm-rep-grandtot"><td>SALDO DEL PATRIMONIO NETO AL FINAL DEL EJERCICIO</td><td class="fm-rep-num">${fmtCRC(data.cp.fin)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          ${fmFirmasHTML(data.cliente)}
+        </div>
+      </div>
+    `;
+  }
+
+  // 5. BALANCE DE COMPROBACIÓN
   if (tipo === 'comprobacion') {
-    // Calcular balance de comprobacion desde MODS.asientos
     const cuentasMap = {};
-    if (MODS.asientos && Array.isArray(MODS.asientos)) {
+    if (typeof MODS !== 'undefined' && MODS.asientos && Array.isArray(MODS.asientos)) {
       MODS.asientos.forEach(a => {
         if (a.estado === 'valido' && Array.isArray(a.lineas)) {
           a.lineas.forEach(l => {
             const cod = l.cuenta_codigo || '0.0.0.00';
-            if (!cuentasMap[cod]) {
-              cuentasMap[cod] = { codigo: cod, nombre: l.cuenta_nombre || cod, debe: 0, haber: 0 };
-            }
+            if (!cuentasMap[cod]) cuentasMap[cod] = { codigo: cod, nombre: l.cuenta_nombre || cod, debe: 0, haber: 0 };
             cuentasMap[cod].debe += (parseFloat(l.debito) || 0);
             cuentasMap[cod].haber += (parseFloat(l.credito) || 0);
           });
@@ -10513,7 +10775,6 @@ function fmGenerarHTMLReporte(tipo, data) {
       });
     }
 
-    // Si no hay asientos suficientes, cargar del catalogo y saldos activos
     if (Object.keys(cuentasMap).length === 0) {
       if (data.bg.detalleActivos.no_cor) {
         data.bg.detalleActivos.no_cor.forEach(a => {
@@ -10597,17 +10858,15 @@ function fmGenerarHTMLReporte(tipo, data) {
     `;
   }
 
+  // 6. LIBRO MAYOR
   if (tipo === 'mayor') {
-    // Generar libro mayor agrupado por cuenta
     const mayores = {};
-    if (MODS.asientos && Array.isArray(MODS.asientos)) {
+    if (typeof MODS !== 'undefined' && MODS.asientos && Array.isArray(MODS.asientos)) {
       MODS.asientos.forEach(a => {
         if (a.estado === 'valido' && Array.isArray(a.lineas)) {
           a.lineas.forEach(l => {
             const cod = l.cuenta_codigo || '0.0.0.00';
-            if (!mayores[cod]) {
-              mayores[cod] = { codigo: cod, nombre: l.cuenta_nombre || cod, movs: [] };
-            }
+            if (!mayores[cod]) mayores[cod] = { codigo: cod, nombre: l.cuenta_nombre || cod, movs: [] };
             mayores[cod].movs.push({
               fecha: a.fecha_contable,
               asiento: a.num_asiento,
@@ -10624,14 +10883,12 @@ function fmGenerarHTMLReporte(tipo, data) {
     let mayorHTML = '';
     const cods = Object.keys(mayores).sort();
     if (cods.length === 0) {
-      mayorHTML = '<tr><td colspan="6" style="text-align:center;padding:12px;color:#94a3b8">No hay asientos registrados en el período. Use el módulo de Reconciliación Histórica para generar los asientos.</td></tr>';
+      mayorHTML = '<tr><td colspan="6" style="text-align:center;padding:12px;color:#94a3b8">No hay asientos registrados en el período contable.</td></tr>';
     } else {
       cods.forEach(c => {
         const item = mayores[c];
         mayorHTML += `<tr class="fm-rep-cat"><td colspan="6">${item.codigo} - ${item.nombre}</td></tr>`;
-        let saldoAcum = 0;
         item.movs.forEach(m => {
-          saldoAcum += (m.debito - m.credito);
           mayorHTML += `<tr>
             <td style="font-size:8px">${m.fecha}</td>
             <td style="font-size:8px;text-align:center">#${m.asiento}</td>
@@ -10681,106 +10938,790 @@ function fmGenerarHTMLReporte(tipo, data) {
     `;
   }
 
-  if (tipo === 'efectivo') {
-    return `
-      <div class="fm-rep-card">
-        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
-        <div>
-          <div class="fm-rep-header">
-            <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
-            <div class="fm-rep-empresa">${data.cliente.name}</div>
-            <div class="fm-rep-id">Cédula / Identificación: ${data.cliente.id}</div>
-            <div class="fm-rep-title">ESTADO DE FLUJOS DE EFECTIVO (MÉTODO INDIRECTO)</div>
-            <div class="fm-rep-sub">Para el período terminado al ${data.periodoTxt}</div>
-            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Norma Internacional NIC 7 / NIIF)</div>
-          </div>
-
-          <table class="fm-rep-table">
-            <thead>
-              <tr>
-                <th style="text-align:left">Flujos y Movimientos de Efectivo</th>
-                <th style="text-align:right;width:150px">Monto (₡)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr class="fm-rep-cat"><td colspan="2">1. ACTIVIDADES DE OPERACIÓN</td></tr>
-              <tr><td class="fm-rep-item">Utilidad o Pérdida Neta del Ejercicio</td><td class="fm-rep-num">${fmtCRC(data.fe.utilNeta)}</td></tr>
-              <tr><td class="fm-rep-item">( + ) Depreciación y Amortización del período</td><td class="fm-rep-num">${fmtCRC(data.fe.dep)}</td></tr>
-              <tr><td class="fm-rep-item">(+/-) Variación neta en Cuentas por Cobrar</td><td class="fm-rep-num">${fmtCRC(data.fe.cxc)}</td></tr>
-              <tr><td class="fm-rep-item">(+/-) Variación neta en Cuentas por Pagar</td><td class="fm-rep-num">${fmtCRC(data.fe.cxp)}</td></tr>
-              <tr><td class="fm-rep-item">(+/-) Variación neta en Inventarios</td><td class="fm-rep-num">${fmtCRC(data.fe.inv)}</td></tr>
-              <tr class="fm-rep-subtot"><td>FLUJO NETO DE ACTIVIDADES DE OPERACIÓN</td><td class="fm-rep-num">${fmtCRC(data.fe.ao)}</td></tr>
-
-              <tr class="fm-rep-cat"><td colspan="2">2. ACTIVIDADES DE INVERSIÓN</td></tr>
-              <tr><td class="fm-rep-item">Adquisición / Enajenación de Propiedad, Planta y Equipo</td><td class="fm-rep-num">${fmtCRC(data.fe.af)}</td></tr>
-              <tr><td class="fm-rep-item">Inversiones de capital y otros activos</td><td class="fm-rep-num">${fmtCRC(data.fe.oi)}</td></tr>
-              <tr class="fm-rep-subtot"><td>FLUJO NETO DE ACTIVIDADES DE INVERSIÓN</td><td class="fm-rep-num">${fmtCRC(data.fe.ai)}</td></tr>
-
-              <tr class="fm-rep-cat"><td colspan="2">3. ACTIVIDADES DE FINANCIAMIENTO</td></tr>
-              <tr><td class="fm-rep-item">Contratación o pago de préstamos</td><td class="fm-rep-num">${fmtCRC(data.fe.pres)}</td></tr>
-              <tr><td class="fm-rep-item">Aportes nuevos de capital</td><td class="fm-rep-num">${fmtCRC(data.fe.cap)}</td></tr>
-              <tr><td class="fm-rep-item" style="color:#dc2626;"><span style="font-weight:700;">( - )</span> Pago de dividendos / retiros de socios</td><td class="fm-rep-num">${fmtCRC(data.fe.div, true)}</td></tr>
-              <tr class="fm-rep-subtot"><td>FLUJO NETO DE ACTIVIDADES DE FINANCIAMIENTO</td><td class="fm-rep-num">${fmtCRC(data.fe.af_tot)}</td></tr>
-
-              <tr class="fm-rep-subtot" style="font-weight:800;background:#f8fafc"><td>INCREMENTO / DISMINUCIÓN NETO DE EFECTIVO</td><td class="fm-rep-num">${fmtCRC(data.fe.inc)}</td></tr>
-              <tr><td class="fm-rep-item">Efectivo y equivalentes de efectivo al inicio del período</td><td class="fm-rep-num">${fmtCRC(data.fe.ini)}</td></tr>
-              <tr class="fm-rep-grandtot"><td>EFECTIVO Y EQUIVALENTES DE EFECTIVO AL FINAL DEL PERÍODO</td><td class="fm-rep-num">${fmtCRC(data.fe.fin)}</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div>
-          ${fmFirmasHTML(data.cliente)}
-        </div>
-      </div>
-    `;
-  }
-
-  if (tipo === 'patrimonio') {
-    return `
-      <div class="fm-rep-card">
-        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
-        <div>
-          <div class="fm-rep-header">
-            <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
-            <div class="fm-rep-empresa">${data.cliente.name}</div>
-            <div class="fm-rep-id">Cédula / Identificación: ${data.cliente.id}</div>
-            <div class="fm-rep-title">ESTADO DE CAMBIOS EN EL PATRIMONIO NETO</div>
-            <div class="fm-rep-sub">Para el período terminado al ${data.periodoTxt}</div>
-            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Norma Internacional NIC 1 / NIIF)</div>
-          </div>
-
-          <table class="fm-rep-table">
-            <thead>
-              <tr>
-                <th style="text-align:left">Concepto y Movimientos Patrimoniales</th>
-                <th style="text-align:right;width:150px">Monto (₡)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr class="fm-rep-cat"><td colspan="2">ANÁLISIS DEL CAPITAL Y RESERVAS</td></tr>
-              <tr><td class="fm-rep-item"><strong>Saldo del Patrimonio al Inicio del Ejercicio</strong></td><td class="fm-rep-num">${fmtCRC(data.cp.si)}</td></tr>
-              <tr><td class="fm-rep-item">( + ) Nuevos Aportes de Capital / Emisión de Acciones</td><td class="fm-rep-num">${fmtCRC(data.cp.ap)}</td></tr>
-              <tr><td class="fm-rep-item" style="color:#dc2626;"><span style="font-weight:700;">( - )</span> Retiros de Capital / Dividendos Distribuidos a Socios</td><td class="fm-rep-num">${fmtCRC(data.cp.ret, true)}</td></tr>
-              <tr><td class="fm-rep-item">(+/-) Utilidad o Pérdida Neta del Ejercicio</td><td class="fm-rep-num">${fmtCRC(data.er.utilNeta)}</td></tr>
-              <tr class="fm-rep-grandtot"><td>SALDO DEL PATRIMONIO NETO AL FINAL DEL EJERCICIO</td><td class="fm-rep-num">${fmtCRC(data.cp.fin)}</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div>
-          ${fmFirmasHTML(data.cliente)}
-        </div>
-      </div>
-    `;
-  }
-
+  // 7. JUEGO COMPLETO NIIF
   if (tipo === 'juego_completo') {
     const h1 = fmGenerarHTMLReporte('estres', data).replace('Hoja 1 de 1 · Carta', 'Hoja 1 de 4 · Estado de Resultados');
     const h2 = fmGenerarHTMLReporte('balgeneral', data).replace('Hoja 1 de 1 · Carta', 'Hoja 2 de 4 · Balance General');
     const h3 = fmGenerarHTMLReporte('efectivo', data).replace('Hoja 1 de 1 · Carta', 'Hoja 3 de 4 · Flujo de Efectivo');
     const h4 = fmGenerarHTMLReporte('patrimonio', data).replace('Hoja 1 de 1 · Carta', 'Hoja 4 de 4 · Cambios en el Patrimonio');
     return `${h1}${h2}${h3}${h4}`;
+  }
+
+  // 8. LIBRO OFICIAL DE VENTAS E INGRESOS
+  if (tipo === 'ingresos') {
+    const rowsList = data.ops.ing.rows;
+    let rowsHTML = '';
+    const maxRows = 11;
+    const sliceRows = rowsList.slice(0, maxRows);
+    if (sliceRows.length === 0) {
+      rowsHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8">No hay facturas de ventas registradas en este período.</td></tr>';
+    } else {
+      sliceRows.forEach(r => {
+        const s = (typeof getS === 'function') ? getS(r.tipo) : 1;
+        const taxes = ((r.c05||0) + (r.c1||0) + (r.c2||0) + (r.c4||0) + (r.c8||0) + (r.c13||0)) * s;
+        const iv = ((r.c05||0)*.005 + (r.c1||0)*.01 + (r.c2||0)*.02 + (r.c4||0)*.04 + (r.c8||0)*.08 + (r.c13||0)*.13) * s;
+        const tf = (r.tf && r.tf > 0) ? (r.tf * s) : (((r.ns||0) + (r.ex||0)) * s + taxes);
+        rowsHTML += `<tr>
+          <td style="font-size:8px">${r.fecha || '--'}</td>
+          <td style="font-size:8px;text-align:center"><span style="background:#e0f2fe;color:#0369a1;padding:1px 4px;border-radius:3px;font-weight:700">${r.tipo || 'FE'}</span></td>
+          <td style="font-size:8px;font-family:monospace">${(r.doc || '').slice(-15) || '--'}</td>
+          <td style="font-size:8px">${r.nt || 'Cliente General'} ${r.nc ? '('+r.nc+')' : ''}</td>
+          <td class="fm-rep-num" style="font-size:8px">${fmtCRC(taxes)}</td>
+          <td class="fm-rep-num" style="font-size:8px;color:#2563eb">${fmtCRC(iv)}</td>
+          <td class="fm-rep-num" style="font-size:8px;font-weight:700">${fmtCRC(tf)}</td>
+        </tr>`;
+      });
+      if (rowsList.length > maxRows) {
+        rowsHTML += `<tr><td colspan="7" style="text-align:center;font-size:7.5px;color:#64748b;font-style:italic;background:#f8fafc;padding:3px;">... y ${rowsList.length - maxRows} facturas adicionales registradas (Consolidadas en el Total General)</td></tr>`;
+      }
+    }
+
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Cédula / Identificación: ${data.cliente.id}</div>
+            <div class="fm-rep-title">LIBRO OFICIAL DE REGISTRO DE VENTAS E INGRESOS</div>
+            <div class="fm-rep-sub">Para el período terminado al ${data.periodoTxt}</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Art. 53 Ley N° 9635 IVA)</div>
+          </div>
+
+          <table class="fm-rep-table" style="font-size:7.5px;margin-bottom:6px">
+            <thead>
+              <tr>
+                <th style="text-align:left">Tarifa 13%</th>
+                <th style="text-align:right">Tarifa 4%</th>
+                <th style="text-align:right">Tarifa 2%</th>
+                <th style="text-align:right">Tarifa 1%</th>
+                <th style="text-align:right">Exento / No Sujeto</th>
+                <th style="text-align:right">Total Débito IVA</th>
+                <th style="text-align:right">Total Facturación</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="background:#f8fafc;font-weight:700">
+                <td class="fm-rep-num" style="text-align:left">${fmtCRC(data.ops.ing.tots.c13)}</td>
+                <td class="fm-rep-num">${fmtCRC(data.ops.ing.tots.c4)}</td>
+                <td class="fm-rep-num">${fmtCRC(data.ops.ing.tots.c2)}</td>
+                <td class="fm-rep-num">${fmtCRC(data.ops.ing.tots.c1 + data.ops.ing.tots.c05)}</td>
+                <td class="fm-rep-num">${fmtCRC(data.ops.ing.tots.ex + data.ops.ing.tots.ns)}</td>
+                <td class="fm-rep-num" style="color:#2563eb;font-weight:800">${fmtCRC(data.ops.ing.iva)}</td>
+                <td class="fm-rep-num" style="color:#0f172a;font-weight:800">${fmtCRC(data.ops.ing.tots.tf)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table class="fm-rep-table" style="font-size:8px">
+            <thead>
+              <tr>
+                <th style="width:65px;text-align:left">Fecha</th>
+                <th style="width:35px;text-align:center">Tipo</th>
+                <th style="width:75px;text-align:left">Comprobante</th>
+                <th style="text-align:left">Cliente / Receptor</th>
+                <th style="width:80px;text-align:right">Base Gravada</th>
+                <th style="width:75px;text-align:right">IVA Débito</th>
+                <th style="width:85px;text-align:right">Total Factura</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHTML}
+              <tr class="fm-rep-grandtot">
+                <td colspan="4">TOTALES DEL LIBRO DE VENTAS</td>
+                <td class="fm-rep-num">${fmtCRC(data.ops.ing.tots.baseGrav)}</td>
+                <td class="fm-rep-num" style="color:#2563eb">${fmtCRC(data.ops.ing.iva)}</td>
+                <td class="fm-rep-num">${fmtCRC(data.ops.ing.tots.tf)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          ${fmFirmasHTML(data.cliente, 'Libro Oficial de Ventas emitido conforme al Art. 53 de la Ley N° 9635 y resoluciones vigentes de la DGT.')}
+        </div>
+      </div>
+    `;
+  }
+
+  // 9. LIBRO OFICIAL DE COMPRAS Y CRÉDITO FISCAL
+  if (tipo === 'compras') {
+    const rowsList = data.ops.com.rows;
+    let rowsHTML = '';
+    const maxRows = 11;
+    const sliceRows = rowsList.slice(0, maxRows);
+    if (sliceRows.length === 0) {
+      rowsHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:#94a3b8">No hay facturas de compras registradas en este período.</td></tr>';
+    } else {
+      sliceRows.forEach(r => {
+        const s = (typeof getS === 'function') ? getS(r.tipo) : 1;
+        const taxes = ((r.c05||0) + (r.c1||0) + (r.c2||0) + (r.c4||0) + (r.c8||0) + (r.c13||0)) * s;
+        const iv = ((r.c05||0)*.005 + (r.c1||0)*.01 + (r.c2||0)*.02 + (r.c4||0)*.04 + (r.c8||0)*.08 + (r.c13||0)*.13) * s;
+        const tf = (r.tf && r.tf > 0) ? (r.tf * s) : (((r.ns||0) + (r.ex||0)) * s + taxes);
+        rowsHTML += `<tr>
+          <td style="font-size:8px">${r.fecha || '--'}</td>
+          <td style="font-size:8px;text-align:center"><span style="background:#f1f5f9;color:#334155;padding:1px 4px;border-radius:3px;font-weight:700">${r.tipo || 'FE'}</span></td>
+          <td style="font-size:8px;font-family:monospace">${(r.doc || '').slice(-15) || '--'}</td>
+          <td style="font-size:8px">${r.nt || 'Proveedor General'}</td>
+          <td style="font-size:8px;color:#475569">${r.origen_fondos || 'Bancos'}</td>
+          <td class="fm-rep-num" style="font-size:8px">${fmtCRC(taxes)}</td>
+          <td class="fm-rep-num" style="font-size:8px;color:#059669">${fmtCRC(iv)}</td>
+          <td class="fm-rep-num" style="font-size:8px;font-weight:700">${fmtCRC(tf)}</td>
+        </tr>`;
+      });
+      if (rowsList.length > maxRows) {
+        rowsHTML += `<tr><td colspan="8" style="text-align:center;font-size:7.5px;color:#64748b;font-style:italic;background:#f8fafc;padding:3px;">... y ${rowsList.length - maxRows} compras adicionales registradas (Consolidadas en el Total General)</td></tr>`;
+      }
+    }
+
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Cédula / Identificación: ${data.cliente.id}</div>
+            <div class="fm-rep-title">LIBRO OFICIAL DE REGISTRO DE COMPRAS Y CRÉDITO FISCAL</div>
+            <div class="fm-rep-sub">Para el período terminado al ${data.periodoTxt}</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Art. 53 Ley N° 9635 IVA)</div>
+          </div>
+
+          <table class="fm-rep-table" style="font-size:7.5px;margin-bottom:6px">
+            <thead>
+              <tr>
+                <th style="text-align:left">Tarifa 13%</th>
+                <th style="text-align:right">Tarifa 4%</th>
+                <th style="text-align:right">Tarifa 2%</th>
+                <th style="text-align:right">Tarifa 1%</th>
+                <th style="text-align:right">Exento / No Sujeto</th>
+                <th style="text-align:right">Crédito Fiscal IVA</th>
+                <th style="text-align:right">Total Compras</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="background:#f8fafc;font-weight:700">
+                <td class="fm-rep-num" style="text-align:left">${fmtCRC(data.ops.com.tots.c13)}</td>
+                <td class="fm-rep-num">${fmtCRC(data.ops.com.tots.c4)}</td>
+                <td class="fm-rep-num">${fmtCRC(data.ops.com.tots.c2)}</td>
+                <td class="fm-rep-num">${fmtCRC(data.ops.com.tots.c1 + data.ops.com.tots.c05)}</td>
+                <td class="fm-rep-num">${fmtCRC(data.ops.com.tots.ex + data.ops.com.tots.ns)}</td>
+                <td class="fm-rep-num" style="color:#059669;font-weight:800">${fmtCRC(data.ops.com.iva)}</td>
+                <td class="fm-rep-num" style="color:#0f172a;font-weight:800">${fmtCRC(data.ops.com.tots.tf)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table class="fm-rep-table" style="font-size:8px">
+            <thead>
+              <tr>
+                <th style="width:60px;text-align:left">Fecha</th>
+                <th style="width:30px;text-align:center">Tipo</th>
+                <th style="width:70px;text-align:left">Comprobante</th>
+                <th style="text-align:left">Proveedor</th>
+                <th style="width:65px;text-align:left">Origen Fondos</th>
+                <th style="width:75px;text-align:right">Base Gravada</th>
+                <th style="width:70px;text-align:right">IVA Crédito</th>
+                <th style="width:80px;text-align:right">Total Compra</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHTML}
+              <tr class="fm-rep-grandtot">
+                <td colspan="5">TOTALES DEL LIBRO DE COMPRAS</td>
+                <td class="fm-rep-num">${fmtCRC(data.ops.com.tots.baseGrav)}</td>
+                <td class="fm-rep-num" style="color:#059669">${fmtCRC(data.ops.com.iva)}</td>
+                <td class="fm-rep-num">${fmtCRC(data.ops.com.tots.tf)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          ${fmFirmasHTML(data.cliente, 'Libro Oficial de Compras y Crédito Fiscal soportado conforme a la Ley N° 9635 y DGT.')}
+        </div>
+      </div>
+    `;
+  }
+
+  // 10. LIBRO OFICIAL DE GASTOS OPERATIVOS
+  if (tipo === 'gastos') {
+    const rowsList = data.ops.gas.rows;
+    let rowsHTML = '';
+    const maxRows = 12;
+    const sliceRows = rowsList.slice(0, maxRows);
+    if (sliceRows.length === 0) {
+      rowsHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#94a3b8">No hay gastos deducibles registrados en este período.</td></tr>';
+    } else {
+      sliceRows.forEach(r => {
+        const s = (typeof getS === 'function') ? getS(r.tipo) : 1;
+        const iv = ((r.c05||0)*.005 + (r.c1||0)*.01 + (r.c2||0)*.02 + (r.c4||0)*.04 + (r.c8||0)*.08 + (r.c13||0)*.13) * s;
+        const tf = (r.tf && r.tf > 0) ? (r.tf * s) : (((r.ns||0) + (r.ex||0) + (r.c13||0)) * s);
+        const neto = tf - iv;
+        rowsHTML += `<tr>
+          <td style="font-size:8px">${r.fecha || '--'}</td>
+          <td style="font-size:8px;font-family:monospace">${(r.doc || '').slice(-15) || '--'}</td>
+          <td style="font-size:8px">${r.nt || 'Emisor General'}</td>
+          <td style="font-size:8px">${r.l || 'Gasto Operativo Deducible'}</td>
+          <td class="fm-rep-num" style="font-size:8px;color:#059669">${fmtCRC(iv)}</td>
+          <td class="fm-rep-num" style="font-size:8px;font-weight:700">${fmtCRC(neto)}</td>
+        </tr>`;
+      });
+      if (rowsList.length > maxRows) {
+        rowsHTML += `<tr><td colspan="6" style="text-align:center;font-size:7.5px;color:#64748b;font-style:italic;background:#f8fafc;padding:3px;">... y ${rowsList.length - maxRows} gastos adicionales registrados (Consolidados en el Total General)</td></tr>`;
+      }
+    }
+
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Cédula / Identificación: ${data.cliente.id}</div>
+            <div class="fm-rep-title">LIBRO OFICIAL DE GASTOS OPERATIVOS Y DEDUCIBLES</div>
+            <div class="fm-rep-sub">Para el período terminado al ${data.periodoTxt}</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Art. 8 Ley N° 7092 Impuesto sobre la Renta)</div>
+          </div>
+
+          <table class="fm-rep-table" style="font-size:8.5px;margin-bottom:8px">
+            <thead>
+              <tr>
+                <th style="text-align:left">Concepto</th>
+                <th style="text-align:right">Gastos Deducibles Netos</th>
+                <th style="text-align:right">IVA Soportado</th>
+                <th style="text-align:right">Total Erogaciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="background:#f8fafc;font-weight:700">
+                <td class="fm-rep-item">Consolidado de Gastos Administrativos y Comerciales</td>
+                <td class="fm-rep-num" style="font-weight:800">${fmtCRC(data.ops.gas.tots.baseGrav + data.ops.gas.tots.ex + data.ops.gas.tots.ns)}</td>
+                <td class="fm-rep-num" style="color:#059669">${fmtCRC(data.ops.gas.iva)}</td>
+                <td class="fm-rep-num" style="font-weight:800">${fmtCRC(data.ops.gas.tots.tf)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table class="fm-rep-table" style="font-size:8px">
+            <thead>
+              <tr>
+                <th style="width:65px;text-align:left">Fecha</th>
+                <th style="width:75px;text-align:left">Comprobante</th>
+                <th style="width:130px;text-align:left">Proveedor / Emisor</th>
+                <th style="text-align:left">Concepto / Cuenta Deducible</th>
+                <th style="width:75px;text-align:right">IVA</th>
+                <th style="width:85px;text-align:right">Monto Neto</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHTML}
+              <tr class="fm-rep-grandtot">
+                <td colspan="4">TOTAL GASTOS DEDUCIBLES</td>
+                <td class="fm-rep-num" style="color:#059669">${fmtCRC(data.ops.gas.iva)}</td>
+                <td class="fm-rep-num">${fmtCRC(data.ops.gas.tots.baseGrav + data.ops.gas.tots.ex + data.ops.gas.tots.ns)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          ${fmFirmasHTML(data.cliente, 'Registro Oficial de Gastos Deducibles conforme al Art. 8 de la Ley del Impuesto sobre la Renta N° 7092.')}
+        </div>
+      </div>
+    `;
+  }
+
+  // 11. LIBRO DE COSTOS DIRECTOS
+  if (tipo === 'costos') {
+    const rowsList = data.ops.cos.rows;
+    let rowsHTML = '';
+    const maxRows = 13;
+    const sliceRows = rowsList.slice(0, maxRows);
+    if (sliceRows.length === 0) {
+      rowsHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#94a3b8">No hay costos directos registrados en este período.</td></tr>';
+    } else {
+      sliceRows.forEach(r => {
+        const s = (typeof getS === 'function') ? getS(r.tipo) : 1;
+        const tf = (r.tf && r.tf > 0) ? (r.tf * s) : (((r.ns||0) + (r.ex||0) + (r.c13||0)) * s);
+        rowsHTML += `<tr>
+          <td style="font-size:8px">${r.fecha || '--'}</td>
+          <td style="font-size:8px;font-family:monospace">${(r.doc || '').slice(-15) || '--'}</td>
+          <td style="font-size:8px">${r.nt || 'Contratista / Proveedor'}</td>
+          <td style="font-size:8px">${r.l || 'Materiales / Insumos / Mano de obra'}</td>
+          <td class="fm-rep-num" style="font-size:8px;font-weight:700">${fmtCRC(tf)}</td>
+        </tr>`;
+      });
+      if (rowsList.length > maxRows) {
+        rowsHTML += `<tr><td colspan="5" style="text-align:center;font-size:7.5px;color:#64748b;font-style:italic;background:#f8fafc;padding:3px;">... y ${rowsList.length - maxRows} registros adicionales (Consolidados en el Total General)</td></tr>`;
+      }
+    }
+
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Cédula / Identificación: ${data.cliente.id}</div>
+            <div class="fm-rep-title">LIBRO DE COSTOS DIRECTOS DE PRODUCCIÓN Y OPERACIÓN</div>
+            <div class="fm-rep-sub">Para el período terminado al ${data.periodoTxt}</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Sección 13 NIIF para Pymes)</div>
+          </div>
+
+          <table class="fm-rep-table" style="font-size:8.5px">
+            <thead>
+              <tr>
+                <th style="width:75px;text-align:left">Fecha</th>
+                <th style="width:85px;text-align:left">Comprobante</th>
+                <th style="width:140px;text-align:left">Proveedor / Contratista</th>
+                <th style="text-align:left">Rubro / Material / Obra</th>
+                <th style="width:110px;text-align:right">Costo Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHTML}
+              <tr class="fm-rep-grandtot">
+                <td colspan="4">TOTAL COSTOS DIRECTOS DEL PERÍODO</td>
+                <td class="fm-rep-num">${fmtCRC(data.ops.cos.tots.tf)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          ${fmFirmasHTML(data.cliente, 'Informe de Costos Directos conforme a Normas Internacionales de Información Financiera y Código de Comercio.')}
+        </div>
+      </div>
+    `;
+  }
+
+  // 12. ESTADO DETALLADO DE ACTIVOS Y PPE
+  if (tipo === 'activos') {
+    let corRows = data.bg.detalleActivos.cor.map(a => `<tr><td class="fm-rep-item">${a.name}</td><td class="fm-rep-num">${fmtCRC(a.monto)}</td><td class="fm-rep-num">--</td><td class="fm-rep-num" style="font-weight:700">${fmtCRC(a.monto)}</td></tr>`).join('');
+    if (!corRows) corRows = `<tr><td class="fm-rep-item">Efectivo, Caja y Bancos</td><td class="fm-rep-num">${fmtCRC(data.bg.sumCor)}</td><td class="fm-rep-num">--</td><td class="fm-rep-num" style="font-weight:700">${fmtCRC(data.bg.sumCor)}</td></tr>`;
+
+    let ppeRows = data.bg.detalleActivos.no_cor.map(a => {
+      return `<tr><td class="fm-rep-item">${a.name}</td><td class="fm-rep-num">${fmtCRC(a.monto)}</td><td class="fm-rep-num" style="color:#dc2626">${fmtCRC(data.bg.sumDepre > 0 ? (data.bg.sumDepre * (a.monto / (data.bg.sumNoCor || 1))) : 0, true)}</td><td class="fm-rep-num" style="font-weight:700">${fmtCRC(a.monto - (data.bg.sumDepre > 0 ? (data.bg.sumDepre * (a.monto / (data.bg.sumNoCor || 1))) : 0))}</td></tr>`;
+    }).join('');
+    if (!ppeRows && data.bg.sumNoCor > 0) {
+      ppeRows = `<tr><td class="fm-rep-item">Propiedad, Planta y Equipo Consolidada</td><td class="fm-rep-num">${fmtCRC(data.bg.sumNoCor)}</td><td class="fm-rep-num" style="color:#dc2626">${fmtCRC(data.bg.sumDepre, true)}</td><td class="fm-rep-num" style="font-weight:700">${fmtCRC(data.bg.sumNoCor - data.bg.sumDepre)}</td></tr>`;
+    }
+
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Cédula / Identificación: ${data.cliente.id}</div>
+            <div class="fm-rep-title">ESTADO DETALLADO DE ACTIVOS Y PROPIEDAD, PLANTA Y EQUIPO</div>
+            <div class="fm-rep-sub">Al corte de ${data.periodoTxt}</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Sección 17 NIIF para Pymes)</div>
+          </div>
+
+          <table class="fm-rep-table" style="font-size:8.5px">
+            <thead>
+              <tr>
+                <th style="text-align:left">Clasificación y Cuenta de Activo</th>
+                <th style="width:110px;text-align:right">Costo Histórico</th>
+                <th style="width:120px;text-align:right">(-) Deprec. Acumulada</th>
+                <th style="width:110px;text-align:right">Valor Neto en Libros</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="fm-rep-section"><td colspan="4">1. ACTIVO CORRIENTE (CIRCULANTE)</td></tr>
+              ${corRows}
+              <tr class="fm-rep-subtot"><td colspan="3">SUBTOTAL ACTIVO CORRIENTE</td><td class="fm-rep-num">${fmtCRC(data.bg.sumCor)}</td></tr>
+
+              <tr class="fm-rep-section"><td colspan="4">2. PROPIEDAD, PLANTA Y EQUIPO (NO CORRIENTE)</td></tr>
+              ${ppeRows}
+              <tr class="fm-rep-subtot"><td colspan="3">SUBTOTAL PROPIEDAD, PLANTA Y EQUIPO (NETO)</td><td class="fm-rep-num">${fmtCRC(data.bg.sumNoCor - data.bg.sumDepre)}</td></tr>
+
+              ${data.bg.sumIntan > 0 ? `
+                <tr class="fm-rep-section"><td colspan="4">3. ACTIVOS INTANGIBLES</td></tr>
+                <tr><td class="fm-rep-item">Activos Intangibles Registrados</td><td class="fm-rep-num">${fmtCRC(data.bg.sumIntan)}</td><td class="fm-rep-num">--</td><td class="fm-rep-num">${fmtCRC(data.bg.sumIntan)}</td></tr>
+                <tr class="fm-rep-subtot"><td colspan="3">SUBTOTAL INTANGIBLES</td><td class="fm-rep-num">${fmtCRC(data.bg.sumIntan)}</td></tr>
+              ` : ''}
+
+              <tr class="fm-rep-grandtot">
+                <td colspan="3">TOTAL GENERAL DE ACTIVOS NETOS</td>
+                <td class="fm-rep-num">${fmtCRC(data.bg.totActivos)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          ${fmFirmasHTML(data.cliente, 'Estado de Activos elaborado con apego a las Normas Internacionales de Información Financiera NIIF Secc. 17.')}
+        </div>
+      </div>
+    `;
+  }
+
+  // 13. ESTADO DETALLADO DE PASIVOS
+  if (tipo === 'pasivos') {
+    let pasCorRows = data.bg.detallePasivos.pas_cor.map(p => `<tr><td class="fm-rep-item">${p.name}</td><td class="fm-rep-num">${fmtCRC(p.monto)}</td></tr>`).join('');
+    if (!pasCorRows) pasCorRows = `<tr><td class="fm-rep-item">Cuentas por Pagar Proveedores Comerciales</td><td class="fm-rep-num">${fmtCRC(data.bg.sumPasCor)}</td></tr>`;
+
+    let pasNoCorRows = data.bg.detallePasivos.pas_ncor.map(p => `<tr><td class="fm-rep-item">${p.name}</td><td class="fm-rep-num">${fmtCRC(p.monto)}</td></tr>`).join('');
+    if (!pasNoCorRows && data.bg.sumPasNoCor > 0) pasNoCorRows = `<tr><td class="fm-rep-item">Obligaciones Financieras a Largo Plazo</td><td class="fm-rep-num">${fmtCRC(data.bg.sumPasNoCor)}</td></tr>`;
+
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Cédula / Identificación: ${data.cliente.id}</div>
+            <div class="fm-rep-title">ESTADO DETALLADO DE PASIVOS Y OBLIGACIONES FINANCIERAS</div>
+            <div class="fm-rep-sub">Al corte de ${data.periodoTxt}</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Sección 21 NIIF para Pymes)</div>
+          </div>
+
+          <table class="fm-rep-table" style="font-size:9px">
+            <thead>
+              <tr>
+                <th style="text-align:left">Clasificación y Cuenta de Pasivo</th>
+                <th style="width:130px;text-align:right">Saldo al Corte (₡)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="fm-rep-section"><td colspan="2">1. PASIVO CORRIENTE (A CORTO PLAZO)</td></tr>
+              ${pasCorRows}
+              <tr class="fm-rep-subtot"><td>SUBTOTAL PASIVO CORRIENTE</td><td class="fm-rep-num">${fmtCRC(data.bg.sumPasCor)}</td></tr>
+
+              <tr class="fm-rep-section"><td colspan="2">2. PASIVO NO CORRIENTE (A LARGO PLAZO)</td></tr>
+              ${pasNoCorRows}
+              <tr class="fm-rep-subtot"><td>SUBTOTAL PASIVO NO CORRIENTE</td><td class="fm-rep-num">${fmtCRC(data.bg.sumPasNoCor)}</td></tr>
+
+              <tr class="fm-rep-grandtot">
+                <td>TOTAL GENERAL DE PASIVOS</td>
+                <td class="fm-rep-num">${fmtCRC(data.bg.totPasivos)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          ${fmFirmasHTML(data.cliente, 'Estado de Pasivos y Obligaciones financieras conforme a la normativa contable y mercantil de Costa Rica.')}
+        </div>
+      </div>
+    `;
+  }
+
+  // 14. FORMULARIO D-150 / D-104-2 DECLARACIÓN IVA
+  if (tipo === 'd150') {
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">DIRECCIÓN GENERAL DE TRIBUTACIÓN · MINISTERIO DE HACIENDA DE COSTA RICA</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Cédula: ${data.cliente.id} · Período Fiscal: ${data.periodoTxt}</div>
+            <div class="fm-rep-title">FORMULARIO D-150 / D-104-2 · DECLARACIÓN DEL IMPUESTO SOBRE EL VALOR AGREGADO</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Ley N° 9635 y D.E. N° 41779-H)</div>
+          </div>
+
+          <table class="fm-rep-table" style="font-size:8px">
+            <thead>
+              <tr>
+                <th style="text-align:left">Rubros Oficiales de la Declaración</th>
+                <th style="width:100px;text-align:right">Base Imponible</th>
+                <th style="width:85px;text-align:right">Impuesto Determinado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="fm-rep-section"><td colspan="3">SECCIÓN I — DÉBITO FISCAL POR OPERACIONES DE VENTA</td></tr>
+              <tr><td class="fm-rep-item">Ventas gravadas a tarifa general 13%</td><td class="fm-rep-num">${fmtCRC(data.ops.ing.tots.c13)}</td><td class="fm-rep-num">${fmtCRC(data.ops.ing.tots.c13 * 0.13)}</td></tr>
+              <tr><td class="fm-rep-item">Ventas gravadas a tarifas reducidas (4%, 2%, 1%, 0.5%)</td><td class="fm-rep-num">${fmtCRC(data.ops.ing.tots.c4 + data.ops.ing.tots.c2 + data.ops.ing.tots.c1 + data.ops.ing.tots.c05)}</td><td class="fm-rep-num">${fmtCRC(data.ops.ing.tots.c4*0.04 + data.ops.ing.tots.c2*0.02 + data.ops.ing.tots.c1*0.01 + data.ops.ing.tots.c05*0.005)}</td></tr>
+              <tr><td class="fm-rep-item">Ventas exentas y no sujetas con derecho a crédito</td><td class="fm-rep-num">${fmtCRC(data.ops.ing.tots.ex)}</td><td class="fm-rep-num">0,00</td></tr>
+              <tr><td class="fm-rep-item">Ventas exentas y no sujetas sin derecho a crédito</td><td class="fm-rep-num">${fmtCRC(data.ops.ing.tots.ns)}</td><td class="fm-rep-num">0,00</td></tr>
+              <tr class="fm-rep-subtot"><td colspan="2">TOTAL DÉBITO FISCAL GENERADO</td><td class="fm-rep-num" style="color:#2563eb;font-weight:700">${fmtCRC(data.d150.vtImp)}</td></tr>
+
+              <tr class="fm-rep-section"><td colspan="3">SECCIÓN II — CRÉDITO FISCAL POR COMPRAS Y GASTOS</td></tr>
+              <tr><td class="fm-rep-item">Compras y gastos gravados con derecho a crédito pleno</td><td class="fm-rep-num">${fmtCRC(data.d150.ctTot)}</td><td class="fm-rep-num">${fmtCRC(data.d150.ctIsop)}</td></tr>
+              <tr><td class="fm-rep-item">Factor de proporcionalidad aplicable (Art. 32 Ley 9635)</td><td class="fm-rep-num" style="font-weight:700">${data.prop.factorPct}%</td><td class="fm-rep-num">--</td></tr>
+              <tr class="fm-rep-subtot"><td colspan="2">TOTAL CRÉDITO FISCAL APLICABLE</td><td class="fm-rep-num" style="color:#059669;font-weight:700">${fmtCRC(data.d150.ctIden)}</td></tr>
+
+              <tr class="fm-rep-section"><td colspan="3">SECCIÓN III — DETERMINACIÓN Y LIQUIDACIÓN DEL IMPUESTO</td></tr>
+              <tr><td class="fm-rep-item">Impuesto neto determinado (Débito Fiscal - Crédito Fiscal)</td><td class="fm-rep-num">--</td><td class="fm-rep-num" style="font-weight:700">${fmtCRC(data.d150.saldo)}</td></tr>
+              <tr class="fm-rep-grandtot">
+                <td colspan="2">${data.d150.saldo >= 0 ? 'TOTAL IMPUESTO NETO A PAGAR A FAVOR DE LA DGT' : 'SALDO A FAVOR DEL CONTRIBUYENTE (CRÉDITO FISCAL)'}</td>
+                <td class="fm-rep-num" style="font-size:11px;color:${data.d150.saldo >= 0 ? '#2563eb' : '#059669'}">${fmtCRC(Math.abs(data.d150.saldo))}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          ${fmFirmasHTML(data.cliente, 'Declaración Jurada del Impuesto sobre el Valor Agregado conforme a la Ley N° 9635 y plataforma ATV de Tributación.')}
+        </div>
+      </div>
+    `;
+  }
+
+  // 15. FORMULARIO D-101 DECLARACIÓN RENTA
+  if (tipo === 'd101') {
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">DIRECCIÓN GENERAL DE TRIBUTACIÓN · MINISTERIO DE HACIENDA DE COSTA RICA</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Cédula: ${data.cliente.id} · Período Fiscal: ${data.periodoTxt}</div>
+            <div class="fm-rep-title">FORMULARIO D-101 · DECLARACIÓN DEL IMPUESTO SOBRE LA RENTA</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Ley N° 7092 y sus Reformas)</div>
+          </div>
+
+          <table class="fm-rep-table" style="font-size:8px">
+            <thead>
+              <tr>
+                <th style="width:50px;text-align:center">Casilla</th>
+                <th style="text-align:left">Concepto Oficial D-101</th>
+                <th style="width:110px;text-align:right">Monto Declarado (₡)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="fm-rep-section"><td colspan="3">I. INFORMACIÓN PATRIMONIAL / BALANCE GENERAL</td></tr>
+              <tr><td style="text-align:center">24</td><td class="fm-rep-item">TOTAL ACTIVO NETO</td><td class="fm-rep-num">${fmtCRC(data.bg.totActivos)}</td></tr>
+              <tr><td style="text-align:center">25</td><td class="fm-rep-item">TOTAL PASIVO</td><td class="fm-rep-num">${fmtCRC(data.bg.totPasivos)}</td></tr>
+              <tr class="fm-rep-subtot"><td style="text-align:center">26</td><td>CAPITAL NETO / PATRIMONIO</td><td class="fm-rep-num">${fmtCRC(data.bg.totPatrimonio)}</td></tr>
+
+              <tr class="fm-rep-section"><td colspan="3">II. RENTA BRUTA (INGRESOS TOTALES)</td></tr>
+              <tr><td style="text-align:center">28</td><td class="fm-rep-item">Venta de bienes y prestación de servicios</td><td class="fm-rep-num">${fmtCRC(data.er.v)}</td></tr>
+              <tr><td style="text-align:center">33</td><td class="fm-rep-item">Otros ingresos operacionales y financieros</td><td class="fm-rep-num">${fmtCRC(data.er.oi)}</td></tr>
+              <tr class="fm-rep-subtot"><td style="text-align:center">35</td><td>TOTAL RENTA BRUTA</td><td class="fm-rep-num">${fmtCRC(data.er.v + data.er.oi)}</td></tr>
+
+              <tr class="fm-rep-section"><td colspan="3">III. COSTOS Y GASTOS DEDUCIBLES</td></tr>
+              <tr><td style="text-align:center">40</td><td class="fm-rep-item">Costo de ventas (Compras y costos directos)</td><td class="fm-rep-num">${fmtCRC(data.er.cmv, true)}</td></tr>
+              <tr><td style="text-align:center">41</td><td class="fm-rep-item">Gastos administrativos y de comercialización</td><td class="fm-rep-num">${fmtCRC(data.er.go, true)}</td></tr>
+              <tr><td style="text-align:center">43</td><td class="fm-rep-item">Gasto por depreciación y amortización</td><td class="fm-rep-num">${fmtCRC(data.er.gastoDeprec, true)}</td></tr>
+              <tr><td style="text-align:center">44</td><td class="fm-rep-item">Otros gastos financieros</td><td class="fm-rep-num">${fmtCRC(data.er.og, true)}</td></tr>
+              <tr class="fm-rep-subtot"><td style="text-align:center">45</td><td>TOTAL COSTOS Y GASTOS DEDUCIBLES</td><td class="fm-rep-num">${fmtCRC(data.er.cmv + data.er.go + (data.er.gastoDeprec || 0) + data.er.og, true)}</td></tr>
+
+              <tr class="fm-rep-section"><td colspan="3">IV. LIQUIDACIÓN DEL IMPUESTO SOBRE LA RENTA</td></tr>
+              <tr><td style="text-align:center">46</td><td class="fm-rep-item">RENTA NETA IMPONIBLE (UTILIDAD / PÉRDIDA FISCAL)</td><td class="fm-rep-num" style="font-weight:700">${fmtCRC(data.er.uai)}</td></tr>
+              <tr class="fm-rep-grandtot">
+                <td style="text-align:center">84</td>
+                <td>TOTAL IMPUESTO DETERMINADO A CANCELAR A LA DGT</td>
+                <td class="fm-rep-num" style="font-size:11px;color:#2563eb">${fmtCRC(data.er.imp || (data.er.uai > 0 ? data.er.uai * 0.10 : 0))}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          ${fmFirmasHTML(data.cliente, 'Declaración Jurada del Impuesto sobre la Renta conforme al Art. 20 de la Ley N° 7092 y sistema oficial ATV.')}
+        </div>
+      </div>
+    `;
+  }
+
+  // 16. FORMULARIO D-105 RÉGIMEN SIMPLIFICADO
+  if (tipo === 'd105') {
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">DIRECCIÓN GENERAL DE TRIBUTACIÓN · MINISTERIO DE HACIENDA DE COSTA RICA</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Cédula: ${data.cliente.id} · Período Trimestral: ${data.periodoTxt}</div>
+            <div class="fm-rep-title">FORMULARIO D-105 · RÉGIMEN DE TRIBUTACIÓN SIMPLIFICADA</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Decreto Ejecutivo N° 25514-H)</div>
+          </div>
+
+          <table class="fm-rep-table" style="font-size:9px">
+            <thead>
+              <tr>
+                <th style="text-align:left">Concepto Oficial de Tributación Simplificada</th>
+                <th style="width:110px;text-align:right">Base / Factor</th>
+                <th style="width:120px;text-align:right">Monto Determinado (₡)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="fm-rep-section"><td colspan="3">I. COMPRAS TOTALES DEL PERÍODO (BASE DE IMPOSICIÓN)</td></tr>
+              <tr><td class="fm-rep-item">Compras del trimestre gravadas con IVA y exentas</td><td class="fm-rep-num">--</td><td class="fm-rep-num" style="font-weight:700">${fmtCRC(data.d105.compras)}</td></tr>
+              <tr class="fm-rep-subtot"><td colspan="2">TOTAL BASE DE COMPRAS TRIMESTRALES</td><td class="fm-rep-num">${fmtCRC(data.d105.compras)}</td></tr>
+
+              <tr class="fm-rep-section"><td colspan="3">II. CÁLCULO DE IMPUESTOS POR FACTOR AUTORIZADO</td></tr>
+              <tr><td class="fm-rep-item">Impuesto sobre la Renta Trimestral</td><td class="fm-rep-num">${data.d105.fisr.toFixed(2)}%</td><td class="fm-rep-num">${fmtCRC(data.d105.isr)}</td></tr>
+              <tr><td class="fm-rep-item">Impuesto sobre las Ventas / IVA Trimestral</td><td class="fm-rep-num">${data.d105.fiva.toFixed(2)}%</td><td class="fm-rep-num">${fmtCRC(data.d105.iva)}</td></tr>
+              <tr class="fm-rep-subtot"><td colspan="2">SUBTOTAL IMPUESTOS DETERMINADOS</td><td class="fm-rep-num" style="color:#2563eb;font-weight:700">${fmtCRC(data.d105.isr + data.d105.iva)}</td></tr>
+
+              <tr class="fm-rep-section"><td colspan="3">III. LIQUIDACIÓN FINAL DE LA DECLARACIÓN</td></tr>
+              <tr class="fm-rep-grandtot">
+                <td colspan="2">TOTAL DEUDA TRIBUTARIA A PAGAR A LA DGT</td>
+                <td class="fm-rep-num" style="font-size:11px;color:#2563eb">${fmtCRC(data.d105.deuda)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          ${fmFirmasHTML(data.cliente, 'Declaración Trimestral de Tributación Simplificada conforme al D.E. N° 25514-H y plataforma ATV.')}
+        </div>
+      </div>
+    `;
+  }
+
+  // 17. FORMULARIO D-113 CAPITAL MOBILIARIO
+  if (tipo === 'd113') {
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">DIRECCIÓN GENERAL DE TRIBUTACIÓN · MINISTERIO DE HACIENDA DE COSTA RICA</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Cédula: ${data.cliente.id} · Período Fiscal: ${data.periodoTxt}</div>
+            <div class="fm-rep-title">FORMULARIO D-113 · RENTAS DE CAPITAL MOBILIARIO</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Capítulo XI Ley N° 7092 / Ley N° 9635)</div>
+          </div>
+
+          <table class="fm-rep-table" style="font-size:9px">
+            <thead>
+              <tr>
+                <th style="text-align:left">Concepto y Rubro de Renta de Capital Mobiliario</th>
+                <th style="width:120px;text-align:right">Tarifa Legal</th>
+                <th style="width:120px;text-align:right">Monto (₡)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="fm-rep-section"><td colspan="3">I. DETERMINACIÓN DE LA BASE IMPONIBLE</td></tr>
+              <tr><td class="fm-rep-item">Arrendamiento y cesión de uso de bienes muebles</td><td class="fm-rep-num">--</td><td class="fm-rep-num">${fmtCRC(data.d113.base)}</td></tr>
+              <tr><td class="fm-rep-item">Cesión de derechos de propiedad intelectual e intangibles</td><td class="fm-rep-num">--</td><td class="fm-rep-num">0,00</td></tr>
+              <tr><td class="fm-rep-item">Cesión a terceros de fondos propios (rendimientos / intereses)</td><td class="fm-rep-num">--</td><td class="fm-rep-num">0,00</td></tr>
+              <tr class="fm-rep-subtot"><td colspan="2">TOTAL BASE IMPONIBLE RENTAS DE CAPITAL MOBILIARIO</td><td class="fm-rep-num" style="font-weight:700">${fmtCRC(data.d113.base)}</td></tr>
+
+              <tr class="fm-rep-section"><td colspan="3">II. DETERMINACIÓN DEL IMPUESTO</td></tr>
+              <tr><td class="fm-rep-item">Tarifa Plena Legal Establecida por Ley</td><td class="fm-rep-num" style="font-weight:700">15.00%</td><td class="fm-rep-num">--</td></tr>
+              <tr class="fm-rep-grandtot">
+                <td colspan="2">TOTAL IMPUESTO DETERMINADO A CANCELAR A LA DGT</td>
+                <td class="fm-rep-num" style="font-size:11px;color:#2563eb">${fmtCRC(data.d113.imp)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          ${fmFirmasHTML(data.cliente, 'Declaración Jurada D-113 conforme al Capítulo XI de la Ley del Impuesto sobre la Renta N° 7092.')}
+        </div>
+      </div>
+    `;
+  }
+
+  // 18. FORMULARIO D-116 CAPITAL INMOBILIARIO
+  if (tipo === 'd116') {
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">DIRECCIÓN GENERAL DE TRIBUTACIÓN · MINISTERIO DE HACIENDA DE COSTA RICA</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Cédula: ${data.cliente.id} · Período Fiscal: ${data.periodoTxt}</div>
+            <div class="fm-rep-title">FORMULARIO D-116 · RENTAS DE CAPITAL INMOBILIARIO</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Capítulo XI Ley N° 7092 / Ley N° 9635)</div>
+          </div>
+
+          <table class="fm-rep-table" style="font-size:9px">
+            <thead>
+              <tr>
+                <th style="text-align:left">Concepto Oficial de Rentas de Capital Inmobiliario</th>
+                <th style="width:110px;text-align:right">Porcentaje Legal</th>
+                <th style="width:120px;text-align:right">Monto (₡)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="fm-rep-section"><td colspan="3">I. DETERMINACIÓN DE LA RENTA BRUTA INMOBILIARIA</td></tr>
+              <tr><td class="fm-rep-item">Ingresos brutos por arrendamiento y subarrendamiento de inmuebles</td><td class="fm-rep-num">--</td><td class="fm-rep-num" style="font-weight:700">${fmtCRC(data.d116.bruta)}</td></tr>
+              <tr class="fm-rep-subtot"><td colspan="2">TOTAL RENTA BRUTA DE CAPITAL INMOBILIARIO</td><td class="fm-rep-num">${fmtCRC(data.d116.bruta)}</td></tr>
+
+              <tr class="fm-rep-section"><td colspan="3">II. GASTOS DEDUCIBLES PRESUNTIVOS (ART. 28 TER LEY 7092)</td></tr>
+              <tr><td class="fm-rep-item">Deducción única presuntiva directa por ley (sin comprobante)</td><td class="fm-rep-num" style="color:#059669;font-weight:700">15.00%</td><td class="fm-rep-num" style="color:#dc2626">${fmtCRC(data.d116.gd, true)}</td></tr>
+              <tr class="fm-rep-subtot"><td colspan="2">RENTA NETA IMPONIBLE DETERMINADA</td><td class="fm-rep-num" style="font-weight:800">${fmtCRC(data.d116.ri)}</td></tr>
+
+              <tr class="fm-rep-section"><td colspan="3">III. LIQUIDACIÓN DEL IMPUESTO</td></tr>
+              <tr><td class="fm-rep-item">Tarifa Plena Legal Aplicable</td><td class="fm-rep-num" style="font-weight:700">15.00%</td><td class="fm-rep-num">--</td></tr>
+              <tr class="fm-rep-grandtot">
+                <td colspan="2">TOTAL IMPUESTO A CANCELAR ANTE LA DGT</td>
+                <td class="fm-rep-num" style="font-size:11px;color:#2563eb">${fmtCRC(data.d116.imp)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          ${fmFirmasHTML(data.cliente, 'Declaración Jurada D-116 elaborada conforme a las disposiciones del Art. 28 ter de la Ley N° 7092.')}
+        </div>
+      </div>
+    `;
+  }
+
+  // 19. INFORME TÉCNICO DE PROPORCIONALIDAD DEL IVA
+  if (tipo === 'prop') {
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Cédula: ${data.cliente.id} · Período Fiscal: ${data.periodoTxt}</div>
+            <div class="fm-rep-title">INFORME TÉCNICO DE PROPORCIONALIDAD DEL IVA</div>
+            <div class="fm-rep-sub">Determinación Oficial conforme al Artículo 32 de la Ley N° 9635 y su Reglamento</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Criterio Tributario DGT)</div>
+          </div>
+
+          <table class="fm-rep-table" style="font-size:8.5px">
+            <thead>
+              <tr>
+                <th style="text-align:left">Clasificación de Operaciones y Factores de Prorrata</th>
+                <th style="width:130px;text-align:right">Monto de Operaciones (₡)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="fm-rep-section"><td colspan="2">1. OPERACIONES CON DERECHO A CRÉDITO FISCAL PLENO (NUMERADOR)</td></tr>
+              <tr><td class="fm-rep-item">Ventas gravadas a tarifas vigentes (13%, 4%, 2%, 1%, 0.5%)</td><td class="fm-rep-num">${fmtCRC(data.prop.gravados)}</td></tr>
+              <tr><td class="fm-rep-item">Operaciones exentas y no sujetas con derecho a crédito</td><td class="fm-rep-num">0,00</td></tr>
+              <tr class="fm-rep-subtot"><td>SUBTOTAL OPERACIONES CON DERECHO A CRÉDITO</td><td class="fm-rep-num" style="color:#059669;font-weight:700">${fmtCRC(data.prop.gravados)}</td></tr>
+
+              <tr class="fm-rep-section"><td colspan="2">2. TOTAL GENERAL DE OPERACIONES DEL CONTRIBUYENTE (DENOMINADOR)</td></tr>
+              <tr><td class="fm-rep-item">Ventas gravadas + Operaciones exentas y no sujetas sin derecho a crédito</td><td class="fm-rep-num">${fmtCRC(data.prop.totalIng)}</td></tr>
+              <tr class="fm-rep-subtot"><td>TOTAL OPERACIONES DEL EJERCICIO</td><td class="fm-rep-num" style="font-weight:700">${fmtCRC(data.prop.totalIng)}</td></tr>
+
+              <tr class="fm-rep-section"><td colspan="2">3. FACTOR DE PROPORCIONALIDAD DEFINITIVO (ART. 32 LIVA)</td></tr>
+              <tr class="fm-rep-subtot" style="background:#eff6ff">
+                <td style="color:#1d4ed8;font-weight:800">FACTOR DE PROPORCIONALIDAD DETERMINADO</td>
+                <td class="fm-rep-num" style="color:#1d4ed8;font-size:12px;font-weight:800">${data.prop.factorPct}%</td>
+              </tr>
+
+              <tr class="fm-rep-section"><td colspan="2">4. APLICACIÓN AL IVA SOPORTADO EN COMPRAS Y GASTOS COMUNES</td></tr>
+              <tr><td class="fm-rep-item">Total IVA soportado en insumos y adquisiciones del período</td><td class="fm-rep-num">${fmtCRC(data.prop.ivaSop)}</td></tr>
+              <tr><td class="fm-rep-item" style="color:#059669;font-weight:700">( ✔ ) IVA Acreditable (a declarar en formulario D-150 / D-104-2)</td><td class="fm-rep-num" style="color:#059669;font-weight:700">${fmtCRC(data.prop.ivaAcred)}</td></tr>
+              <tr><td class="fm-rep-item" style="color:#dc2626;font-weight:700">( ℹ ) IVA No Acreditable (deducible como gasto en Renta D-101 Art. 8 Ley 7092)</td><td class="fm-rep-num" style="color:#dc2626;font-weight:700">${fmtCRC(data.prop.ivaNoAcred)}</td></tr>
+              <tr class="fm-rep-grandtot">
+                <td>TOTAL IVA SOPORTADO LIQUIDADO</td>
+                <td class="fm-rep-num">${fmtCRC(data.prop.ivaSop)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          ${fmFirmasHTML(data.cliente, 'Informe Técnico de Proporcionalidad elaborado en estricto apego al Art. 32 de la Ley N° 9635 y Arts. 45 a 49 de su Reglamento.')}
+        </div>
+      </div>
+    `;
   }
 
   return '<div>Seleccione un reporte válido.</div>';
@@ -10793,8 +11734,14 @@ function fmAbrirReporteFinanciero(tipo) {
   modal.style.display = 'flex';
   
   const d = fmObtenerDatosReporte();
+  const titleEl = document.getElementById('fmRepModalTitle');
+  if (titleEl) {
+    titleEl.textContent = TITULOS_REPORTES[fmRepCurrentTab] || 'Reporte Oficial Contable';
+  }
   const sub = document.getElementById('fmRepModalSubtitle');
-  if(sub) sub.textContent = `${d.cliente.name} · Céd: ${d.cliente.id} · Período: ${d.periodoTxt}`;
+  if(sub) {
+    sub.textContent = `${d.cliente.name} · Céd: ${d.cliente.id} · Período: ${d.periodoTxt}`;
+  }
   
   fmActualizarTabsUI(fmRepCurrentTab);
   fmRenderizarDocumentoReporte();
@@ -10807,18 +11754,43 @@ function fmCerrarReporteFinanciero() {
 
 function fmCambiarTabReporte(tipo) {
   fmRepCurrentTab = tipo;
+  const titleEl = document.getElementById('fmRepModalTitle');
+  if (titleEl) {
+    titleEl.textContent = TITULOS_REPORTES[tipo] || 'Reporte Oficial Contable';
+  }
   fmActualizarTabsUI(tipo);
   fmRenderizarDocumentoReporte();
 }
 
 function fmActualizarTabsUI(tipo) {
-  ['estres', 'balgeneral', 'efectivo', 'patrimonio', 'comprobacion', 'mayor', 'juego_completo'].forEach(k => {
-    const btn = document.getElementById('fm-tab-' + k);
-    if(btn) {
-      if(k === tipo) btn.classList.add('active');
-      else btn.classList.remove('active');
-    }
+  const container = document.getElementById('fm-rep-tabs-bar');
+  if (!container) return;
+
+  const activeFam = fmDetectarFamilia(tipo);
+  
+  // Renderizar selector de familias + tabs correspondientes
+  let html = `<div style="display:flex;gap:6px;align-items:center;border-right:1px solid rgba(255,255,255,0.12);padding-right:12px;margin-right:6px;">`;
+  Object.keys(FAMILIAS_REPORTES).forEach(famKey => {
+    const f = FAMILIAS_REPORTES[famKey];
+    const isAct = famKey === activeFam;
+    html += `<button type="button" onclick="fmCambiarFamilia('${famKey}')" style="background:${isAct ? '#2563eb' : 'rgba(255,255,255,0.06)'};color:${isAct ? '#ffffff' : '#94a3b8'};border:1px solid ${isAct ? '#3b82f6' : 'rgba(255,255,255,0.1)'};padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">${f.icono} ${f.nombre}</button>`;
   });
+  html += `</div>`;
+
+  // Tabs de la familia activa
+  FAMILIAS_REPORTES[activeFam].items.forEach(it => {
+    const isTabAct = it.id === tipo;
+    html += `<button class="fm-rep-tab ${isTabAct ? 'active' : ''}" id="fm-tab-${it.id}" onclick="fmCambiarTabReporte('${it.id}')">${it.label}</button>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function fmCambiarFamilia(famKey) {
+  const firstItem = FAMILIAS_REPORTES[famKey].items[0];
+  if (firstItem) {
+    fmCambiarTabReporte(firstItem.id);
+  }
 }
 
 function fmRenderizarDocumentoReporte() {
@@ -10833,7 +11805,6 @@ function fmImprimirReporteActual() {
   if(!container) return;
   const content = container.innerHTML;
   
-  // Utilizar iframe aislado para calidad gráfica e independencia absoluta de CSS del sistema
   const frame = document.createElement('iframe');
   frame.style.position = 'fixed';
   frame.style.right = '0';
@@ -10849,34 +11820,33 @@ function fmImprimirReporteActual() {
     <!DOCTYPE html>
     <html lang="es">
     <head>
-      <meta charset="UTF-8"/>
-      <title>Reporte Financiero Oficial - FACTURAMI</title>
-      <link rel="preconnect" href="https://fonts.googleapis.com">
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+      <meta charset="UTF-8">
+      <title>Reporte Contable Oficial - FACTURAMI</title>
       <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
         @page {
           size: letter portrait;
-          margin: 8mm 12mm 8mm 12mm;
+          margin: 6mm 8mm 6mm 8mm;
+        }
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
         }
         body {
-          font-family: 'Inter', -apple-system, sans-serif;
-          color: #0f172a;
-          background: #ffffff;
-          font-size: 9px;
-          line-height: 1.4;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
+          background: #ffffff !important;
+          color: #0f172a !important;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+          line-height: 1.35 !important;
+          font-size: 8.5px !important;
         }
-        .fm-sheet-badge { display: none !important; }
-        .fm-num-neg {
-          color: #dc2626 !important;
-          font-weight: 700 !important;
+        .fm-sheet-badge {
+          display: none !important;
         }
         .fm-rep-card {
-          background: #ffffff;
-          color: #0f172a;
+          background: #ffffff !important;
+          color: #0f172a !important;
           width: 100% !important;
           height: 263mm !important;
           max-height: 263mm !important;
@@ -10925,18 +11895,18 @@ function fmImprimirReporteActual() {
           font-size: 9.5px;
           color: #475569;
           font-weight: 600;
-          margin-bottom: 3px;
+          margin-bottom: 2px;
         }
         .fm-rep-title {
-          font-size: 12px;
+          font-size: 11.5px;
           font-weight: 800;
           color: #0f172a;
           letter-spacing: 0.04em;
           text-transform: uppercase;
-          margin: 3px 0 2px;
+          margin: 2px 0 1px;
         }
         .fm-rep-sub {
-          font-size: 10px;
+          font-size: 9.5px;
           color: #334155;
           font-weight: 600;
         }
@@ -10944,110 +11914,114 @@ function fmImprimirReporteActual() {
           font-size: 8px;
           color: #64748b;
           font-style: italic;
-          margin-top: 1px;
         }
         .fm-rep-table {
           width: 100%;
           border-collapse: collapse;
-          margin: 4px 0;
-          font-size: 9px;
+          margin: 3px 0;
+          font-size: 8.5px;
         }
         .fm-rep-table th {
-          border-top: 1.5px solid #0f172a;
-          border-bottom: 1.5px solid #0f172a;
-          padding: 3.5px 6px;
+          border-top: 1.2px solid #0f172a;
+          border-bottom: 1.2px solid #0f172a;
+          padding: 3px 5px;
           font-weight: 700;
           text-transform: uppercase;
-          font-size: 8px;
-          letter-spacing: 0.04em;
-          background: #f8fafc;
+          font-size: 7.5px;
+          letter-spacing: 0.03em;
+          background: #f8fafc !important;
           color: #0f172a;
         }
         .fm-rep-table td {
-          padding: 3px 6px;
+          padding: 2.5px 5px;
           border-bottom: 1px solid #f1f5f9;
         }
         .fm-rep-section {
-          background: #f8fafc;
+          background: #f8fafc !important;
           font-weight: 800;
-          font-size: 9px;
+          font-size: 8.5px;
           letter-spacing: 0.03em;
           color: #0f172a;
-          padding: 4px 6px !important;
+          padding: 3.5px 5px !important;
           border-top: 1px solid #cbd5e1;
         }
         .fm-rep-cat {
           font-weight: 700;
           color: #1e293b;
-          font-size: 8px;
+          font-size: 7.5px;
           letter-spacing: 0.02em;
-          padding: 4px 6px 2px !important;
-          background: rgba(241, 245, 249, 0.6);
+          padding: 3px 5px 1px !important;
+          background: rgba(241, 245, 249, 0.6) !important;
         }
         .fm-rep-item {
-          padding-left: 14px !important;
+          padding-left: 10px !important;
           color: #334155;
         }
         .fm-rep-num {
           text-align: right;
-          font-family: 'Roboto Mono', monospace;
+          font-family: 'Roboto Mono', Courier, monospace;
           font-weight: 600;
           white-space: nowrap;
-          padding-right: 6px !important;
+          padding-right: 5px !important;
         }
         .fm-rep-subtot td {
           border-top: 1px solid #94a3b8;
           font-weight: 700;
           color: #0f172a;
-          padding-top: 3.5px !important;
-          padding-bottom: 3.5px !important;
+          padding-top: 2.5px !important;
+          padding-bottom: 2.5px !important;
         }
         .fm-rep-grandtot td {
-          border-top: 1.5px solid #0f172a;
-          border-bottom: 3px double #0f172a;
+          border-top: 1.2px solid #0f172a;
+          border-bottom: 2.5px double #0f172a;
           font-weight: 800;
-          font-size: 9.5px;
+          font-size: 9px;
           color: #0f172a;
-          padding-top: 4px !important;
-          padding-bottom: 4px !important;
-          background: #fafafa;
+          padding-top: 3.5px !important;
+          padding-bottom: 3.5px !important;
+          background: #fafafa !important;
         }
         .fm-bg-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 14px;
-          margin: 4px 0;
+          gap: 12px;
+          margin: 3px 0;
         }
         .fm-rep-firmas {
-          display: flex;
-          justify-content: space-around;
-          margin-top: auto;
-          padding-top: 10px;
+          display: flex !important;
+          justify-content: space-around !important;
+          margin-top: auto !important;
+          padding-top: 8px !important;
           text-align: center;
-          page-break-inside: avoid;
+          page-break-inside: avoid !important;
         }
         .fm-rep-firma-box {
           width: 220px;
           border-top: 1px solid #0f172a;
-          padding-top: 4px;
+          padding-top: 3px;
         }
         .fm-rep-firma-cargo {
-          font-size: 9px;
+          font-size: 8.5px;
           font-weight: 700;
           color: #0f172a;
         }
         .fm-rep-firma-sub {
-          font-size: 7.5px;
+          font-size: 7px;
           color: #64748b;
+          margin-top: 1px;
         }
         .fm-rep-legal {
-          margin-top: 6px;
-          padding-top: 4px;
+          margin-top: 5px;
+          padding-top: 3px;
           border-top: 1px solid #e2e8f0;
-          font-size: 7px;
+          font-size: 6.5px;
           color: #94a3b8;
           text-align: center;
-          line-height: 1.3;
+          line-height: 1.25;
+        }
+        .fm-num-neg {
+          color: #dc2626 !important;
+          font-weight: 700 !important;
         }
       </style>
     </head>
@@ -11062,10 +12036,11 @@ function fmImprimirReporteActual() {
     frame.contentWindow.focus();
     frame.contentWindow.print();
     setTimeout(() => {
-      if (document.body.contains(frame)) document.body.removeChild(frame);
-    }, 2000);
+      document.body.removeChild(frame);
+    }, 1500);
   }, 350);
 }
+
 // Cerrar con Escape
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
@@ -11075,11 +12050,6 @@ document.addEventListener('keydown', (e) => {
     }
   }
 });
-</script>
-
-</body>
-</html>
-
 
 // ── MODAL DE ASIENTO DE AJUSTE / SALDO INICIAL ───────────────────
 function fmAbrirModalAjusteBalance() {
@@ -11209,7 +12179,6 @@ async function fmGuardarAsientoAjuste() {
     }
   } catch(e) {
     console.error('Error al guardar ajuste:', e);
-    // Modo local / offline fallback
     if(!MODS.asientos) MODS.asientos = [];
     MODS.asientos.push({
       id: 'local_' + Date.now(),
@@ -11223,3 +12192,6 @@ async function fmGuardarAsientoAjuste() {
     if(typeof renderBalGeneral === 'function') renderBalGeneral();
   }
 }
+</script>
+</body>
+</html>
