@@ -1,6 +1,6 @@
 import re
 
-with open('d:/Sistema contable/FACTURAMI.html', 'r', encoding='utf-8') as f:
+with open('e:/FACTURAMI_PORTABLE/FACTURAMI.html', 'r', encoding='utf-8') as f:
     html = f.read()
 
 # 1. Add PapaParse
@@ -154,6 +154,6 @@ function processImport(data) {
 if "processImport" not in html:
     html = html.replace('// ── INIT DASHBOARD ───────────────────────────────────────────────', js_additions + '\n// ── INIT DASHBOARD ───────────────────────────────────────────────')
 
-with open('d:/Sistema contable/FACTURAMI.html', 'w', encoding='utf-8') as f:
+with open('e:/FACTURAMI_PORTABLE/FACTURAMI.html', 'w', encoding='utf-8') as f:
     f.write(html)
 print("Updated HTML successfully")

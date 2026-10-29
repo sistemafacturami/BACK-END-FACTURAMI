@@ -519,6 +519,8 @@ def calcular_tabla_amortizacion(principal, tasa_anual, plazo_meses, periodicidad
 
         saldo_inicial = round(saldo, 2)
         interes = round(saldo_inicial * i, 2) if sistema != 'sin_interes' else 0.0
+        amort: float = 0.0
+        cuota: float = 0.0
 
         if k <= int(gracia):
             amort = 0.0
@@ -606,7 +608,8 @@ def recalcular_por_abono_extraordinario(cuotas_anteriores, cuota_corte_idx, mont
         
     saldo = nuevo_saldo
     
-    c_fija = float(c_original)
+    n_restantes: int = max(1, cuotas_restantes_originales)
+    c_fija: float = float(c_original)
     if tipo_recalculo == 'reducir_plazo' and sistema == 'frances' and i > 0:
         term = 1.0 - (saldo * i / c_original)
         if term > 0:
@@ -635,6 +638,8 @@ def recalcular_por_abono_extraordinario(cuotas_anteriores, cuota_corte_idx, mont
         
         saldo_inicial = round(saldo, 2)
         interes = round(saldo_inicial * i, 2) if sistema != 'sin_interes' else 0.0
+        amort: float = 0.0
+        cuota: float = 0.0
         
         if r == n_restantes:
             amort = round(saldo_inicial, 2)
@@ -743,9 +748,19 @@ def registrar_pasivo_financiero(cliente_id, datos, db_path=None):
             'referencia_doc': str(doc_ref)
         })
         
+    tipo_pasivo = datos.get('tipo')
+    if tipo_pasivo in ('pasivo_corriente', 'corriente'):
+        cuenta_pasivo = '2.1.2.01'
+        nombre_pasivo = 'Préstamos y Obligaciones Bancarias CP (Porción Corriente)'
+        tipo_final = 'pasivo_corriente'
+    else:
+        cuenta_pasivo = '2.2.1.01'
+        nombre_pasivo = 'Préstamos y Obligaciones Bancarias LP'
+        tipo_final = 'pasivo_no_corriente' if (not tipo_pasivo or tipo_pasivo in ('pasivo_no_corriente', 'no_corriente')) else str(tipo_pasivo)
+
     lineas.append({
-        'cuenta_codigo': '2.2.1.01',
-        'cuenta_nombre': 'Préstamos y Obligaciones Bancarias LP',
+        'cuenta_codigo': cuenta_pasivo,
+        'cuenta_nombre': nombre_pasivo,
         'debito': 0.0,
         'credito': principal,
         'referencia_doc': str(doc_ref)
@@ -768,7 +783,7 @@ def registrar_pasivo_financiero(cliente_id, datos, db_path=None):
         'cliente_id': cliente_id,
         'descripcion': descripcion,
         'acreedor': acreedor,
-        'tipo': datos.get('tipo', 'prestamo_bancario'),
+        'tipo': tipo_final,
         'moneda': datos.get('moneda', 'CRC'),
         'monto_principal': principal,
         'saldo_capital_actual': principal,
@@ -905,9 +920,17 @@ def registrar_pago_pasivo(cliente_id, pasivo, datos_pago, db_path=None):
     # 2. Generar Asiento de Partida Doble
     lineas = []
     if monto_capital > 0:
+        tipo_pasivo = pasivo.get('tipo')
+        if tipo_pasivo in ('pasivo_corriente', 'corriente'):
+            cuenta_pasivo = '2.1.2.01'
+            nombre_pasivo = 'Préstamos y Obligaciones Bancarias CP'
+        else:
+            cuenta_pasivo = '2.2.1.01'
+            nombre_pasivo = 'Préstamos y Obligaciones Bancarias LP'
+
         lineas.append({
-            'cuenta_codigo': '2.2.1.01',
-            'cuenta_nombre': 'Préstamos y Obligaciones Bancarias LP',
+            'cuenta_codigo': cuenta_pasivo,
+            'cuenta_nombre': nombre_pasivo,
             'debito': monto_capital,
             'credito': 0.0,
             'referencia_doc': str(comprobante)
