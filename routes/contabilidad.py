@@ -89,3 +89,31 @@ def reversar(asiento_id):
         except ValueError as ve:
             return error(str(ve), 400)
 
+@contabilidad_bp.route('/api/contabilidad/balance-general', methods=['GET'])
+@jwt_required(optional=True)
+@handle_errors
+def balance_general():
+    """GET /api/contabilidad/balance-general?cliente_id=...&fecha_corte=..."""
+    cliente_id = request.args.get('cliente_id')
+    fecha_corte = request.args.get('fecha_corte', '2026-10-31')
+    if not cliente_id:
+        return error("Se requiere parámetro cliente_id", 400)
+    bg = contabilidad_service.get_balance_general(cliente_id, fecha_corte)
+    return success(bg)
+
+@contabilidad_bp.route('/api/contabilidad/ajuste-balance', methods=['POST'])
+@jwt_required(optional=True)
+@handle_errors
+def ajuste_balance():
+    """POST /api/contabilidad/ajuste-balance"""
+    body = request.get_json(force=True, silent=True) or {}
+    cliente_id = body.get('cliente_id')
+    if not cliente_id:
+        return error("Se requiere cliente_id", 400)
+    try:
+        res = contabilidad_service.crear_asiento_ajuste(cliente_id, body)
+        return success(res, message="Asiento de ajuste registrado exitosamente")
+    except ValueError as ve:
+        return error(str(ve), 422)
+
+

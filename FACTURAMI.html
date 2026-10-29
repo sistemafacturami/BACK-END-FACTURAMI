@@ -6329,7 +6329,6 @@ function renderEstRes(){
 // ── BALANCE GENERAL ───────────────────────────────────────────────
 function bgBlur(el){let v=parseFloat(el.value.replace(/,/g,''))||0;el.value=v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');bgCalc();}
 function bgCalc(){
-  const gv = id => { const e = document.getElementById('bg_'+id); return e ? parseFloat(e.value.replace(/,/g,''))||0 : 0; };
   const sv = (id,val) => { const e = document.getElementById('bg_'+id); if(e) e.textContent = val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); };
   getERVars(); 
 
@@ -6350,26 +6349,34 @@ function bgCalc(){
   sv('act', tot_act);
   
   // Totales desde el módulo de Pasivos usando getPasivoBalance (respeta período)
-  let sumPasCor = 0, sumPasNoCor = 0, sumPatrimonio = 0;
+  let sumPasCor = 0, sumPasNoCor = 0;
   if(MODS.pasivos) {
     PASIVOS_SCHEMA.pas_cor.items.forEach(name => sumPasCor += getPasivoBalance('pas_cor', name));
     PASIVOS_SCHEMA.pas_ncor.items.forEach(name => sumPasNoCor += getPasivoBalance('pas_ncor', name));
   }
-  if(MODS.patrimonio) {
-    PATRIMONIO_SCHEMA.patrim.items.forEach(name => sumPatrimonio += getPatrimBalance(name));
-  }
-  sumPasCor += gv('cxp') + gv('imp_bg') + gv('op_c');
-  sumPasNoCor += gv('pres') + gv('op_nc');
 
   const tot_pas = sumPasCor + sumPasNoCor;
   sv('pas_cor_tot', sumPasCor);
   sv('pas_ncor_tot', sumPasNoCor);
   sv('pas', tot_pas);
   
+  // Totales desde el módulo de Patrimonio entrelazado
+  let sumCap = 0, sumRes = 0, sumOtrosPatrim = 0;
+  if(MODS.patrimonio && MODS.patrimonio.patrim) {
+    Object.keys(MODS.patrimonio.patrim).forEach(name => {
+      const b = getPatrimBalance(name);
+      if(name.includes('CAPITAL') || name.includes('APORTES')) sumCap += b;
+      else if(name.includes('ACUMULAD') || name.includes('RESERVA') || name.includes('SUPERAVIT')) sumRes += b;
+      else sumOtrosPatrim += b;
+    });
+  }
+  sv('cap_tot', sumCap);
+  sv('res_tot', sumRes);
+  
   const ut_el = document.getElementById('bg_ut');
   if(ut_el) ut_el.textContent = utilNetaG.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
   
-  const pat = gv('cap') + gv('res') + utilNetaG + sumPatrimonio;
+  const pat = sumCap + sumRes + sumOtrosPatrim + utilNetaG;
   sv('pat', pat);
   
   const pas_pat = tot_pas + pat;
@@ -6378,7 +6385,7 @@ function bgCalc(){
   const cuadre = document.getElementById('bg_cuadre');
   if(cuadre) {
     const d = tot_act - pas_pat;
-    cuadre.textContent = Math.abs(d)<0.01 ? '✔️ El Balance Cuadra Perfectamente' : '❌ Diferencia = ' + d.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+    cuadre.textContent = Math.abs(d)<0.01 ? '✔️ Ecuación Contable Balanceada: Activo = Pasivo + Patrimonio' : '❌ Diferencia = ' + d.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
     cuadre.style.color = Math.abs(d)<0.01 ? '#34d399' : 'var(--red)';
   }
 }
@@ -6420,19 +6427,18 @@ function renderBalGeneral(){
 
       <div class="fd104-hd" style="margin-top:20px;border-top:1px solid var(--cream2);padding-top:20px">Pasivos</div>
       ${rT('pas_cor_tot','( + ) TOTAL PASIVO CORRIENTE','0.00')}
-      ${rI('cxp','  Ajuste: Cuentas por Pagar comerciales',false,'0.00')}
-      ${rI('imp_bg','  Ajuste: Impuestos por pagar',false,'0.00')}
-      ${rI('op_c','  Ajuste: Otros pasivos corrientes',false,'0.00')}
       ${rT('pas_ncor_tot','( + ) TOTAL PASIVO NO CORRIENTE','0.00')}
-      ${rI('pres','  Ajuste: Préstamos y obligaciones LP',false,'0.00')}
-      ${rI('op_nc','  Ajuste: Otros pasivos no corrientes',false,'0.00')}
-      ${rT('pas','TOTAL PASIVO','0.00','background:var(--cream)')}
+      ${rT('pas','TOTAL PASIVO','0.00','background:var(--cream);color:var(--ink);font-weight:700')}
       
-      <div class="fd104-hd" style="margin-top:20px;border-top:1px solid var(--cream2);padding-top:20px">Patrimonio</div>
-      ${rI('cap','Capital Social (manual)',false,'0.00')}
-      ${rI('res','Reservas y Utilidades Retenidas (manual)',false,'0.00')}
-      ${rT('ut','Utilidad / Pérdida Neta del Ejercicio','0.00')}
-      ${rT('pat','TOTAL PATRIMONIO','0.00','background:var(--cream)')}
+      <div class="fd104-hd" style="margin-top:20px;border-top:1px solid var(--cream2);padding-top:20px">Patrimonio Neto</div>
+      ${rT('cap_tot','Capital del Propietario / Aportes','0.00')}
+      ${rT('res_tot','Resultados y Pérdidas/Ganancias Acumuladas','0.00')}
+      ${rT('ut','Utilidad / (Pérdida) Neta del Ejercicio','0.00')}
+      ${rT('pat','TOTAL PATRIMONIO NETO','0.00','background:var(--cream);color:var(--ink);font-weight:700')}
+      
+      <div style="margin-top:14px; display:flex; gap:10px; justify-content:flex-end;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="fmAbrirModalAjusteBalance()" style="font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--cream3);padding:6px 14px;border-radius:6px;background:white;cursor:pointer;color:var(--ink)">⚖️ Registrar Asiento de Ajuste / Saldo Inicial</button>
+      </div>
       
       <div style="margin-top:24px;padding:15px;background:var(--surface-dark, #0f172a);border-radius:var(--r);display:flex;justify-content:space-between;align-items:center">
         <div>
@@ -10263,20 +10269,19 @@ function fmObtenerDatosReporte() {
       if (b !== 0) detallePasivos.pas_ncor.push({ name, monto: b });
     });
   }
-  const gvBG = id => { const e = document.getElementById('bg_' + id); return e ? (parseFloat(e.value.replace(/,/g, '')) || 0) : 0; };
-  sumPasCor += gvBG('cxp') + gvBG('imp_bg') + gvBG('op_c');
-  sumPasNoCor += gvBG('pres') + gvBG('op_nc');
   const totPasivos = sumPasCor + sumPasNoCor;
 
   if(typeof MODS !== 'undefined' && MODS.patrimonio && typeof PATRIMONIO_SCHEMA !== 'undefined') {
     PATRIMONIO_SCHEMA.patrim.items.forEach(name => {
       const b = (typeof getPatrimBalance === 'function') ? getPatrimBalance(name) : 0;
-      sumPatrimonio += b;
-      if (b !== 0) detallePatrimonio.push({ name, monto: b });
+      if (b !== 0) {
+        sumPatrimonio += b;
+        detallePatrimonio.push({ name, monto: b });
+      }
     });
   }
-  const cap = gvBG('cap'), res = gvBG('res');
-  const totPatrimonio = cap + res + utilNeta + sumPatrimonio;
+  const cap = 0, res = 0;
+  const totPatrimonio = sumPatrimonio + utilNeta;
   const totPasivoPatrimonio = totPasivos + totPatrimonio;
 
   // 3. Flujo de Efectivo
@@ -11074,3 +11079,147 @@ document.addEventListener('keydown', (e) => {
 
 </body>
 </html>
+
+
+// ── MODAL DE ASIENTO DE AJUSTE / SALDO INICIAL ───────────────────
+function fmAbrirModalAjusteBalance() {
+  let m = document.getElementById('fmModalAjuste');
+  if(!m) {
+    const div = document.createElement('div');
+    div.id = 'fmModalAjuste';
+    div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:99999;align-items:center;justify-content:center;padding:16px;';
+    div.innerHTML = `
+      <div style="background:#fff;border-radius:12px;width:100%;max-width:520px;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);font-family:var(--ff)">
+        <div style="background:#0f172a;color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.08em;font-weight:700">Contabilidad NIIF</div>
+            <div style="font-size:16px;font-weight:700">Registrar Asiento de Ajuste / Saldo</div>
+          </div>
+          <button type="button" onclick="fmCerrarModalAjuste()" style="background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer">&times;</button>
+        </div>
+        <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Tipo de Ajuste</label>
+            <select id="fm_ajuste_tipo" onchange="fmCambiarTipoAjuste(this.value)" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+              <option value="aporte">Aporte de Capital / Saldo Inicial (Dr Bancos / Cr Capital)</option>
+              <option value="retiro">Retiro del Propietario (Dr Retiros / Cr Bancos)</option>
+              <option value="pasivo">Reconocimiento de Pasivo (Dr Gasto / Cr Cuentas por Pagar)</option>
+              <option value="otro">Ajuste General de Partida Doble</option>
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Fecha Contable</label>
+              <input type="date" id="fm_ajuste_fecha" value="${new Date().toISOString().slice(0,10)}" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px"/>
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Monto (₡ CRC)</label>
+              <input type="number" step="0.01" id="fm_ajuste_monto" placeholder="0.00" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-weight:700"/>
+            </div>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Cuenta al Debe (Débito)</label>
+            <input type="text" id="fm_ajuste_cta_deb" value="1.1.1.02.01 - Banco Nacional de Costa Rica (BNCR)" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;background:#f8fafc" readonly/>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Cuenta al Haber (Crédito)</label>
+            <input type="text" id="fm_ajuste_cta_cred" value="3.1.1.01 - Capital del Propietario (Aportes)" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;background:#f8fafc" readonly/>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Concepto / Justificación</label>
+            <input type="text" id="fm_ajuste_concepto" placeholder="Ej. Aporte inicial de capital en efectivo" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px"/>
+          </div>
+        </div>
+        <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:14px 20px;display:flex;justify-content:flex-end;gap:10px">
+          <button type="button" onclick="fmCerrarModalAjuste()" style="padding:8px 16px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;font-weight:600;font-size:12px;cursor:pointer">Cancelar</button>
+          <button type="button" onclick="fmGuardarAsientoAjuste()" style="padding:8px 20px;border:none;border-radius:6px;background:#2563eb;color:#fff;font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 2px 6px rgba(37,99,235,0.3)">Guardar Asiento</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(div);
+    m = div;
+  }
+  m.style.display = 'flex';
+}
+
+function fmCerrarModalAjuste() {
+  const m = document.getElementById('fmModalAjuste');
+  if(m) m.style.display = 'none';
+}
+
+function fmCambiarTipoAjuste(val) {
+  const deb = document.getElementById('fm_ajuste_cta_deb');
+  const cred = document.getElementById('fm_ajuste_cta_cred');
+  const conc = document.getElementById('fm_ajuste_concepto');
+  if(!deb || !cred) return;
+  if(val === 'aporte') {
+    deb.value = '1.1.1.02.01 - Banco Nacional de Costa Rica (BNCR)';
+    cred.value = '3.1.1.01 - Capital del Propietario (Aportes)';
+    if(conc) conc.placeholder = 'Ej. Aporte inicial de fondos';
+  } else if(val === 'retiro') {
+    deb.value = '3.1.2.01 - Retiros del Propietario';
+    cred.value = '1.1.1.02.01 - Banco Nacional de Costa Rica (BNCR)';
+    if(conc) conc.placeholder = 'Ej. Retiro de utilidades del propietario';
+  } else if(val === 'pasivo') {
+    deb.value = '5.2.1.03 - Gastos Administrativos Generales';
+    cred.value = '2.1.1.01 - Cuentas por Pagar Comerciales';
+    if(conc) conc.placeholder = 'Ej. Registro de obligación comercial pendiente';
+  } else {
+    deb.value = '1.1.1.01 - Caja General';
+    cred.value = '3.1.1.01 - Capital del Propietario (Aportes)';
+  }
+}
+
+async function fmGuardarAsientoAjuste() {
+  const monto = parseFloat(document.getElementById('fm_ajuste_monto').value) || 0;
+  if(monto <= 0) { alert('Ingrese un monto mayor a cero'); return; }
+  const fecha = document.getElementById('fm_ajuste_fecha').value;
+  const concepto = document.getElementById('fm_ajuste_concepto').value.trim() || 'Ajuste contable de balance';
+  const debText = document.getElementById('fm_ajuste_cta_deb').value;
+  const credText = document.getElementById('fm_ajuste_cta_cred').value;
+  
+  const debCod = debText.split(' - ')[0];
+  const debNom = debText.split(' - ')[1] || debCod;
+  const credCod = credText.split(' - ')[0];
+  const credNom = credText.split(' - ')[1] || credCod;
+
+  const payload = {
+    cliente_id: (typeof activeClient !== 'undefined' && activeClient && activeClient.id) ? activeClient.id : '504470991',
+    fecha: fecha,
+    concepto: concepto,
+    lineas: [
+      { cuenta_codigo: debCod, cuenta_nombre: debNom, debito: monto, credito: 0.0, referencia_doc: 'AJUSTE' },
+      { cuenta_codigo: credCod, cuenta_nombre: credNom, debito: 0.0, credito: monto, referencia_doc: 'AJUSTE' }
+    ]
+  };
+
+  try {
+    const res = await fetch('/api/contabilidad/ajuste-balance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const d = await res.json();
+    if(d.ok) {
+      alert('Asiento de ajuste registrado exitosamente en el Libro Mayor.');
+      fmCerrarModalAjuste();
+      if(typeof renderBalGeneral === 'function') renderBalGeneral();
+    } else {
+      alert('Error: ' + (d.error || 'No se pudo guardar el asiento'));
+    }
+  } catch(e) {
+    console.error('Error al guardar ajuste:', e);
+    // Modo local / offline fallback
+    if(!MODS.asientos) MODS.asientos = [];
+    MODS.asientos.push({
+      id: 'local_' + Date.now(),
+      fecha_contable: fecha,
+      concepto: concepto,
+      estado: 'valido',
+      lineas: payload.lineas
+    });
+    alert('Asiento registrado localmente.');
+    fmCerrarModalAjuste();
+    if(typeof renderBalGeneral === 'function') renderBalGeneral();
+  }
+}

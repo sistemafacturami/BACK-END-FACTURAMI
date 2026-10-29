@@ -499,5 +499,29 @@ class TestContabilidadNIIF(unittest.TestCase):
         print(f"         Invariante verificada: Activo == Pasivo + Patrimonio en el 100% de los estados.")
         conn.close()
 
+    def test_10_balance_general_entrelazado_service(self):
+        """[TEST 10] Verifica el cálculo del Balance General entrelazado vía contabilidad_service."""
+        bg = cs.get_balance_general(self.cid, '2026-10-31', TEST_DB_PATH)
+        self.assertIn('activo', bg)
+        self.assertIn('pasivo', bg)
+        self.assertIn('patrimonio', bg)
+        self.assertAlmostEqual(bg['diferencia_cuadre'], 0.0, places=2)
+        self.assertTrue(bg['cuadrado'])
+        print(f"\n[TEST 10] get_balance_general validado: Activo={bg['activo']['total_activo_neto']}, Pasivo+Patrimonio={bg['total_pasivo_patrimonio']}, Diferencia={bg['diferencia_cuadre']}")
+
+    def test_11_crear_asiento_ajuste(self):
+        """[TEST 11] Verifica la creación de un asiento de ajuste contable con partida doble."""
+        datos = {
+            'concepto': 'Ajuste de aporte inicial auditado',
+            'fecha': '2026-07-01',
+            'lineas': [
+                {'cuenta_codigo': '1.1.1.02.01', 'cuenta_nombre': 'Banco Nacional', 'debito': 500000.0, 'credito': 0.0},
+                {'cuenta_codigo': '3.1.1.01', 'cuenta_nombre': 'Capital del Propietario', 'debito': 0.0, 'credito': 500000.0}
+            ]
+        }
+        res = cs.crear_asiento_ajuste(self.cid, datos, TEST_DB_PATH)
+        self.assertIn('asiento_id', res)
+        print(f"\n[TEST 11] crear_asiento_ajuste validado con ID: {res['asiento_id']}")
+
 if __name__ == '__main__':
     unittest.main()
