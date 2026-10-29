@@ -462,3 +462,540 @@ def crear_asiento_ajuste(cliente_id, datos, db_path=None):
         aid = database.insert_asiento(conn, asiento_dict, lineas)
         return {'asiento_id': aid, 'concepto': concepto, 'fecha': fecha}
 
+# Funciones de Pasivos Financieros y Amortización NIIF para contabilidad_service.py
+
+def calcular_tabla_amortizacion(principal, tasa_anual, plazo_meses, periodicidad='mensual', sistema='frances', fecha_inicio=None, dia_pago=1, gracia=0, base_calculo='30_360'):
+    """
+    Genera la tabla completa de amortización para un pasivo financiero con precisión decimal.
+    Soporta francés (cuota nivelada), alemán (capital constante), bullet (pago único) y sin interés.
+    La última cuota absorbe el residuo de redondeo para que el saldo final sea exactamente 0.00.
+    """
+    if not fecha_inicio:
+        fecha_inicio = datetime.date.today().isoformat()
+        
+    periodos_por_ano = {'mensual': 12, 'bimestral': 6, 'trimestral': 4, 'semestral': 2, 'anual': 1}.get(periodicidad, 12)
+    meses_por_periodo = max(1, 12 // periodos_por_ano)
+    n = max(1, int(plazo_meses) // meses_por_periodo)
+    i = (float(tasa_anual) / 100.0) / float(periodos_por_ano)
+    
+    n_amort = max(1, n - int(gracia))
+    if sistema == 'frances':
+        if i > 0 and n_amort > 0:
+            c_fija = float(principal) * (i / (1.0 - (1.0 + i) ** (-n_amort)))
+        else:
+            c_fija = float(principal) / n_amort
+    elif sistema == 'aleman':
+        amort_fija = float(principal) / n_amort
+    elif sistema == 'sin_interes':
+        c_fija = float(principal) / n
+    elif sistema == 'bullet':
+        c_fija = 0.0
+    else:
+        c_fija = float(principal) / n_amort
+
+    saldo = float(principal)
+    cuotas = []
+    tot_interes = 0.0
+    tot_capital = 0.0
+
+    y, m, d = [int(x) for x in fecha_inicio.split('-')[:3]]
+
+    for k in range(1, n + 1):
+        nm = m + k * meses_por_periodo
+        ny = y + (nm - 1) // 12
+        nm = ((nm - 1) % 12) + 1
+        
+        if nm in [4, 6, 9, 11]:
+            max_d = 30
+        elif nm == 2:
+            max_d = 29 if (ny % 4 == 0 and (ny % 100 != 0 or ny % 400 == 0)) else 28
+        else:
+            max_d = 31
+        f_dia = min(int(dia_pago), max_d)
+        f_venc = f"{ny:04d}-{nm:02d}-{f_dia:02d}"
+
+        saldo_inicial = round(saldo, 2)
+        interes = round(saldo_inicial * i, 2) if sistema != 'sin_interes' else 0.0
+
+        if k <= int(gracia):
+            amort = 0.0
+            cuota = interes
+        else:
+            if k == n: # Ultima cuota absorbe residuo
+                amort = round(saldo_inicial, 2)
+                cuota = round(amort + interes, 2)
+            else:
+                if sistema == 'frances':
+                    cuota = round(c_fija, 2)
+                    amort = round(cuota - interes, 2)
+                elif sistema == 'aleman':
+                    amort = round(amort_fija, 2)
+                    cuota = round(amort + interes, 2)
+                elif sistema == 'bullet':
+                    amort = 0.0
+                    cuota = interes
+                elif sistema == 'sin_interes':
+                    amort = round(c_fija, 2)
+                    cuota = amort
+                else:
+                    cuota = round(c_fija, 2)
+                    amort = round(cuota - interes, 2)
+
+        saldo = round(saldo - amort, 2)
+        tot_interes += interes
+        tot_capital += amort
+
+        cuotas.append({
+            'num_cuota': k,
+            'fecha_vencimiento': f_venc,
+            'saldo_inicial': saldo_inicial,
+            'cuota_total': cuota,
+            'interes': interes,
+            'amortizacion_capital': amort,
+            'saldo_final': saldo,
+            'estado': 'Pendiente',
+            'fecha_real_pago': None,
+            'capital_pagado': 0.0,
+            'interes_pagado': 0.0
+        })
+
+    return {
+        'cuotas': cuotas,
+        'tot_interes': round(tot_interes, 2),
+        'tot_capital': round(tot_capital, 2),
+        'tot_pagar': round(tot_interes + tot_capital, 2)
+    }
+
+def recalcular_por_abono_extraordinario(cuotas_anteriores, cuota_corte_idx, monto_abono, tipo_recalculo='reducir_plazo', tasa_anual=12.0, periodicidad='mensual', sistema='frances'):
+    """
+    Genera una nueva versión de la tabla de amortización tras aplicar un abono extraordinario a capital.
+    Soporta:
+      (a) reducir_plazo: mantiene el monto de la cuota y reduce el número de cuotas restantes.
+      (b) reducir_cuota: mantiene el plazo original y recalcula una cuota nivelada menor.
+    Preserva intactas las cuotas históricas previas al corte.
+    """
+    import math
+    periodos_por_ano = {'mensual': 12, 'bimestral': 6, 'trimestral': 4, 'semestral': 2, 'anual': 1}.get(periodicidad, 12)
+    i = (float(tasa_anual) / 100.0) / float(periodos_por_ano)
+    
+    saldo_anterior = cuotas_anteriores[cuota_corte_idx]['saldo_final']
+    nuevo_saldo = round(saldo_anterior - float(monto_abono), 2)
+    if nuevo_saldo < 0:
+        raise ValueError(f"El abono ({monto_abono}) supera el saldo de capital pendiente ({saldo_anterior}).")
+        
+    cuotas_restantes_originales = len(cuotas_anteriores) - (cuota_corte_idx + 1)
+    c_original = cuotas_anteriores[cuota_corte_idx]['cuota_total']
+    
+    nuevas_cuotas = []
+    for k in range(cuota_corte_idx + 1):
+        nuevas_cuotas.append(dict(cuotas_anteriores[k]))
+        
+    if nuevo_saldo <= 0.01:
+        # Cancelacion total
+        return {
+            'cuotas': nuevas_cuotas,
+            'saldo_final': 0.0,
+            'tot_interes_nuevo': round(sum(c['interes'] for c in nuevas_cuotas), 2),
+            'ahorro_intereses': round(sum(c['interes'] for c in cuotas_anteriores) - sum(c['interes'] for c in nuevas_cuotas), 2),
+            'num_cuotas_totales': len(nuevas_cuotas)
+        }
+        
+    saldo = nuevo_saldo
+    
+    if tipo_recalculo == 'reducir_plazo' and sistema == 'frances' and i > 0:
+        term = 1.0 - (saldo * i / c_original)
+        if term > 0:
+            n_calc = -math.log(term) / math.log(1.0 + i)
+            n_restantes = max(1, math.ceil(n_calc))
+        else:
+            n_restantes = 1
+        c_fija = c_original
+    elif tipo_recalculo == 'reducir_cuota' and sistema == 'frances' and i > 0:
+        n_restantes = max(1, cuotas_restantes_originales)
+        c_fija = saldo * (i / (1.0 - (1.0 + i) ** (-n_restantes)))
+    else:
+        n_restantes = max(1, cuotas_restantes_originales)
+        c_fija = saldo / n_restantes
+        
+    ultimo_venc = cuotas_anteriores[cuota_corte_idx]['fecha_vencimiento']
+    y, m, d = [int(x) for x in ultimo_venc.split('-')[:3]]
+    meses_por_periodo = max(1, 12 // periodos_por_ano)
+    
+    for r in range(1, n_restantes + 1):
+        nm = m + r * meses_por_periodo
+        ny = y + (nm - 1) // 12
+        nm = ((nm - 1) % 12) + 1
+        max_d = 30 if nm in [4, 6, 9, 11] else (29 if nm == 2 and (ny % 4 == 0 and (ny % 100 != 0 or ny % 400 == 0)) else (28 if nm == 2 else 31))
+        f_venc = f"{ny:04d}-{nm:02d}-{min(d, max_d):02d}"
+        
+        saldo_inicial = round(saldo, 2)
+        interes = round(saldo_inicial * i, 2) if sistema != 'sin_interes' else 0.0
+        
+        if r == n_restantes:
+            amort = round(saldo_inicial, 2)
+            cuota = round(amort + interes, 2)
+        else:
+            cuota = round(c_fija, 2)
+            amort = round(cuota - interes, 2)
+            
+        saldo = round(saldo - amort, 2)
+        nuevas_cuotas.append({
+            'num_cuota': cuota_corte_idx + 1 + r,
+            'fecha_vencimiento': f_venc,
+            'saldo_inicial': saldo_inicial,
+            'cuota_total': cuota,
+            'interes': interes,
+            'amortizacion_capital': amort,
+            'saldo_final': saldo,
+            'estado': 'Pendiente',
+            'fecha_real_pago': None,
+            'capital_pagado': 0.0,
+            'interes_pagado': 0.0
+        })
+        
+    tot_int_orig = sum(c['interes'] for c in cuotas_anteriores)
+    tot_int_nuevo = sum(c['interes'] for c in nuevas_cuotas)
+    ahorro = round(tot_int_orig - tot_int_nuevo, 2)
+    return {
+        'cuotas': nuevas_cuotas,
+        'tot_interes_nuevo': round(tot_int_nuevo, 2),
+        'ahorro_intereses': ahorro,
+        'num_cuotas_totales': len(nuevas_cuotas)
+    }
+
+def registrar_pasivo_financiero(cliente_id, datos, db_path=None):
+    """
+    Registra un pasivo financiero, genera su plan V1 y crea el asiento contable de desembolso o financiamiento.
+    """
+    principal = round(float(datos.get('monto_principal', 0) or 0), 2)
+    if principal <= 0:
+        raise ValueError("El monto principal del préstamo debe ser mayor a cero.")
+        
+    tasa_anual = float(datos.get('tasa_anual', 0) or 0)
+    plazo_meses = int(datos.get('plazo_meses', 12) or 12)
+    periodicidad = datos.get('periodicidad', 'mensual')
+    sistema = datos.get('sistema', 'frances')
+    fecha_inicio = datos.get('fecha_inicio', datetime.date.today().isoformat())
+    dia_pago = int(datos.get('dia_pago', 1) or 1)
+    gracia = int(datos.get('periodo_gracia_capital', 0) or 0)
+    comision = round(float(datos.get('comision_formalizacion', 0) or 0), 2)
+    acreedor = datos.get('acreedor', 'Entidad Financiera')
+    descripcion = datos.get('descripcion', f"Préstamo con {acreedor}")
+    doc_ref = datos.get('doc_respaldo', 'PAGARE')
+    contrapartida = datos.get('contrapartida', 'banco')
+    cuenta_banco = datos.get('cuenta_banco_codigo', '1.1.1.02.01')
+    nombre_banco = datos.get('cuenta_banco_nombre', 'Banco Nacional de Costa Rica (BNCR)')
+    
+    # 1. Calcular plan V1
+    plan_v1 = calcular_tabla_amortizacion(
+        principal=principal,
+        tasa_anual=tasa_anual,
+        plazo_meses=plazo_meses,
+        periodicidad=periodicidad,
+        sistema=sistema,
+        fecha_inicio=fecha_inicio,
+        dia_pago=dia_pago,
+        gracia=gracia
+    )
+    
+    pasivo_id = datos.get('id') or str(uuid.uuid4())
+    
+    # 2. Generar Asiento de Desembolso / Financiamiento
+    lineas = []
+    if contrapartida == 'banco':
+        monto_neto_banco = round(principal - comision, 2)
+        lineas.append({
+            'cuenta_codigo': cuenta_banco,
+            'cuenta_nombre': nombre_banco,
+            'debito': monto_neto_banco,
+            'credito': 0.0,
+            'referencia_doc': str(doc_ref)
+        })
+        if comision > 0:
+            lineas.append({
+                'cuenta_codigo': '5.3.1.02',
+                'cuenta_nombre': 'Gasto por Comisiones Bancarias y Formalización',
+                'debito': comision,
+                'credito': 0.0,
+                'referencia_doc': str(doc_ref)
+            })
+    elif contrapartida == 'activo':
+        lineas.append({
+            'cuenta_codigo': datos.get('cuenta_activo_codigo', '1.2.1.01'),
+            'cuenta_nombre': datos.get('cuenta_activo_nombre', 'Vehículos'),
+            'debito': principal,
+            'credito': 0.0,
+            'referencia_doc': str(doc_ref)
+        })
+    else: # Saldo inicial o Aporte
+        lineas.append({
+            'cuenta_codigo': '3.1.1.01',
+            'cuenta_nombre': 'Capital del Propietario (Aportes)',
+            'debito': principal,
+            'credito': 0.0,
+            'referencia_doc': str(doc_ref)
+        })
+        
+    lineas.append({
+        'cuenta_codigo': '2.2.1.01',
+        'cuenta_nombre': 'Préstamos y Obligaciones Bancarias LP',
+        'debito': 0.0,
+        'credito': principal,
+        'referencia_doc': str(doc_ref)
+    })
+    
+    asiento_dict = {
+        'cliente_id': cliente_id,
+        'fecha_contable': fecha_inicio,
+        'tipo_operacion': 'desembolso_prestamo',
+        'documento_origen': str(doc_ref),
+        'modulo_origen': 'pasivos',
+        'concepto': f"Desembolso Pasivo Financiero: {descripcion} - {acreedor}"
+    }
+    
+    with database.get_db(db_path) as conn:
+        aid = database.insert_asiento(conn, asiento_dict, lineas)
+        
+    nuevo_pasivo = {
+        'id': pasivo_id,
+        'cliente_id': cliente_id,
+        'descripcion': descripcion,
+        'acreedor': acreedor,
+        'tipo': datos.get('tipo', 'prestamo_bancario'),
+        'moneda': datos.get('moneda', 'CRC'),
+        'monto_principal': principal,
+        'saldo_capital_actual': principal,
+        'fecha_inicio': fecha_inicio,
+        'fecha_vencimiento': plan_v1['cuotas'][-1]['fecha_vencimiento'],
+        'plazo_meses': plazo_meses,
+        'periodicidad': periodicidad,
+        'dia_pago': dia_pago,
+        'tasa_anual': tasa_anual,
+        'sistema': sistema,
+        'periodo_gracia_capital': gracia,
+        'comision_formalizacion': comision,
+        'destino': datos.get('destino', ''),
+        'doc_respaldo': doc_ref,
+        'estado': 'activo',
+        'asiento_desembolso_id': aid,
+        'version_activa': 1,
+        'versiones_plan': [
+            {
+                'version_id': 1,
+                'fecha_creacion': fecha_inicio,
+                'motivo': 'Plan Original',
+                'saldo_base': principal,
+                'cuotas_totales': len(plan_v1['cuotas']),
+                'total_intereses_proyectados': plan_v1['tot_interes'],
+                'total_pagar_proyectado': plan_v1['tot_pagar'],
+                'cuotas': plan_v1['cuotas']
+            }
+        ],
+        'pagos': []
+    }
+    return nuevo_pasivo
+def registrar_pago_pasivo(cliente_id, pasivo, datos_pago, db_path=None):
+    """
+    Aplica un pago (cuota ordinaria, pago parcial, abono extraordinario a capital o cancelación total).
+    Genera el asiento contable correspondiente y, si es abono extraordinario, genera la nueva versión del plan.
+    """
+    pago_id = str(uuid.uuid4())
+    tipo_pago = datos_pago.get('tipo', 'cuota_ordinaria') # cuota_ordinaria, abono_extraordinario_plazo, abono_extraordinario_cuota, cancelacion_total
+    fecha = datos_pago.get('fecha', datetime.date.today().isoformat())
+    monto_total = round(float(datos_pago.get('monto_total', 0) or 0), 2)
+    origen_fondos = datos_pago.get('origen_fondos', 'banco')
+    cuenta_banco = datos_pago.get('cuenta_banco_codigo', '1.1.1.02.01')
+    nombre_banco = datos_pago.get('cuenta_banco_nombre', 'Banco Nacional de Costa Rica (BNCR)')
+    cuenta_origen = cuenta_banco if origen_fondos == 'banco' else '1.1.1.01'
+    nombre_origen = nombre_banco if origen_fondos == 'banco' else 'Caja General'
+    comprobante = datos_pago.get('comprobante', 'PAGO')
+    num_cuota = int(datos_pago.get('num_cuota', 1) or 1)
+    
+    # Obtener versión activa del plan
+    versiones = pasivo.get('versiones_plan', [])
+    v_activa_idx = next((i for i, v in enumerate(versiones) if v['version_id'] == pasivo.get('version_activa', 1)), -1)
+    if v_activa_idx == -1 and versiones:
+        v_activa_idx = len(versiones) - 1
+    plan_activo = versiones[v_activa_idx]
+    
+    monto_capital = 0.0
+    monto_interes = 0.0
+    
+    if tipo_pago == 'cuota_ordinaria':
+        # Buscar la cuota correspondiente
+        cuota_obj = next((c for c in plan_activo['cuotas'] if c['num_cuota'] == num_cuota), None)
+        if not cuota_obj:
+            raise ValueError(f"No se encontró la cuota #{num_cuota} en el plan activo.")
+            
+        monto_interes = cuota_obj['interes']
+        monto_capital = round(monto_total - monto_interes, 2)
+        if monto_capital < 0:
+            monto_capital = 0.0
+            monto_interes = monto_total
+            
+        # Marcar cuota como pagada
+        cuota_obj['estado'] = 'Pagada'
+        cuota_obj['fecha_real_pago'] = fecha
+        cuota_obj['pago_id'] = pago_id
+        cuota_obj['capital_pagado'] = monto_capital
+        cuota_obj['interes_pagado'] = monto_interes
+        
+        pasivo['saldo_capital_actual'] = round(pasivo['saldo_capital_actual'] - monto_capital, 2)
+        nueva_version_id = pasivo['version_activa']
+        
+    elif tipo_pago in ('abono_extraordinario_plazo', 'abono_extraordinario_cuota'):
+        monto_capital = monto_total
+        monto_interes = 0.0
+        
+        # Encontrar la última cuota pagada o de corte
+        corte_idx = -1
+        for idx_c, c in enumerate(plan_activo['cuotas']):
+            if c['estado'] == 'Pagada':
+                corte_idx = idx_c
+        if corte_idx == -1:
+            corte_idx = 0
+            
+        tipo_rec = 'reducir_plazo' if tipo_pago == 'abono_extraordinario_plazo' else 'reducir_cuota'
+        res_rec = recalcular_por_abono_extraordinario(
+            cuotas_anteriores=plan_activo['cuotas'],
+            cuota_corte_idx=corte_idx,
+            monto_abono=monto_capital,
+            tipo_recalculo=tipo_rec,
+            tasa_anual=pasivo.get('tasa_anual', 12.0),
+            periodicidad=pasivo.get('periodicidad', 'mensual'),
+            sistema=pasivo.get('sistema', 'frances')
+        )
+        
+        nueva_version_id = len(versiones) + 1
+        nuevo_plan = {
+            'version_id': nueva_version_id,
+            'fecha_creacion': fecha,
+            'motivo': f"Abono Extraordinario ({'Reducción de Plazo' if tipo_rec == 'reducir_plazo' else 'Reducción de Cuota'})",
+            'saldo_base': round(pasivo['saldo_capital_actual'] - monto_capital, 2),
+            'cuotas_totales': res_rec['num_cuotas_totales'],
+            'total_intereses_proyectados': res_rec['tot_interes_nuevo'],
+            'total_pagar_proyectado': round(sum(c['cuota_total'] for c in res_rec['cuotas']), 2),
+            'ahorro_intereses': res_rec['ahorro_intereses'],
+            'cuotas': res_rec['cuotas']
+        }
+        versiones.append(nuevo_plan)
+        pasivo['version_activa'] = nueva_version_id
+        pasivo['saldo_capital_actual'] = round(pasivo['saldo_capital_actual'] - monto_capital, 2)
+        
+    elif tipo_pago == 'cancelacion_total':
+        monto_capital = round(pasivo['saldo_capital_actual'], 2)
+        monto_interes = round(monto_total - monto_capital, 2) if monto_total > monto_capital else 0.0
+        for c in plan_activo['cuotas']:
+            if c['estado'] != 'Pagada':
+                c['estado'] = 'Cancelada'
+        pasivo['saldo_capital_actual'] = 0.0
+        pasivo['estado'] = 'cancelado'
+        nueva_version_id = pasivo['version_activa']
+        
+    # 2. Generar Asiento de Partida Doble
+    lineas = []
+    if monto_capital > 0:
+        lineas.append({
+            'cuenta_codigo': '2.2.1.01',
+            'cuenta_nombre': 'Préstamos y Obligaciones Bancarias LP',
+            'debito': monto_capital,
+            'credito': 0.0,
+            'referencia_doc': str(comprobante)
+        })
+    if monto_interes > 0:
+        lineas.append({
+            'cuenta_codigo': '5.3.1.01',
+            'cuenta_nombre': 'Gasto por Intereses Bancarios y Financieros',
+            'debito': monto_interes,
+            'credito': 0.0,
+            'referencia_doc': str(comprobante)
+        })
+        
+    lineas.append({
+        'cuenta_codigo': cuenta_origen,
+        'cuenta_nombre': nombre_origen,
+        'debito': 0.0,
+        'credito': monto_total,
+        'referencia_doc': str(comprobante)
+    })
+    
+    asiento_dict = {
+        'cliente_id': cliente_id,
+        'fecha_contable': fecha,
+        'tipo_operacion': 'pago_prestamo',
+        'documento_origen': str(comprobante),
+        'modulo_origen': 'pasivos',
+        'concepto': f"Pago {tipo_pago}: {pasivo.get('descripcion')} (Cap: {monto_capital:.2f}, Int: {monto_interes:.2f})"
+    }
+    
+    with database.get_db(db_path) as conn:
+        aid = database.insert_asiento(conn, asiento_dict, lineas)
+        
+    pago_registro = {
+        'id': pago_id,
+        'fecha': fecha,
+        'tipo': tipo_pago,
+        'monto_total': monto_total,
+        'monto_capital': monto_capital,
+        'monto_interes': monto_interes,
+        'monto_mora': 0.0,
+        'origen_fondos': origen_fondos,
+        'cuenta_bancaria_codigo': cuenta_origen,
+        'comprobante': comprobante,
+        'num_cuota': num_cuota if tipo_pago == 'cuota_ordinaria' else None,
+        'estado': 'aplicado',
+        'asiento_id': aid,
+        'asiento_reversion_id': None,
+        'version_plan_resultante': nueva_version_id
+    }
+    
+    if 'pagos' not in pasivo:
+        pasivo['pagos'] = []
+    pasivo['pagos'].append(pago_registro)
+    
+    return {'pasivo': pasivo, 'pago': pago_registro, 'asiento_id': aid}
+
+def anular_pago_pasivo(cliente_id, pasivo, pago_id, motivo="Anulación de pago de préstamo", db_path=None):
+    """
+    Reversa el asiento contable de un pago y restaura el estado y la versión del plan.
+    """
+    pagos = pasivo.get('pagos', [])
+    pago_obj = next((p for p in pagos if p['id'] == pago_id), None)
+    if not pago_obj:
+        raise ValueError("Pago no encontrado.")
+    if pago_obj.get('estado') == 'reversado':
+        raise ValueError("El pago ya ha sido anulado previamente.")
+        
+    asiento_id = pago_obj.get('asiento_id')
+    with database.get_db(db_path) as conn:
+        rev_id = database.reversar_asiento(conn, asiento_id, motivo)
+        
+    pago_obj['estado'] = 'reversado'
+    pago_obj['asiento_reversion_id'] = rev_id
+    
+    # Restaurar capital
+    pasivo['saldo_capital_actual'] = round(pasivo.get('saldo_capital_actual', 0) + pago_obj.get('monto_capital', 0), 2)
+    if pasivo.get('estado') == 'cancelado':
+        pasivo['estado'] = 'activo'
+        
+    # Si fue abono extraordinario, revertir la versión activa del plan a la versión previa
+    if pago_obj.get('tipo') in ('abono_extraordinario_plazo', 'abono_extraordinario_cuota'):
+        versiones = pasivo.get('versiones_plan', [])
+        if len(versiones) > 1:
+            versiones.pop() # Eliminar última versión
+            pasivo['version_activa'] = versiones[-1]['version_id']
+    elif pago_obj.get('tipo') == 'cuota_ordinaria':
+        num_c = pago_obj.get('num_cuota')
+        versiones = pasivo.get('versiones_plan', [])
+        for v in versiones:
+            if v['version_id'] == pasivo.get('version_activa'):
+                for c in v['cuotas']:
+                    if c['num_cuota'] == num_c:
+                        c['estado'] = 'Pendiente'
+                        c['fecha_real_pago'] = None
+                        c['pago_id'] = None
+                        c['capital_pagado'] = 0.0
+                        c['interes_pagado'] = 0.0
+                        
+    return {'pasivo': pasivo, 'reversion_asiento_id': rev_id}
+

@@ -117,3 +117,75 @@ def ajuste_balance():
         return error(str(ve), 422)
 
 
+
+
+# ── PASIVOS FINANCIEROS Y AMORTIZACIÓN DE DEUDA ───────────────────────
+
+@contabilidad_bp.route('/api/contabilidad/pasivos/simular-tabla', methods=['POST'])
+@jwt_required(optional=True)
+@handle_errors
+def simular_tabla():
+    """POST /api/contabilidad/pasivos/simular-tabla"""
+    body = request.get_json(force=True, silent=True) or {}
+    principal = float(body.get('monto_principal') or body.get('principal') or 0)
+    tasa = float(body.get('tasa_anual') or 0)
+    plazo = int(body.get('plazo_meses') or 12)
+    periodicidad = body.get('periodicidad', 'mensual')
+    sistema = body.get('sistema', 'frances')
+    fecha_inicio = body.get('fecha_inicio')
+    dia_pago = int(body.get('dia_pago') or 1)
+    gracia = int(body.get('periodo_gracia_capital') or 0)
+    
+    tabla = contabilidad_service.calcular_tabla_amortizacion(
+        principal=principal,
+        tasa_anual=tasa,
+        plazo_meses=plazo,
+        periodicidad=periodicidad,
+        sistema=sistema,
+        fecha_inicio=fecha_inicio,
+        dia_pago=dia_pago,
+        gracia=gracia
+    )
+    return success(tabla)
+
+@contabilidad_bp.route('/api/contabilidad/pasivos/registrar', methods=['POST'])
+@jwt_required(optional=True)
+@handle_errors
+def registrar_pasivo():
+    """POST /api/contabilidad/pasivos/registrar"""
+    body = request.get_json(force=True, silent=True) or {}
+    cliente_id = body.get('cliente_id')
+    datos = body.get('datos', {})
+    if not cliente_id or not datos:
+        return error("Se requiere cliente_id y objeto datos del pasivo", 400)
+    res = contabilidad_service.registrar_pasivo_financiero(cliente_id, datos)
+    return success(res, message="Pasivo financiero registrado exitosamente con asiento contable")
+
+@contabilidad_bp.route('/api/contabilidad/pasivos/pago', methods=['POST'])
+@jwt_required(optional=True)
+@handle_errors
+def pago_pasivo():
+    """POST /api/contabilidad/pasivos/pago"""
+    body = request.get_json(force=True, silent=True) or {}
+    cliente_id = body.get('cliente_id')
+    pasivo = body.get('pasivo', {})
+    datos_pago = body.get('datos_pago', {})
+    if not cliente_id or not pasivo or not datos_pago:
+        return error("Se requiere cliente_id, pasivo y datos_pago", 400)
+    res = contabilidad_service.registrar_pago_pasivo(cliente_id, pasivo, datos_pago)
+    return success(res, message="Pago de pasivo registrado exitosamente con partida doble")
+
+@contabilidad_bp.route('/api/contabilidad/pasivos/anular-pago', methods=['POST'])
+@jwt_required(optional=True)
+@handle_errors
+def anular_pago():
+    """POST /api/contabilidad/pasivos/anular-pago"""
+    body = request.get_json(force=True, silent=True) or {}
+    cliente_id = body.get('cliente_id')
+    pasivo = body.get('pasivo', {})
+    pago_id = body.get('pago_id')
+    motivo = body.get('motivo', 'Anulación de pago de préstamo')
+    if not cliente_id or not pasivo or not pago_id:
+        return error("Se requiere cliente_id, pasivo y pago_id", 400)
+    res = contabilidad_service.anular_pago_pasivo(cliente_id, pasivo, pago_id, motivo)
+    return success(res, message="Pago anulado y asiento contable reversado con trazabilidad")

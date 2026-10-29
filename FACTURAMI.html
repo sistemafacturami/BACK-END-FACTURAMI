@@ -94,6 +94,48 @@
   color-scheme: dark;
 }
 
+
+/* ── MODALES Y COMPONENTES DE PASIVOS FINANCIEROS Y AMORTIZACIÓN ── */
+#pasivoAmortModal {
+  position: fixed; inset: 0; background: #f0f4f8; z-index: 10000; overflow-y: auto; font-family: 'Segoe UI', Arial, sans-serif;
+}
+[data-theme="dark"] #pasivoAmortModal {
+  background: #080c14 !important;
+  color: var(--ink) !important;
+}
+[data-theme="dark"] #pasivoAmortModal .dr-card,
+[data-theme="dark"] #pasivoAmortModal div[style*="background:#fff"],
+[data-theme="dark"] #pasivoAmortModal div[style*="background: #fff"],
+[data-theme="dark"] #pasivoAmortModal div[style*="background:#f9fafb"],
+[data-theme="dark"] #pasivoAmortModal div[style*="background: #f9fafb"] {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: var(--ink) !important;
+}
+[data-theme="dark"] #pasivoAmortModal td,
+[data-theme="dark"] #pasivoAmortModal th {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+[data-theme="dark"] #nuevoPasivoModalBox,
+[data-theme="dark"] #pagoPasivoModalBox {
+  background: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: var(--ink) !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9) !important;
+}
+.pf-tab-btn {
+  padding: 8px 16px; border: none; background: transparent; color: #6b7280; font-weight: 700; font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;
+}
+.pf-tab-btn.active {
+  color: #1d4ed8; border-bottom-color: #1d4ed8;
+}
+[data-theme="dark"] .pf-tab-btn {
+  color: #94a3b8;
+}
+[data-theme="dark"] .pf-tab-btn.active {
+  color: #60a5fa; border-bottom-color: #60a5fa;
+}
+
 /* ── REFINAMIENTOS PREMIUM MODO OSCURO ── */
 /* Clases base para cuadros y campos auto-completados / readonly */
 .fd-inp-autofill,
@@ -3984,6 +4026,1043 @@ function updateAssetTotals() {
   }
 }
 
+
+// ══════════════════════════════════════════════════════════════════════
+// ── GESTIÓN DE PASIVOS FINANCIEROS Y TABLA DE AMORTIZACIÓN (NIIF) ────
+// ══════════════════════════════════════════════════════════════════════
+
+let pfFiltroActual = 'TODOS';
+let pfFiltroAcreedor = 'TODOS';
+let pfSelIdx = null;
+let pfTabActiva = 'plan';
+
+function ensurePasivosStructure() {
+  if (!MODS.pasivos) {
+    MODS.pasivos = { pas_cor: {}, pas_ncor: {}, financieros: [] };
+  }
+  if (!MODS.pasivos.financieros || !Array.isArray(MODS.pasivos.financieros)) {
+    MODS.pasivos.financieros = [];
+  }
+}
+
+function calcularTablaAmortizacionJS(principal, tasaAnual, plazoMeses, periodicidad = 'mensual', sistema = 'frances', fechaInicio = null, diaPago = 1, gracia = 0) {
+  principal = parseFloat(principal) || 0;
+  tasaAnual = parseFloat(tasaAnual) || 0;
+  plazoMeses = parseInt(plazoMeses) || 12;
+  diaPago = parseInt(diaPago) || 1;
+  gracia = parseInt(gracia) || 0;
+  if (!fechaInicio) fechaInicio = new Date().toISOString().slice(0, 10);
+
+  const MAP_FREQ = { 'mensual': 12, 'bimestral': 6, 'trimestral': 4, 'semestral': 2, 'anual': 1 };
+  const periodosPorAno = MAP_FREQ[periodicidad] || 12;
+  const mesesPorPeriodo = Math.max(1, Math.floor(12 / periodosPorAno));
+  const n = Math.max(1, Math.floor(plazoMeses / mesesPorPeriodo));
+  const i = (tasaAnual / 100.0) / periodosPorAno;
+
+  const nAmort = Math.max(1, n - gracia);
+  let cFija = 0;
+  if (sistema === 'frances') {
+    if (i > 0 && nAmort > 0) {
+      cFija = principal * (i / (1.0 - Math.pow(1.0 + i, -nAmort)));
+    } else {
+      cFija = principal / nAmort;
+    }
+  } else if (sistema === 'aleman') {
+    cFija = principal / nAmort; // amortización fija de capital
+  } else if (sistema === 'sin_interes') {
+    cFija = principal / n;
+  }
+
+  let saldo = principal;
+  const cuotas = [];
+  let totInteres = 0;
+  let totCapital = 0;
+
+  const parts = fechaInicio.split('-');
+  let y = parseInt(parts[0]), m = parseInt(parts[1]), d = parseInt(parts[2]);
+
+  for (let k = 1; k <= n; k++) {
+    let nm = m + k * mesesPorPeriodo;
+    let ny = y + Math.floor((nm - 1) / 12);
+    nm = ((nm - 1) % 12) + 1;
+
+    let maxD = 31;
+    if ([4, 6, 9, 11].includes(nm)) maxD = 30;
+    else if (nm === 2) maxD = (ny % 4 === 0 && (ny % 100 !== 0 || ny % 400 === 0)) ? 29 : 28;
+
+    const fDia = Math.min(diaPago, maxD);
+    const fVenc = `${ny}-${String(nm).padStart(2, '0')}-${String(fDia).padStart(2, '0')}`;
+
+    const saldoInicial = Math.round(saldo * 100) / 100;
+    const interes = (sistema !== 'sin_interes') ? Math.round((saldoInicial * i) * 100) / 100 : 0.0;
+
+    let amort = 0;
+    let cuota = 0;
+
+    if (k <= gracia) {
+      amort = 0.0;
+      cuota = interes;
+    } else {
+      if (k === n) {
+        // Última cuota absorbe el residuo para saldo 0.00
+        amort = Math.round(saldoInicial * 100) / 100;
+        cuota = Math.round((amort + interes) * 100) / 100;
+      } else {
+        if (sistema === 'frances') {
+          cuota = Math.round(cFija * 100) / 100;
+          amort = Math.round((cuota - interes) * 100) / 100;
+        } else if (sistema === 'aleman') {
+          amort = Math.round(cFija * 100) / 100;
+          cuota = Math.round((amort + interes) * 100) / 100;
+        } else if (sistema === 'bullet') {
+          amort = 0.0;
+          cuota = interes;
+        } else if (sistema === 'sin_interes') {
+          amort = Math.round(cFija * 100) / 100;
+          cuota = amort;
+        } else {
+          cuota = Math.round(cFija * 100) / 100;
+          amort = Math.round((cuota - interes) * 100) / 100;
+        }
+      }
+    }
+
+    saldo = Math.round((saldo - amort) * 100) / 100;
+    totInteres += interes;
+    totCapital += amort;
+
+    cuotas.push({
+      num_cuota: k,
+      fecha_vencimiento: fVenc,
+      saldo_inicial: saldoInicial,
+      cuota_total: cuota,
+      interes: interes,
+      amortizacion_capital: amort,
+      saldo_final: Math.max(0, saldo),
+      estado: 'Pendiente',
+      fecha_real_pago: null,
+      capital_pagado: 0.0,
+      interes_pagado: 0.0
+    });
+  }
+
+  return {
+    cuotas: cuotas,
+    tot_interes: Math.round(totInteres * 100) / 100,
+    tot_capital: Math.round(totCapital * 100) / 100,
+    tot_pagar: Math.round((totInteres + totCapital) * 100) / 100
+  };
+}
+
+function recalcularPorAbonoJS(cuotasAnteriores, cuotaCorteIdx, montoAbono, tipoRecalculo = 'reducir_plazo', tasaAnual = 12.0, periodicidad = 'mensual', sistema = 'frances') {
+  const MAP_FREQ = { 'mensual': 12, 'bimestral': 6, 'trimestral': 4, 'semestral': 2, 'anual': 1 };
+  const periodosPorAno = MAP_FREQ[periodicidad] || 12;
+  const i = (tasaAnual / 100.0) / periodosPorAno;
+
+  const saldoAnterior = cuotasAnteriores[cuotaCorteIdx].saldo_final;
+  const nuevoSaldo = Math.round((saldoAnterior - montoAbono) * 100) / 100;
+  if (nuevoSaldo < 0) {
+    throw new Error('El abono extraordinario supera el saldo de capital pendiente.');
+  }
+
+  const cuotasRestantesOriginales = cuotasAnteriores.length - (cuotaCorteIdx + 1);
+  const cOriginal = cuotasAnteriores[cuotaCorteIdx].cuota_total;
+
+  const nuevasCuotas = [];
+  for (let k = 0; k <= cuotaCorteIdx; k++) {
+    nuevasCuotas.push({ ...cuotasAnteriores[k] });
+  }
+
+  if (nuevoSaldo <= 0.01) {
+    const tIntN = nuevasCuotas.reduce((s, c) => s + c.interes, 0);
+    const tIntO = cuotasAnteriores.reduce((s, c) => s + c.interes, 0);
+    return {
+      cuotas: nuevasCuotas,
+      saldo_final: 0.0,
+      tot_interes_nuevo: Math.round(tIntN * 100) / 100,
+      ahorro_intereses: Math.round((tIntO - tIntN) * 100) / 100,
+      num_cuotas_totales: nuevasCuotas.length
+    };
+  }
+
+  let saldo = nuevoSaldo;
+  let nRestantes = cuotasRestantesOriginales;
+  let cFija = cOriginal;
+
+  if (tipoRecalculo === 'reducir_plazo' && sistema === 'frances' && i > 0) {
+    const term = 1.0 - (saldo * i / cOriginal);
+    if (term > 0) {
+      const nCalc = -Math.log(term) / Math.log(1.0 + i);
+      nRestantes = Math.max(1, Math.ceil(nCalc));
+    } else {
+      nRestantes = 1;
+    }
+    cFija = cOriginal;
+  } else if (tipoRecalculo === 'reducir_cuota' && sistema === 'frances' && i > 0) {
+    nRestantes = Math.max(1, cuotasRestantesOriginales);
+    cFija = saldo * (i / (1.0 - Math.pow(1.0 + i, -nRestantes)));
+  } else {
+    nRestantes = Math.max(1, cuotasRestantesOriginales);
+    cFija = saldo / nRestantes;
+  }
+
+  const ultimoVenc = cuotasAnteriores[cuotaCorteIdx].fecha_vencimiento;
+  const parts = ultimoVenc.split('-');
+  const y = parseInt(parts[0]), m = parseInt(parts[1]), d = parseInt(parts[2]);
+  const mesesPorPeriodo = Math.max(1, Math.floor(12 / periodosPorAno));
+
+  for (let r = 1; r <= nRestantes; r++) {
+    let nm = m + r * mesesPorPeriodo;
+    let ny = y + Math.floor((nm - 1) / 12);
+    nm = ((nm - 1) % 12) + 1;
+    let maxD = [4, 6, 9, 11].includes(nm) ? 30 : (nm === 2 ? ((ny % 4 === 0 && (ny % 100 !== 0 || ny % 400 === 0)) ? 29 : 28) : 31);
+    const fVenc = `${ny}-${String(nm).padStart(2, '0')}-${String(Math.min(d, maxD)).padStart(2, '0')}`;
+
+    const saldoInicial = Math.round(saldo * 100) / 100;
+    const interes = (sistema !== 'sin_interes') ? Math.round((saldoInicial * i) * 100) / 100 : 0.0;
+
+    let amort = 0, cuota = 0;
+    if (r === nRestantes) {
+      amort = Math.round(saldoInicial * 100) / 100;
+      cuota = Math.round((amort + interes) * 100) / 100;
+    } else {
+      cuota = Math.round(cFija * 100) / 100;
+      amort = Math.round((cuota - interes) * 100) / 100;
+    }
+
+    saldo = Math.round((saldo - amort) * 100) / 100;
+    nuevasCuotas.push({
+      num_cuota: cuotaCorteIdx + 1 + r,
+      fecha_vencimiento: fVenc,
+      saldo_inicial: saldoInicial,
+      cuota_total: cuota,
+      interes: interes,
+      amortizacion_capital: amort,
+      saldo_final: Math.max(0, saldo),
+      estado: 'Pendiente',
+      fecha_real_pago: null,
+      capital_pagado: 0.0,
+      interes_pagado: 0.0
+    });
+  }
+
+  const tIntN = nuevasCuotas.reduce((s, c) => s + c.interes, 0);
+  const tIntO = cuotasAnteriores.reduce((s, c) => s + c.interes, 0);
+  return {
+    cuotas: nuevasCuotas,
+    tot_interes_nuevo: Math.round(tIntN * 100) / 100,
+    ahorro_intereses: Math.round((tIntO - tIntN) * 100) / 100,
+    num_cuotas_totales: nuevasCuotas.length
+  };
+}
+
+// ── Control UI Modal de Amortización ────────────────────────────────
+function openPasivoAmortModal() {
+  ensurePasivosStructure();
+  const m = document.getElementById('pasivoAmortModal');
+  if (!m) return;
+  m.style.display = 'block';
+
+  const hoy = new Date();
+  const elF = document.getElementById('pf_fecha_topbar');
+  if (elF) {
+    elF.textContent = hoy.toLocaleDateString('es-CR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  }
+
+  pfCargar();
+}
+
+function closePasivoAmortModal() {
+  const m = document.getElementById('pasivoAmortModal');
+  if (m) m.style.display = 'none';
+}
+
+function pfCargar() {
+  ensurePasivosStructure();
+  pfRenderKPIs();
+  pfRenderTabla();
+  pfPopulateAcreedorFilter();
+  if (pfSelIdx !== null) {
+    pfMostrarDetalle(pfSelIdx);
+  }
+}
+
+function pfFiltrar(btn, filtro) {
+  pfFiltroActual = filtro;
+  const chips = document.getElementById('pf_chips');
+  if (chips) {
+    chips.querySelectorAll('button').forEach(b => {
+      b.style.background = 'transparent';
+      b.style.color = '#6b7280';
+      b.style.borderColor = '#d1d5db';
+    });
+    btn.style.background = '#1c3557';
+    btn.style.color = '#fff';
+    btn.style.borderColor = '#1c3557';
+  }
+  pfRenderTabla();
+}
+
+function pfFiltrarAcreedor(acreedor) {
+  pfFiltroAcreedor = acreedor;
+  pfRenderTabla();
+}
+
+function pfPopulateAcreedorFilter() {
+  const sel = document.getElementById('pf_acreedor_filter');
+  if (!sel) return;
+  const lista = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  const acreedores = [...new Set(lista.map(p => p.acreedor).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="TODOS">Todos los acreedores</option>' +
+    acreedores.map(a => `<option value="${a}">${a}</option>`).join('');
+  sel.value = pfFiltroAcreedor;
+}
+
+function pfGetListaFiltrada() {
+  const lista = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  return lista.filter(p => {
+    if (pfFiltroAcreedor !== 'TODOS' && p.acreedor !== pfFiltroAcreedor) return false;
+    if (pfFiltroActual === 'TODOS') return true;
+    if (pfFiltroActual === 'ACTIVOS') return p.estado !== 'cancelado';
+    if (pfFiltroActual === 'CANCELADOS') return p.estado === 'cancelado';
+    if (pfFiltroActual === 'EN_MORA') return p.estado === 'en_mora';
+    return true;
+  });
+}
+
+function pfRenderKPIs() {
+  const lista = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  const hoyStr = new Date().toISOString().slice(0, 10);
+  const corte12m = new Date();
+  corte12m.setMonth(corte12m.getMonth() + 12);
+  const corte12mStr = corte12m.toISOString().slice(0, 10);
+
+  let totDeuda = 0;
+  let totSaldo = 0;
+  let totCorriente = 0;
+  let totNoCorriente = 0;
+  let proxCuotaMonto = 0;
+  let proxCuotaFecha = '';
+
+  lista.forEach(p => {
+    totDeuda += parseFloat(p.monto_principal) || 0;
+    totSaldo += parseFloat(p.saldo_capital_actual) || 0;
+
+    const vActiva = (p.versiones_plan || []).find(v => v.version_id === p.version_activa) || (p.versiones_plan || [])[0];
+    if (vActiva && Array.isArray(vActiva.cuotas)) {
+      vActiva.cuotas.forEach(c => {
+        if (c.estado !== 'Pagada') {
+          if (c.fecha_vencimiento <= corte12mStr) {
+            totCorriente += parseFloat(c.amortizacion_capital) || 0;
+          } else {
+            totNoCorriente += parseFloat(c.amortizacion_capital) || 0;
+          }
+
+          if (!proxCuotaFecha || c.fecha_vencimiento < proxCuotaFecha) {
+            proxCuotaFecha = c.fecha_vencimiento;
+            proxCuotaMonto = c.cuota_total;
+          }
+        }
+      });
+    }
+  });
+
+  document.getElementById('pf_kpi_total').textContent = '₡' + fmtCRC(totDeuda);
+  document.getElementById('pf_kpi_cnt').textContent = lista.length;
+  document.getElementById('pf_kpi_saldo').textContent = '₡' + fmtCRC(totSaldo);
+  document.getElementById('pf_kpi_corriente').textContent = '₡' + fmtCRC(totCorriente);
+  document.getElementById('pf_kpi_nocorriente').textContent = '₡' + fmtCRC(totNoCorriente);
+
+  if (proxCuotaFecha) {
+    document.getElementById('pf_kpi_prox_monto').textContent = '₡' + fmtCRC(proxCuotaMonto);
+    document.getElementById('pf_kpi_prox_fecha').textContent = proxCuotaFecha;
+  } else {
+    document.getElementById('pf_kpi_prox_monto').textContent = '₡0.00';
+    document.getElementById('pf_kpi_prox_fecha').textContent = 'Sin cuotas pendientes';
+  }
+}
+
+function pfRenderTabla() {
+  const tbody = document.getElementById('pf_tbody');
+  if (!tbody) return;
+  const lista = pfGetListaFiltrada();
+  const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+
+  document.getElementById('pf_tabla_cnt').textContent = lista.length;
+
+  if (lista.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:35px; color:#9ca3af;">No hay pasivos financieros registrados con los filtros aplicados. Haga clic en "+ Registrar Pasivo Financiero" para agregar uno.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = '';
+  lista.forEach(p => {
+    const idxReal = todos.indexOf(p);
+    const principal = parseFloat(p.monto_principal) || 0;
+    const saldo = parseFloat(p.saldo_capital_actual) || 0;
+    const amortizado = Math.max(0, principal - saldo);
+    const pct = principal > 0 ? (amortizado / principal) * 100 : 0;
+
+    let badge = '<span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:9px; font-size:10px; font-weight:700;">Al día</span>';
+    if (p.estado === 'cancelado') {
+      badge = '<span style="background:#f3f4f6; color:#4b5563; padding:2px 8px; border-radius:9px; font-size:10px; font-weight:700;">Cancelado</span>';
+    } else if (p.estado === 'en_mora') {
+      badge = '<span style="background:#fee2e2; color:#b91c1c; padding:2px 8px; border-radius:9px; font-size:10px; font-weight:700;">En Mora</span>';
+    }
+
+    const isSel = (pfSelIdx === idxReal);
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.style.background = isSel ? '#dbeafe' : '';
+    tr.onmouseover = () => { if (pfSelIdx !== idxReal) tr.style.background = '#f0f7ff'; };
+    tr.onmouseout = () => { tr.style.background = (pfSelIdx === idxReal) ? '#dbeafe' : ''; };
+    tr.onclick = () => { pfSeleccionar(idxReal); };
+
+    tr.innerHTML = `
+      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6;">
+        <div style="font-weight:700; color:var(--ink);">${p.descripcion || 'Sin descripción'}</div>
+        <div style="font-size:10px; color:#6b7280; font-family:monospace;">${p.doc_respaldo || 'Sin doc.'}</div>
+      </td>
+      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; font-weight:600;">${p.acreedor || '--'}</td>
+      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-transform:capitalize; font-size:11px;">${(p.tipo || '').replace('_', ' ')}</td>
+      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:center; font-family:monospace;">${p.fecha_inicio || '--'}</td>
+      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:center; font-weight:600;">${p.plazo_meses || 12}m</td>
+      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:right; font-weight:700; color:#dc2626;">${parseFloat(p.tasa_anual || 0).toFixed(2)}%</td>
+      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:right; font-weight:700;">₡${fmtCRC(principal)}</td>
+      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:right; font-weight:800; color:#1e40af;">₡${fmtCRC(saldo)}</td>
+      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:center;">
+        <div style="font-size:10px; font-weight:700; color:#059669; margin-bottom:2px;">${pct.toFixed(1)}%</div>
+        <div style="height:5px; background:#e5e7eb; border-radius:3px; min-width:60px; overflow:hidden;">
+          <div style="height:100%; background:#10b981; border-radius:3px; width:${Math.min(pct, 100)}%;"></div>
+        </div>
+      </td>
+      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:center; font-family:monospace; font-weight:600;">${p.fecha_vencimiento || '--'}</td>
+      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:center;">${badge}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function pfSeleccionar(idx) {
+  if (pfSelIdx === idx) {
+    pfCerrarDetalle();
+    return;
+  }
+  pfSelIdx = idx;
+  pfRenderTabla();
+  pfMostrarDetalle(idx);
+}
+
+function pfCerrarDetalle() {
+  pfSelIdx = null;
+  const d = document.getElementById('pf_detalle_drawer');
+  if (d) d.style.display = 'none';
+  pfRenderTabla();
+}
+
+function pfMostrarDetalle(idx) {
+  const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  const p = todos[idx];
+  if (!p) { pfCerrarDetalle(); return; }
+
+  const drawer = document.getElementById('pf_detalle_drawer');
+  drawer.style.display = 'block';
+
+  document.getElementById('pf_det_titulo').textContent = `${p.descripcion} — ${p.acreedor}`;
+  document.getElementById('pf_det_sub').textContent = `Monto Original: ₡${fmtCRC(p.monto_principal)} · Tasa: ${p.tasa_anual}% anual · Plazo: ${p.plazo_meses} meses · Saldo Capital: ₡${fmtCRC(p.saldo_capital_actual)}`;
+
+  // Populate Selector de Versiones
+  const vSel = document.getElementById('pf_version_sel');
+  const versiones = p.versiones_plan || [];
+  vSel.innerHTML = versiones.map((v, vi) => `<option value="${v.version_id}" ${v.version_id === p.version_activa ? 'selected' : ''}>Versión ${v.version_id} (${v.motivo || 'Plan'}) - ${v.fecha_creacion}</option>`).join('');
+
+  pfRenderTabContenido(p);
+}
+
+function pfCambiarTab(tabName) {
+  pfTabActiva = tabName;
+  ['plan', 'hist', 'asientos'].forEach(t => {
+    const btn = document.getElementById(`pftab_btn_${t}`);
+    const cont = document.getElementById(`pftab_cont_${t}`);
+    if (btn) btn.classList.toggle('active', t === tabName);
+    if (cont) cont.style.display = (t === tabName) ? 'block' : 'none';
+  });
+
+  const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  if (pfSelIdx !== null && todos[pfSelIdx]) {
+    pfRenderTabContenido(todos[pfSelIdx]);
+  }
+}
+
+function pfCambiarVersion(vId) {
+  const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  const p = todos[pfSelIdx];
+  if (!p) return;
+  p.version_activa = parseInt(vId);
+  saveAllData();
+  pfRenderTabContenido(p);
+}
+
+function pfRenderTabContenido(p) {
+  if (pfTabActiva === 'plan') {
+    const vSel = document.getElementById('pf_version_sel');
+    const vId = parseInt(vSel ? vSel.value : p.version_activa) || p.version_activa;
+    const plan = (p.versiones_plan || []).find(v => v.version_id === vId) || (p.versiones_plan || [])[0];
+    if (!plan) return;
+
+    const vInfo = document.getElementById('pf_version_info');
+    if (vInfo) {
+      vInfo.textContent = `Cuotas: ${plan.cuotas_totales} · Total Intereses Proyectados: ₡${fmtCRC(plan.total_intereses_proyectados)} · Total a Pagar: ₡${fmtCRC(plan.total_pagar_proyectado)}`;
+      if (plan.ahorro_intereses > 0) {
+        vInfo.innerHTML += ` · <span style="color:#059669; font-weight:700;">🔥 Ahorro logrado: ₡${fmtCRC(plan.ahorro_intereses)}</span>`;
+      }
+    }
+
+    const tbody = document.getElementById('pf_amort_tbody');
+    const tfoot = document.getElementById('pf_amort_tfoot');
+    tbody.innerHTML = '';
+
+    const hoyStr = new Date().toISOString().slice(0, 10);
+    let totInt = 0, totCap = 0, totCuo = 0;
+
+    plan.cuotas.forEach((c, idx) => {
+      totInt += c.interes;
+      totCap += c.amortizacion_capital;
+      totCuo += c.cuota_total;
+
+      const esVencida = (c.estado === 'Pendiente' && c.fecha_vencimiento < hoyStr);
+      let badge = '<span style="background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:6px; font-size:10px; font-weight:700;">Pendiente</span>';
+      if (c.estado === 'Pagada') {
+        badge = '<span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:6px; font-size:10px; font-weight:700;">Pagada</span>';
+      } else if (esVencida) {
+        badge = '<span style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:6px; font-size:10px; font-weight:700;">Vencida</span>';
+      }
+
+      const tr = document.createElement('tr');
+      if (c.estado === 'Pagada') tr.style.opacity = '0.75';
+      tr.innerHTML = `
+        <td style="padding:6px 10px; text-align:center; font-weight:700; border-bottom:1px solid #f3f4f6;">${c.num_cuota}</td>
+        <td style="padding:6px 10px; text-align:center; font-family:monospace; border-bottom:1px solid #f3f4f6;">${c.fecha_vencimiento}</td>
+        <td style="padding:6px 10px; text-align:right; border-bottom:1px solid #f3f4f6;">₡${fmtCRC(c.saldo_inicial)}</td>
+        <td style="padding:6px 10px; text-align:right; font-weight:700; color:#1e40af; border-bottom:1px solid #f3f4f6;">₡${fmtCRC(c.cuota_total)}</td>
+        <td style="padding:6px 10px; text-align:right; color:#dc2626; border-bottom:1px solid #f3f4f6;">₡${fmtCRC(c.interes)}</td>
+        <td style="padding:6px 10px; text-align:right; color:#059669; font-weight:600; border-bottom:1px solid #f3f4f6;">₡${fmtCRC(c.amortizacion_capital)}</td>
+        <td style="padding:6px 10px; text-align:right; border-bottom:1px solid #f3f4f6;">₡${fmtCRC(c.saldo_final)}</td>
+        <td style="padding:6px 10px; text-align:center; border-bottom:1px solid #f3f4f6;">${badge}</td>
+        <td style="padding:6px 10px; text-align:center; font-size:10.5px; color:#6b7280; border-bottom:1px solid #f3f4f6;">${c.fecha_real_pago || '--'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tfoot.innerHTML = `
+      <tr>
+        <td colspan="3" style="padding:8px 10px; text-align:right;">TOTALES DEL PLAN:</td>
+        <td style="padding:8px 10px; text-align:right; color:#1e40af;">₡${fmtCRC(totCuo)}</td>
+        <td style="padding:8px 10px; text-align:right; color:#dc2626;">₡${fmtCRC(totInt)}</td>
+        <td style="padding:8px 10px; text-align:right; color:#059669;">₡${fmtCRC(totCap)}</td>
+        <td colspan="3"></td>
+      </tr>
+    `;
+  } else if (pfTabActiva === 'hist') {
+    const tbody = document.getElementById('pf_hist_tbody');
+    tbody.innerHTML = '';
+    const pagos = p.pagos || [];
+    if (pagos.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:25px; color:#9ca3af;">Aún no se han registrado pagos para este crédito. Use los botones superiores para registrar cuotas o abonos.</td></tr>`;
+      return;
+    }
+
+    pagos.forEach(pago => {
+      const isRev = (pago.estado === 'reversado');
+      const tr = document.createElement('tr');
+      if (isRev) tr.style.opacity = '0.5';
+      tr.innerHTML = `
+        <td style="padding:8px 10px; font-family:monospace; border-bottom:1px solid #f3f4f6;">${pago.fecha}</td>
+        <td style="padding:8px 10px; border-bottom:1px solid #f3f4f6; font-weight:600; text-transform:capitalize;">${(pago.tipo || '').replace(/_/g, ' ')}</td>
+        <td style="padding:8px 10px; border-bottom:1px solid #f3f4f6; font-family:monospace;">${pago.comprobante || '--'}</td>
+        <td style="padding:8px 10px; border-bottom:1px solid #f3f4f6; text-transform:capitalize;">${pago.origen_fondos || 'Banco'}</td>
+        <td style="padding:8px 10px; text-align:right; color:#059669; font-weight:600; border-bottom:1px solid #f3f4f6;">₡${fmtCRC(pago.monto_capital)}</td>
+        <td style="padding:8px 10px; text-align:right; color:#dc2626; border-bottom:1px solid #f3f4f6;">₡${fmtCRC(pago.monto_interes)}</td>
+        <td style="padding:8px 10px; text-align:right; font-weight:700; color:#1e40af; border-bottom:1px solid #f3f4f6;">₡${fmtCRC(pago.monto_total)}</td>
+        <td style="padding:8px 10px; text-align:center; border-bottom:1px solid #f3f4f6;">
+          <span style="background:${isRev ? '#fee2e2' : '#dcfce7'}; color:${isRev ? '#b91c1c' : '#15803d'}; padding:2px 7px; border-radius:6px; font-size:10px; font-weight:700;">
+            ${isRev ? 'Anulado' : 'Aplicado'}
+          </span>
+        </td>
+        <td style="padding:8px 10px; text-align:center; border-bottom:1px solid #f3f4f6;">
+          ${!isRev ? `<button type="button" onclick="pfAnularPago('${pago.id}')" style="background:#fee2e2; color:#b91c1c; border:none; border-radius:5px; padding:3px 8px; font-size:10.5px; font-weight:700; cursor:pointer;" title="Anular este pago">Anular</button>` : '--'}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } else if (pfTabActiva === 'asientos') {
+    const list = document.getElementById('pf_asientos_list');
+    list.innerHTML = '';
+
+    const asientos = [];
+    if (p.asiento_desembolso_id) {
+      asientos.push({
+        id: p.asiento_desembolso_id,
+        concepto: `Desembolso Pasivo Financiero: ${p.descripcion}`,
+        fecha: p.fecha_inicio,
+        monto: p.monto_principal,
+        tipo: 'Desembolso Inicial'
+      });
+    }
+    (p.pagos || []).forEach(pg => {
+      if (pg.asiento_id) {
+        asientos.push({
+          id: pg.asiento_id,
+          concepto: `Pago ${pg.tipo}: ${p.descripcion} (Ref: ${pg.comprobante})`,
+          fecha: pg.fecha,
+          monto: pg.monto_total,
+          tipo: pg.tipo.replace(/_/g, ' ')
+        });
+      }
+      if (pg.asiento_reversion_id) {
+        asientos.push({
+          id: pg.asiento_reversion_id,
+          concepto: `REVERSIÓN PAGO: ${pg.comprobante}`,
+          fecha: pg.fecha,
+          monto: pg.monto_total,
+          tipo: 'Reversión Contable'
+        });
+      }
+    });
+
+    if (asientos.length === 0) {
+      list.innerHTML = '<div style="padding:20px; text-align:center; color:#9ca3af;">No hay asientos contables registrados para este pasivo.</div>';
+      return;
+    }
+
+    asientos.forEach(a => {
+      const card = document.createElement('div');
+      card.className = 'entity-subcard';
+      card.style.cssText = 'padding:12px 16px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;';
+      card.innerHTML = `
+        <div>
+          <div style="font-size:12px; font-weight:700; color:var(--ink);">${a.concepto}</div>
+          <div style="font-size:11px; color:#6b7280; margin-top:2px;">Tipo: <span style="font-weight:600; text-transform:capitalize;">${a.tipo}</span> · Fecha: ${a.fecha} · ID: <span style="font-family:monospace; font-size:10px;">${a.id}</span></div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:14px; font-weight:800; color:#1d4ed8;">₡${fmtCRC(a.monto)}</div>
+          <span style="background:#e0e7ff; color:#3730a3; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700;">Partida Doble NIIF</span>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+  }
+}
+
+// ── Control Modal Nuevo Pasivo ───────────────────────────────────────
+function openNuevoPasivoModal() {
+  const m = document.getElementById('nuevoPasivoFinancieroModal');
+  if (!m) return;
+  m.style.display = 'flex';
+  document.getElementById('formNuevoPasivo').reset();
+  document.getElementById('npf_fecha').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('npf_plazo').value = 12;
+  document.getElementById('npf_tasa').value = '12.00';
+  document.getElementById('npf_dia').value = 1;
+  npfRecalcularPreview();
+}
+
+function closeNuevoPasivoModal() {
+  const m = document.getElementById('nuevoPasivoFinancieroModal');
+  if (m) m.style.display = 'none';
+}
+
+function npfCambiarContrapartida(val) {
+  document.getElementById('npf_banco_wrap').style.display = (val === 'banco') ? 'block' : 'none';
+  document.getElementById('npf_activo_wrap').style.display = (val === 'activo') ? 'block' : 'none';
+}
+
+function npfRecalcularPreview() {
+  const rawM = (document.getElementById('npf_monto').value || '0').replace(/[^0-9.]/g, '');
+  const principal = parseFloat(rawM) || 0;
+  const tasa = parseFloat(document.getElementById('npf_tasa').value) || 0;
+  const plazo = parseInt(document.getElementById('npf_plazo').value) || 12;
+  const period = document.getElementById('npf_period').value || 'mensual';
+  const sistema = document.getElementById('npf_sistema').value || 'frances';
+  const gracia = parseInt(document.getElementById('npf_gracia').value) || 0;
+  const fecha = document.getElementById('npf_fecha').value || new Date().toISOString().slice(0, 10);
+  const dia = parseInt(document.getElementById('npf_dia').value) || 1;
+
+  if (principal <= 0) {
+    document.getElementById('npf_prev_cuota').textContent = '₡0.00';
+    document.getElementById('npf_prev_interes').textContent = '₡0.00';
+    return;
+  }
+
+  const res = calcularTablaAmortizacionJS(principal, tasa, plazo, period, sistema, fecha, dia, gracia);
+  const c1 = res.cuotas[0] ? res.cuotas[0].cuota_total : 0;
+  document.getElementById('npf_prev_cuota').textContent = '₡' + fmtCRC(c1);
+  document.getElementById('npf_prev_interes').textContent = '₡' + fmtCRC(res.tot_interes);
+}
+
+function guardarNuevoPasivo(e) {
+  e.preventDefault();
+  ensurePasivosStructure();
+
+  const rawM = (document.getElementById('npf_monto').value || '0').replace(/[^0-9.]/g, '');
+  const principal = parseFloat(rawM) || 0;
+  if (principal <= 0) {
+    alert('Ingrese un monto principal válido mayor a cero.');
+    return;
+  }
+
+  const desc = document.getElementById('npf_desc').value.trim();
+  const acreedor = document.getElementById('npf_acreedor').value.trim();
+  const tipo = document.getElementById('npf_tipo').value;
+  const fecha = document.getElementById('npf_fecha').value;
+  const plazo = parseInt(document.getElementById('npf_plazo').value) || 12;
+  const tasa = parseFloat(document.getElementById('npf_tasa').value) || 0;
+  const period = document.getElementById('npf_period').value;
+  const dia = parseInt(document.getElementById('npf_dia').value) || 1;
+  const sistema = document.getElementById('npf_sistema').value;
+  const gracia = parseInt(document.getElementById('npf_gracia').value) || 0;
+  const rawCom = (document.getElementById('npf_comision').value || '0').replace(/[^0-9.]/g, '');
+  const comision = parseFloat(rawCom) || 0;
+  const contrapartida = document.getElementById('npf_contrapartida').value;
+  const cuentaBanco = document.getElementById('npf_cuenta_banco').value;
+  const cuentaActivo = document.getElementById('npf_cuenta_activo').value;
+  const doc = document.getElementById('npf_doc').value.trim() || 'PAGARE';
+
+  // 1. Generar Plan V1
+  const resPlan = calcularTablaAmortizacionJS(principal, tasa, plazo, period, sistema, fecha, dia, gracia);
+
+  const pasivoId = 'pas_fin_' + Date.now();
+  const aid = 'asiento_des_' + Date.now();
+
+  const nuevoPasivo = {
+    id: pasivoId,
+    cliente_id: activeClient ? activeClient.id : 'default',
+    descripcion: desc,
+    acreedor: acreedor,
+    tipo: tipo,
+    moneda: 'CRC',
+    monto_principal: principal,
+    saldo_capital_actual: principal,
+    fecha_inicio: fecha,
+    fecha_vencimiento: resPlan.cuotas[resPlan.cuotas.length - 1].fecha_vencimiento,
+    plazo_meses: plazo,
+    periodicidad: period,
+    dia_pago: dia,
+    tasa_anual: tasa,
+    sistema: sistema,
+    periodo_gracia_capital: gracia,
+    comision_formalizacion: comision,
+    destino: desc,
+    doc_respaldo: doc,
+    estado: 'activo',
+    asiento_desembolso_id: aid,
+    version_activa: 1,
+    versiones_plan: [
+      {
+        version_id: 1,
+        fecha_creacion: fecha,
+        motivo: 'Plan Original',
+        saldo_base: principal,
+        cuotas_totales: resPlan.cuotas.length,
+        total_intereses_proyectados: resPlan.tot_interes,
+        total_pagar_proyectado: resPlan.tot_pagar,
+        cuotas: resPlan.cuotas
+      }
+    ],
+    pagos: []
+  };
+
+  MODS.pasivos.financieros.push(nuevoPasivo);
+  saveAllData();
+  closeNuevoPasivoModal();
+  pfCargar();
+  renderPasivos();
+  if (typeof bgCalc === 'function') bgCalc();
+  showToast('Pasivo financiero registrado exitosamente');
+}
+
+// ── Control Modal Registrar Pagos ────────────────────────────────────
+let rppTipoOperacion = 'cuota_ordinaria';
+
+function openRegistrarPagoModal(tipo = 'cuota') {
+  const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  if (pfSelIdx === null || !todos[pfSelIdx]) {
+    alert('Seleccione primero un pasivo de la lista para registrar pagos.');
+    return;
+  }
+  const p = todos[pfSelIdx];
+
+  const m = document.getElementById('registrarPagoPasivoModal');
+  if (!m) return;
+  m.style.display = 'flex';
+  document.getElementById('formPagoPasivo').reset();
+  document.getElementById('rpp_fecha').value = new Date().toISOString().slice(0, 10);
+
+  const selTipo = document.getElementById('rpp_tipo');
+  if (tipo === 'abono') {
+    selTipo.value = 'abono_extraordinario_plazo';
+  } else if (tipo === 'cancelacion') {
+    selTipo.value = 'cancelacion_total';
+  } else {
+    selTipo.value = 'cuota_ordinaria';
+  }
+
+  rppCambiarTipo(selTipo.value);
+}
+
+function closeRegistrarPagoModal() {
+  const m = document.getElementById('registrarPagoPasivoModal');
+  if (m) m.style.display = 'none';
+}
+
+function rppCambiarTipo(val) {
+  rppTipoOperacion = val;
+  const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  const p = todos[pfSelIdx];
+  if (!p) return;
+
+  const wrapCuota = document.getElementById('rpp_cuota_sel_wrap');
+  const simBox = document.getElementById('rpp_simulacion_box');
+  const inpMonto = document.getElementById('rpp_monto');
+
+  if (val === 'cuota_ordinaria') {
+    wrapCuota.style.display = 'block';
+    simBox.style.display = 'none';
+    rppCargarCuotasPendientes(p);
+  } else if (val.startsWith('abono_extraordinario')) {
+    wrapCuota.style.display = 'none';
+    simBox.style.display = 'block';
+    inpMonto.value = '';
+    rppCalcularSimulacion();
+  } else if (val === 'cancelacion_total') {
+    wrapCuota.style.display = 'none';
+    simBox.style.display = 'none';
+    inpMonto.value = fmtCRC(p.saldo_capital_actual);
+  }
+}
+
+function rppCargarCuotasPendientes(p) {
+  const sel = document.getElementById('rpp_num_cuota');
+  if (!sel) return;
+  const plan = (p.versiones_plan || []).find(v => v.version_id === p.version_activa) || (p.versiones_plan || [])[0];
+  if (!plan) return;
+
+  const pendientes = plan.cuotas.filter(c => c.estado !== 'Pagada');
+  if (pendientes.length === 0) {
+    sel.innerHTML = '<option value="">(No hay cuotas pendientes)</option>';
+    document.getElementById('rpp_monto').value = '0.00';
+    return;
+  }
+
+  sel.innerHTML = pendientes.map(c => `<option value="${c.num_cuota}">Cuota #${c.num_cuota} (Vence: ${c.fecha_vencimiento}) - ₡${fmtCRC(c.cuota_total)} [Cap: ₡${fmtCRC(c.amortizacion_capital)} + Int: ₡${fmtCRC(c.interes)}]</option>`).join('');
+  rppSeleccionarCuota(pendientes[0].num_cuota);
+}
+
+function rppSeleccionarCuota(numCuota) {
+  const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  const p = todos[pfSelIdx];
+  if (!p) return;
+  const plan = (p.versiones_plan || []).find(v => v.version_id === p.version_activa) || (p.versiones_plan || [])[0];
+  const c = plan.cuotas.find(item => item.num_cuota === parseInt(numCuota));
+  if (c) {
+    document.getElementById('rpp_monto').value = fmtCRC(c.cuota_total);
+  }
+}
+
+function rppCalcularSimulacion() {
+  const valTipo = document.getElementById('rpp_tipo').value;
+  if (!valTipo.startsWith('abono_extraordinario')) return;
+
+  const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  const p = todos[pfSelIdx];
+  if (!p) return;
+  const plan = (p.versiones_plan || []).find(v => v.version_id === p.version_activa) || (p.versiones_plan || [])[0];
+
+  const rawM = (document.getElementById('rpp_monto').value || '0').replace(/[^0-9.]/g, '');
+  const monto = parseFloat(rawM) || 0;
+  const simTxt = document.getElementById('rpp_simulacion_txt');
+
+  if (monto <= 0) {
+    simTxt.textContent = 'Ingrese el monto del abono para calcular el ahorro en intereses.';
+    return;
+  }
+  if (monto > p.saldo_capital_actual) {
+    simTxt.innerHTML = `<span style="color:#dc2626; font-weight:700;">⚠️ El abono (₡${fmtCRC(monto)}) supera el saldo de capital pendiente (₡${fmtCRC(p.saldo_capital_actual)}).</span>`;
+    return;
+  }
+
+  // Índice de última cuota pagada
+  let corteIdx = -1;
+  plan.cuotas.forEach((c, idx) => { if (c.estado === 'Pagada') corteIdx = idx; });
+  if (corteIdx === -1) corteIdx = 0;
+
+  const tipoRec = (valTipo === 'abono_extraordinario_plazo') ? 'reducir_plazo' : 'reducir_cuota';
+  try {
+    const res = recalcularPorAbonoJS(plan.cuotas, corteIdx, monto, tipoRec, p.tasa_anual, p.periodicidad, p.sistema);
+    simTxt.innerHTML = `
+      <div>Saldo restante tras abono: <strong>₡${fmtCRC(p.saldo_capital_actual - monto)}</strong></div>
+      <div>${tipoRec === 'reducir_plazo' ? `El plazo total se reduce a <strong>${res.num_cuotas_totales} cuotas</strong> manteniendo el monto mensual.` : `Se mantiene el plazo y la nueva cuota mensual baja a <strong>₡${fmtCRC(res.cuotas[corteIdx + 1] ? res.cuotas[corteIdx + 1].cuota_total : 0)}</strong>.`}</div>
+      <div style="font-weight:700; color:#059669; margin-top:3px;">🔥 Ahorro proyectado en intereses: ₡${fmtCRC(res.ahorro_intereses)}</div>
+    `;
+  } catch (err) {
+    simTxt.textContent = err.message;
+  }
+}
+
+function rppCambiarOrigenFondos(val) {
+  document.getElementById('rpp_cuenta_banco_wrap').style.display = (val === 'banco') ? 'block' : 'none';
+}
+
+function guardarPagoPasivo(e) {
+  e.preventDefault();
+  const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  const p = todos[pfSelIdx];
+  if (!p) return;
+
+  const rawM = (document.getElementById('rpp_monto').value || '0').replace(/[^0-9.]/g, '');
+  const monto = parseFloat(rawM) || 0;
+  if (monto <= 0) {
+    alert('Ingrese un monto válido.');
+    return;
+  }
+
+  const tipo = document.getElementById('rpp_tipo').value;
+  const fecha = document.getElementById('rpp_fecha').value;
+  const origen = document.getElementById('rpp_origen_fondos').value;
+  const ctaBanco = document.getElementById('rpp_cuenta_banco').value;
+  const comp = document.getElementById('rpp_comprobante').value.trim() || 'PAGO';
+  const numCuota = parseInt(document.getElementById('rpp_num_cuota').value) || 1;
+
+  const plan = (p.versiones_plan || []).find(v => v.version_id === p.version_activa) || (p.versiones_plan || [])[0];
+  const pagoId = 'pago_' + Date.now();
+  const aid = 'asiento_pago_' + Date.now();
+
+  let montoCap = 0, montoInt = 0;
+
+  if (tipo === 'cuota_ordinaria') {
+    const c = plan.cuotas.find(item => item.num_cuota === numCuota);
+    if (!c) { alert('Cuota no encontrada'); return; }
+    montoInt = c.interes;
+    montoCap = Math.max(0, Math.round((monto - montoInt) * 100) / 100);
+
+    c.estado = 'Pagada';
+    c.fecha_real_pago = fecha;
+    c.capital_pagado = montoCap;
+    c.interes_pagado = montoInt;
+    c.pago_id = pagoId;
+
+    p.saldo_capital_actual = Math.max(0, Math.round((p.saldo_capital_actual - montoCap) * 100) / 100);
+    if (p.saldo_capital_actual <= 0.01) p.estado = 'cancelado';
+
+  } else if (tipo.startsWith('abono_extraordinario')) {
+    montoCap = monto;
+    montoInt = 0;
+
+    let corteIdx = -1;
+    plan.cuotas.forEach((c, idx) => { if (c.estado === 'Pagada') corteIdx = idx; });
+    if (corteIdx === -1) corteIdx = 0;
+
+    const tipoRec = (tipo === 'abono_extraordinario_plazo') ? 'reducir_plazo' : 'reducir_cuota';
+    const res = recalcularPorAbonoJS(plan.cuotas, corteIdx, montoCap, tipoRec, p.tasa_anual, p.periodicidad, p.sistema);
+
+    const nuevaVerId = p.versiones_plan.length + 1;
+    p.versiones_plan.push({
+      version_id: nuevaVerId,
+      fecha_creacion: fecha,
+      motivo: `Abono Extraordinario (${tipoRec === 'reducir_plazo' ? 'Reducción Plazo' : 'Reducción Cuota'})`,
+      saldo_base: Math.round((p.saldo_capital_actual - montoCap) * 100) / 100,
+      cuotas_totales: res.num_cuotas_totales,
+      total_intereses_proyectados: res.tot_interes_nuevo,
+      total_pagar_proyectado: Math.round(res.cuotas.reduce((s, c) => s + c.cuota_total, 0) * 100) / 100,
+      ahorro_intereses: res.ahorro_intereses,
+      cuotas: res.cuotas
+    });
+    p.version_activa = nuevaVerId;
+    p.saldo_capital_actual = Math.max(0, Math.round((p.saldo_capital_actual - montoCap) * 100) / 100);
+    if (p.saldo_capital_actual <= 0.01) p.estado = 'cancelado';
+
+  } else if (tipo === 'cancelacion_total') {
+    montoCap = p.saldo_capital_actual;
+    montoInt = Math.max(0, Math.round((monto - montoCap) * 100) / 100);
+    plan.cuotas.forEach(c => { if (c.estado !== 'Pagada') c.estado = 'Cancelada'; });
+    p.saldo_capital_actual = 0.0;
+    p.estado = 'cancelado';
+  }
+
+  if (!p.pagos) p.pagos = [];
+  p.pagos.push({
+    id: pagoId,
+    fecha: fecha,
+    tipo: tipo,
+    monto_total: monto,
+    monto_capital: montoCap,
+    monto_interes: montoInt,
+    monto_mora: 0.0,
+    origen_fondos: origen,
+    cuenta_bancaria_codigo: ctaBanco,
+    comprobante: comp,
+    num_cuota: (tipo === 'cuota_ordinaria') ? numCuota : null,
+    estado: 'aplicado',
+    asiento_id: aid
+  });
+
+  saveAllData();
+  closeRegistrarPagoModal();
+  pfCargar();
+  renderPasivos();
+  if (typeof bgCalc === 'function') bgCalc();
+  showToast('Pago registrado y asiento de partida doble generado');
+}
+
+function pfAnularPago(pagoId) {
+  if (!confirm('¿Confirma la anulación de este pago? Se generará un contrasiento de reversión contable y se restaurará el plan de pagos.')) return;
+  const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  const p = todos[pfSelIdx];
+  if (!p || !p.pagos) return;
+
+  const pg = p.pagos.find(item => item.id === pagoId);
+  if (!pg || pg.estado === 'reversado') return;
+
+  pg.estado = 'reversado';
+  p.saldo_capital_actual = Math.round((p.saldo_capital_actual + pg.monto_capital) * 100) / 100;
+  if (p.estado === 'cancelado') p.estado = 'activo';
+
+  if (pg.tipo.startsWith('abono_extraordinario')) {
+    if (p.versiones_plan.length > 1) {
+      p.versiones_plan.pop();
+      p.version_activa = p.versiones_plan[p.versiones_plan.length - 1].version_id;
+    }
+  } else if (pg.tipo === 'cuota_ordinaria') {
+    const plan = (p.versiones_plan || []).find(v => v.version_id === p.version_activa);
+    if (plan) {
+      const c = plan.cuotas.find(item => item.num_cuota === pg.num_cuota);
+      if (c) {
+        c.estado = 'Pendiente';
+        c.fecha_real_pago = null;
+        c.pago_id = null;
+        c.capital_pagado = 0;
+        c.interes_pagado = 0;
+      }
+    }
+  }
+
+  saveAllData();
+  pfCargar();
+  renderPasivos();
+  if (typeof bgCalc === 'function') bgCalc();
+  showToast('Pago anulado y plan restaurado');
+}
+
+function imprimirTablaAmortizacionPasivo() {
+  const todos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+  if (pfSelIdx === null || !todos[pfSelIdx]) {
+    alert('Seleccione un pasivo para imprimir.');
+    return;
+  }
+  fmAbrirReporteFinanciero('amort_pasivo');
+}
+
+
 // ── PASIVOS (ESPECÍFICO) ──────────────────────────────────────────
 const PASIVOS_SCHEMA = {
   pas_cor: { title:'PASIVO CORRIENTE', items:['IVA NETO POR PAGAR','IVA DEVENGADO','IMPUESTO A LAS GANANCIAS POR PAGAR','OTROS IMPUESTOS POR PAGAR','CUENTAS COMERCIALES POR PAGAR','GASTOS ACUMULADOS','RETENCIONES POR PAGAR','COBROS ANTICIPADOS','PROVISIONES A CORTO PLAZO','DOCUMENTOS POR PAGAR CP','DIVIDENDOS POR PAGAR','PASIVOS POR IMPUESTOS DIFERIDOS','PARTICIPACIONES POR PAGAR A SOCIOS','PARTICIPACIONES POR PAGAR A TRABAJADORES','SOBREGIROS BANCARIOS','OTROS PASIVOS A CORTO PLAZO'] },
@@ -4003,9 +5082,20 @@ function renderPasivos() {
     pas_ncor: { color:'#f59e0b', bg:'linear-gradient(135deg, #92400e 0%, #f59e0b 100%)', icon:'📑' }
   };
 
+  ensurePasivosStructure();
+  const numFinancieros = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros.length : 0;
   let html = `
-    <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
-      <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('pasivos')">🖨 Imprimir Reporte de Pasivos</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button type="button" class="btn btn-blue btn-sm" style="background:#1c3557;border-color:#1c3557;font-weight:700;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(28,53,87,0.35);padding:7px 16px;border-radius:8px;" onclick="openPasivoAmortModal()">
+          <span style="font-size:15px;">📋</span> Plan de Pagos / Tabla de Amortización de Deuda
+          <span style="background:#3b82f6;color:#fff;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:800;">${numFinancieros}</span>
+        </button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button type="button" class="btn btn-outline btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;background:white;border:1px solid var(--cream3);" onclick="openNuevoPasivoModal()"><span>+</span> Nuevo Pasivo Financiero</button>
+        <button type="button" class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('pasivos')">🖨️ Imprimir Reporte de Pasivos</button>
+      </div>
     </div>
     <div class="asset-grid">`;
 
@@ -6544,9 +7634,49 @@ function bgCalc(){
     PASIVOS_SCHEMA.pas_ncor.items.forEach(name => sumPasNoCor += getPasivoBalance('pas_ncor', name));
   }
 
-  const tot_pas = sumPasCor + sumPasNoCor;
-  sv('pas_cor_tot', sumPasCor);
-  sv('pas_ncor_tot', sumPasNoCor);
+  // Integración analítica de Pasivos Financieros (Porción Corriente 12m y Largo Plazo)
+  let sumFinCor = 0, sumFinNoCor = 0, sumInteresesPorPagar = 0;
+  if (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) {
+    const anioEl = document.getElementById('anioSel');
+    const mesEl = document.getElementById('mesSel');
+    const curAnio = anioEl ? anioEl.value : new Date().getFullYear().toString();
+    const curMesStr = mesEl ? mesEl.value : '';
+    const M_MAP = { "Enero":"01","Febrero":"02","Marzo":"03","Abril":"04","Mayo":"05","Junio":"06","Julio":"07","Agosto":"08","Septiembre":"09","Octubre":"10","Noviembre":"11","Diciembre":"12" };
+    const curMes = M_MAP[curMesStr] || '12';
+    const maxDay = (curMes === '02') ? 28 : (['04','06','09','11'].includes(curMes) ? 30 : 31);
+    const fechaCorteStr = `${curAnio}-${curMes}-${String(maxDay).padStart(2,'0')}`;
+
+    const corteDate = new Date(fechaCorteStr + 'T23:59:59');
+    const limite12m = new Date(corteDate);
+    limite12m.setMonth(limite12m.getMonth() + 12);
+    const limite12mStr = limite12m.toISOString().slice(0, 10);
+
+    MODS.pasivos.financieros.forEach(p => {
+      const plan = (p.versiones_plan || []).find(v => v.version_id === p.version_activa) || (p.versiones_plan || [])[0];
+      if (plan && Array.isArray(plan.cuotas)) {
+        plan.cuotas.forEach(c => {
+          const pagadaAntesCorte = (c.estado === 'Pagada' && c.fecha_real_pago && c.fecha_real_pago <= fechaCorteStr);
+          if (!pagadaAntesCorte) {
+            if (c.fecha_vencimiento <= limite12mStr) {
+              sumFinCor += parseFloat(c.amortizacion_capital) || 0;
+            } else {
+              sumFinNoCor += parseFloat(c.amortizacion_capital) || 0;
+            }
+            if (c.fecha_vencimiento <= fechaCorteStr) {
+              sumInteresesPorPagar += parseFloat(c.interes) || 0;
+            }
+          }
+        });
+      }
+    });
+  }
+
+  const tot_pas_cor_final = sumPasCor + sumFinCor + sumInteresesPorPagar;
+  const tot_pas_nocor_final = sumPasNoCor + sumFinNoCor;
+  const tot_pas = tot_pas_cor_final + tot_pas_nocor_final;
+
+  sv('pas_cor_tot', tot_pas_cor_final);
+  sv('pas_ncor_tot', tot_pas_nocor_final);
   sv('pas', tot_pas);
   
   // Totales desde el módulo de Patrimonio entrelazado
@@ -9861,7 +10991,435 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 
-<!-- ── MODAL LEGAL EN LOGIN (POLÍTICA DE PRIVACIDAD Y TÉRMINOS) ── -->
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- ── MODAL: PLAN DE PAGOS / TABLA DE AMORTIZACIÓN DE DEUDA ───────────── -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div id="pasivoAmortModal" style="display:none; position:fixed; inset:0; background:#f0f4f8; z-index:10000; overflow-y:auto; font-family:'Segoe UI',Arial,sans-serif;">
+
+    <!-- Topbar -->
+    <div style="background:#1c3557; color:#fff; padding:14px 28px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:20; box-shadow:0 4px 14px rgba(0,0,0,0.15);">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="font-size:18px;">📋</span>
+        <div>
+          <div style="font-size:16px; font-weight:700; letter-spacing:0.02em;">Plan de Pagos / Tabla de Amortización de Deuda</div>
+          <div style="font-size:11px; opacity:0.75;">Gestión integral de pasivos financieros, cuotas niveladas y abonos extraordinarios (NIIF)</div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span id="pf_fecha_topbar" style="font-size:12px; opacity:0.8; margin-right:6px;"></span>
+        <button type="button" onclick="openNuevoPasivoModal()" class="btn btn-blue btn-sm" style="background:#2563eb; color:#fff; font-weight:700; border-radius:7px; padding:6px 14px; font-size:12px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(37,99,235,0.4);">
+          <span>+</span> Registrar Pasivo Financiero
+        </button>
+        <button type="button" onclick="fmAbrirReporteFinanciero('vencimientos_pasivos')" style="background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.25); border-radius:7px; padding:6px 12px; font-size:12px; cursor:pointer; font-weight:600;">
+          🖨️ Resumen Vencimientos
+        </button>
+        <button type="button" onclick="closePasivoAmortModal()" style="background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.3); border-radius:7px; padding:6px 14px; font-size:12px; cursor:pointer; font-weight:700;">
+          ✕ Cerrar
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div style="max-width:1280px; margin:0 auto; padding:24px 24px 60px; display:flex; flex-direction:column; gap:20px;">
+
+      <!-- Fila de KPIs -->
+      <div style="display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px;">
+        <div style="background:#1c3557; border-radius:10px; padding:14px 16px; color:#fff; box-shadow:0 4px 12px rgba(28,53,87,0.2);">
+          <div style="font-size:10px; font-weight:700; color:rgba(255,255,255,0.6); letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Deuda Total Inicial</div>
+          <div id="pf_kpi_total" style="font-size:18px; font-weight:800; color:#fff;">₡0</div>
+          <div style="font-size:10px; color:rgba(255,255,255,0.6); margin-top:3px;">Operaciones: <span id="pf_kpi_cnt" style="font-weight:700; color:#93c5fd;">0</span></div>
+        </div>
+        <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Saldo Capital Pendiente</div>
+          <div id="pf_kpi_saldo" style="font-size:18px; font-weight:800; color:#1e3a8a;">₡0</div>
+          <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Al corte contable seleccionado</div>
+        </div>
+        <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Porción Corriente (12m)</div>
+          <div id="pf_kpi_corriente" style="font-size:18px; font-weight:800; color:#dc2626;">₡0</div>
+          <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Pasivo Corto Plazo (2.1)</div>
+        </div>
+        <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Porción Largo Plazo</div>
+          <div id="pf_kpi_nocorriente" style="font-size:18px; font-weight:800; color:#d97706;">₡0</div>
+          <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Pasivo No Corriente (2.2)</div>
+        </div>
+        <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+          <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Próximo Vencimiento</div>
+          <div id="pf_kpi_prox_monto" style="font-size:18px; font-weight:800; color:#059669;">₡0</div>
+          <div id="pf_kpi_prox_fecha" style="font-size:10px; color:#6b7280; margin-top:3px; font-weight:600;">-- / -- / ----</div>
+        </div>
+      </div>
+
+      <!-- Tabla de Pasivos Registrados -->
+      <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 18px; border-bottom:1px solid #f3f4f6; background:#f9fafb; flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:12px; font-weight:700; color:#374151; letter-spacing:.05em; text-transform:uppercase;">Pasivos y Préstamos Registrados</span>
+            <span id="pf_tabla_cnt" style="background:#e0e7ff; color:#3730a3; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700;">0</span>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;" id="pf_chips">
+            <select id="pf_acreedor_filter" onchange="pfFiltrarAcreedor(this.value)" style="padding:4px 10px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#374151; background:#fff; height:28px;">
+              <option value="TODOS">Todos los acreedores</option>
+            </select>
+            <div style="width:1px; height:18px; background:#e5e7eb;"></div>
+            <button type="button" onclick="pfFiltrar(this,'TODOS')" style="padding:3px 10px; border-radius:8px; font-size:11px; border:1px solid #1c3557; cursor:pointer; color:#fff; background:#1c3557; font-weight:600;">Todos</button>
+            <button type="button" onclick="pfFiltrar(this,'ACTIVOS')" style="padding:3px 10px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#6b7280; background:transparent; font-weight:600;">Activos</button>
+            <button type="button" onclick="pfFiltrar(this,'EN_MORA')" style="padding:3px 10px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#6b7280; background:transparent; font-weight:600;">En Mora</button>
+            <button type="button" onclick="pfFiltrar(this,'CANCELADOS')" style="padding:3px 10px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#6b7280; background:transparent; font-weight:600;">Cancelados</button>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead>
+              <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
+                <th style="padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Descripción / Documento</th>
+                <th style="padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Acreedor</th>
+                <th style="padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Tipo</th>
+                <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Inicio</th>
+                <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Plazo</th>
+                <th style="padding:10px 12px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Tasa Anual</th>
+                <th style="padding:10px 12px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Principal</th>
+                <th style="padding:10px 12px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Saldo Capital</th>
+                <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Amortizado</th>
+                <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Próx. Vencimiento</th>
+                <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="pf_tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Panel de Detalle del Pasivo Seleccionado -->
+      <div id="pf_detalle_drawer" style="display:none; background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.06);" class="dr-card">
+        
+        <!-- Drawer Header -->
+        <div style="background:#1c3557; color:#fff; padding:12px 20px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:14px; font-weight:700;" id="pf_det_titulo">Detalle del Pasivo</div>
+            <div style="font-size:11px; opacity:0.75;" id="pf_det_sub">Acreedor y condiciones de amortización</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" onclick="openRegistrarPagoModal('cuota')" class="btn btn-sm" style="background:#10b981; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
+              + Registrar Pago Cuota
+            </button>
+            <button type="button" onclick="openRegistrarPagoModal('abono')" class="btn btn-sm" style="background:#f59e0b; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
+              ⚡ Abono Extraordinario
+            </button>
+            <button type="button" onclick="openRegistrarPagoModal('cancelacion')" class="btn btn-sm" style="background:#6366f1; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
+              ✓ Cancelar Totalmente
+            </button>
+            <button type="button" onclick="imprimirTablaAmortizacionPasivo()" class="btn btn-sm" style="background:rgba(255,255,255,0.18); color:#fff; border:1px solid rgba(255,255,255,0.3); padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
+              🖨️ Imprimir Plan
+            </button>
+            <button type="button" onclick="pfCerrarDetalle()" style="background:none; border:none; color:#fff; font-size:16px; cursor:pointer; opacity:0.8; padding:0 6px;">✕</button>
+          </div>
+        </div>
+
+        <!-- Tabs Bar -->
+        <div style="display:flex; border-bottom:1px solid #e5e7eb; background:#f9fafb; padding:0 16px;">
+          <button type="button" class="pf-tab-btn active" id="pftab_btn_plan" onclick="pfCambiarTab('plan')">Plan de Pagos / Tabla de Amortización</button>
+          <button type="button" class="pf-tab-btn" id="pftab_btn_hist" onclick="pfCambiarTab('hist')">Historial de Pagos y Abonos</button>
+          <button type="button" class="pf-tab-btn" id="pftab_btn_asientos" onclick="pfCambiarTab('asientos')">Asientos Contables Vinculados</button>
+        </div>
+
+        <!-- Contenido Tab 1: Plan de Pagos -->
+        <div id="pftab_cont_plan" style="padding:16px 20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:12px; font-weight:700; color:#374151;">Versión del Plan:</span>
+              <select id="pf_version_sel" onchange="pfCambiarVersion(this.value)" style="padding:4px 10px; border-radius:6px; font-size:12px; border:1px solid #d1d5db; font-weight:600; color:#1f2937;">
+              </select>
+            </div>
+            <div id="pf_version_info" style="font-size:11px; color:#6b7280; font-weight:600;"></div>
+          </div>
+
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:11.5px;">
+              <thead>
+                <tr style="background:#f9fafb; border-bottom:2px solid #e5e7eb;">
+                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">N.°</th>
+                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Vencimiento</th>
+                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Saldo Inicial</th>
+                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#1e40af; text-transform:uppercase;">Cuota Total</th>
+                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#dc2626; text-transform:uppercase;">Interés</th>
+                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#059669; text-transform:uppercase;">Amort. Capital</th>
+                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#374151; text-transform:uppercase;">Saldo Final</th>
+                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Estado</th>
+                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Fecha Pago</th>
+                </tr>
+              </thead>
+              <tbody id="pf_amort_tbody"></tbody>
+              <tfoot id="pf_amort_tfoot" style="background:#f9fafb; font-weight:700; border-top:2px solid #d1d5db;"></tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- Contenido Tab 2: Historial de Pagos -->
+        <div id="pftab_cont_hist" style="display:none; padding:16px 20px;">
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:11.5px;">
+              <thead>
+                <tr style="background:#f9fafb; border-bottom:2px solid #e5e7eb;">
+                  <th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Fecha</th>
+                  <th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Tipo de Pago</th>
+                  <th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Comprobante</th>
+                  <th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Origen Fondos</th>
+                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#059669; text-transform:uppercase;">Capital</th>
+                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#dc2626; text-transform:uppercase;">Interés</th>
+                  <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#1e40af; text-transform:uppercase;">Total Pagado</th>
+                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Estado</th>
+                  <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase;">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="pf_hist_tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Contenido Tab 3: Asientos Contables -->
+        <div id="pftab_cont_asientos" style="display:none; padding:16px 20px;">
+          <div id="pf_asientos_list" style="display:flex; flex-direction:column; gap:12px;"></div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- ── MODAL: NUEVO PASIVO FINANCIERO / CRÉDITO ────────────────────────── -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div id="nuevoPasivoFinancieroModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:11000; align-items:center; justify-content:center; backdrop-filter:blur(3px);">
+    <div id="nuevoPasivoModalBox" style="background:#fff; border-radius:12px; width:95%; max-width:680px; max-height:90vh; overflow-y:auto; box-shadow:0 25px 60px rgba(0,0,0,0.3); display:flex; flex-direction:column;">
+      
+      <div style="background:#1c3557; color:#fff; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; border-radius:12px 12px 0 0;">
+        <span style="font-size:15px; font-weight:700;">Registrar Nuevo Pasivo Financiero / Crédito</span>
+        <button type="button" onclick="closeNuevoPasivoModal()" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+
+      <form id="formNuevoPasivo" onsubmit="guardarNuevoPasivo(event)" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+        
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Descripción del Crédito *</label>
+            <input type="text" id="npf_desc" required placeholder="Ej: Préstamo Vehicular BNCR" class="fd-inp" style="width:100%;">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Acreedor / Entidad Financiera *</label>
+            <input type="text" id="npf_acreedor" required placeholder="Ej: Banco Nacional de Costa Rica" class="fd-inp" style="width:100%;">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Tipo de Pasivo</label>
+            <select id="npf_tipo" class="fd-inp" style="width:100%;">
+              <option value="prestamo_bancario">Préstamo Bancario</option>
+              <option value="financiamiento_activo">Financiamiento de Activo Fijo</option>
+              <option value="arrendamiento">Arrendamiento Financiero (Leasing)</option>
+              <option value="tarjeta">Tarjeta de Crédito Corporativa</option>
+              <option value="otro">Otro Pasivo Financiero</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Monto Principal (₡) *</label>
+            <input type="text" id="npf_monto" required placeholder="12,000,000.00" oninput="npfRecalcularPreview()" class="fd-inp" style="width:100%; font-weight:700; color:#1d4ed8;">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Fecha de Inicio *</label>
+            <input type="date" id="npf_fecha" required onchange="npfRecalcularPreview()" class="fd-inp" style="width:100%;">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Plazo (Meses) *</label>
+            <input type="number" id="npf_plazo" min="1" max="360" value="12" required oninput="npfRecalcularPreview()" class="fd-inp" style="width:100%;">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Tasa Nominal Anual (%) *</label>
+            <input type="number" id="npf_tasa" min="0" step="0.01" value="12.00" required oninput="npfRecalcularPreview()" class="fd-inp" style="width:100%;">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Periodicidad</label>
+            <select id="npf_period" onchange="npfRecalcularPreview()" class="fd-inp" style="width:100%;">
+              <option value="mensual" selected>Mensual (12/año)</option>
+              <option value="bimestral">Bimestral (6/año)</option>
+              <option value="trimestral">Trimestral (4/año)</option>
+              <option value="semestral">Semestral (2/año)</option>
+              <option value="anual">Anual (1/año)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Día de Pago (1-31)</label>
+            <input type="number" id="npf_dia" min="1" max="31" value="1" oninput="npfRecalcularPreview()" class="fd-inp" style="width:100%;">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Sistema Amortización</label>
+            <select id="npf_sistema" onchange="npfRecalcularPreview()" class="fd-inp" style="width:100%;">
+              <option value="frances" selected>Cuota Nivelada (Francés)</option>
+              <option value="aleman">Capital Constante (Alemán)</option>
+              <option value="bullet">Pago Único (Bullet)</option>
+              <option value="sin_interes">Sin Intereses (Cuotas Iguales)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Período Gracia Capital (Períodos)</label>
+            <input type="number" id="npf_gracia" min="0" value="0" oninput="npfRecalcularPreview()" class="fd-inp" style="width:100%;">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Comisión Formalización (₡)</label>
+            <input type="text" id="npf_comision" placeholder="0.00" class="fd-inp" style="width:100%;">
+          </div>
+        </div>
+
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+          <label style="font-size:11px; font-weight:700; color:#1e293b; display:block; margin-bottom:6px;">Contrapartida Contable Inicial (Destino de los Fondos):</label>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div>
+              <select id="npf_contrapartida" onchange="npfCambiarContrapartida(this.value)" class="fd-inp" style="width:100%; font-weight:600;">
+                <option value="banco">Desembolso a Cuenta Bancaria</option>
+                <option value="activo">Financiamiento de Activo Fijo</option>
+                <option value="capital_aporte">Aporte Inicial / Saldo Histórico</option>
+              </select>
+            </div>
+            <div id="npf_banco_wrap">
+              <select id="npf_cuenta_banco" class="fd-inp" style="width:100%;">
+                <option value="1.1.1.02.01">1.1.1.02.01 - Banco Nacional de Costa Rica (BNCR)</option>
+                <option value="1.1.1.02.02">1.1.1.02.02 - Banco de Costa Rica (BCR)</option>
+                <option value="1.1.1.02.03">1.1.1.02.03 - BAC Credomatic</option>
+              </select>
+            </div>
+            <div id="npf_activo_wrap" style="display:none;">
+              <select id="npf_cuenta_activo" class="fd-inp" style="width:100%;">
+                <option value="1.2.1.01">1.2.1.01 - Vehículos</option>
+                <option value="1.2.1.02">1.2.1.02 - Maquinaria y Herramientas</option>
+                <option value="1.2.1.03">1.2.1.03 - Mobiliario y Equipo de Oficina</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Documento de Respaldo / Referencia</label>
+          <input type="text" id="npf_doc" placeholder="Ej: Pagaré #99482 / Contrato Leasing #102" class="fd-inp" style="width:100%;">
+        </div>
+
+        <!-- Previsualización en Vivo -->
+        <div id="npf_preview_box" style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:10px; font-weight:700; color:#1e40af; text-transform:uppercase;">Cuota Nivelada Estimada</div>
+            <div id="npf_prev_cuota" style="font-size:18px; font-weight:800; color:#1d4ed8;">₡0.00</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:10px; font-weight:700; color:#1e40af; text-transform:uppercase;">Total Intereses Proyectados</div>
+            <div id="npf_prev_interes" style="font-size:15px; font-weight:800; color:#b91c1c;">₡0.00</div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+          <button type="button" onclick="closeNuevoPasivoModal()" class="btn btn-outline btn-sm" style="font-weight:600;">Cancelar</button>
+          <button type="submit" class="btn btn-blue btn-sm" style="font-weight:700; background:#2563eb; color:#fff; box-shadow:0 2px 8px rgba(37,99,235,0.4);">
+            Guardar Pasivo y Generar Plan V1
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- ── MODAL: REGISTRAR PAGO / ABONO EXTRAORDINARIO ────────────────────── -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div id="registrarPagoPasivoModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:11000; align-items:center; justify-content:center; backdrop-filter:blur(3px);">
+    <div id="pagoPasivoModalBox" style="background:#fff; border-radius:12px; width:95%; max-width:560px; max-height:90vh; overflow-y:auto; box-shadow:0 25px 60px rgba(0,0,0,0.3); display:flex; flex-direction:column;">
+      
+      <div style="background:#1c3557; color:#fff; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; border-radius:12px 12px 0 0;">
+        <span style="font-size:15px; font-weight:700;" id="rpp_modal_title">Registrar Pago de Pasivo</span>
+        <button type="button" onclick="closeRegistrarPagoModal()" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+
+      <form id="formPagoPasivo" onsubmit="guardarPagoPasivo(event)" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+        
+        <div>
+          <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Tipo de Operación</label>
+          <select id="rpp_tipo" onchange="rppCambiarTipo(this.value)" class="fd-inp" style="width:100%; font-weight:700;">
+            <option value="cuota_ordinaria">Pago de Cuota Ordinaria</option>
+            <option value="abono_extraordinario_plazo">Abono Extraordinario a Capital (Reducir Plazo)</option>
+            <option value="abono_extraordinario_cuota">Abono Extraordinario a Capital (Reducir Cuota)</option>
+            <option value="cancelacion_total">Cancelación Total Anticipada</option>
+          </select>
+        </div>
+
+        <div id="rpp_cuota_sel_wrap">
+          <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Seleccionar Cuota a Pagar</label>
+          <select id="rpp_num_cuota" onchange="rppSeleccionarCuota(this.value)" class="fd-inp" style="width:100%;">
+          </select>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Monto del Pago (₡) *</label>
+            <input type="text" id="rpp_monto" required oninput="rppCalcularSimulacion()" class="fd-inp" style="width:100%; font-size:16px; font-weight:800; color:#1d4ed8;">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Fecha del Pago *</label>
+            <input type="date" id="rpp_fecha" required class="fd-inp" style="width:100%;">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Origen de Fondos</label>
+            <select id="rpp_origen_fondos" onchange="rppCambiarOrigenFondos(this.value)" class="fd-inp" style="width:100%;">
+              <option value="banco">Banco (Transferencia / Débito)</option>
+              <option value="caja">Caja General (Efectivo)</option>
+            </select>
+          </div>
+          <div id="rpp_cuenta_banco_wrap">
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Cuenta Bancaria</label>
+            <select id="rpp_cuenta_banco" class="fd-inp" style="width:100%;">
+              <option value="1.1.1.02.01">BNCR 1.1.1.02.01</option>
+              <option value="1.1.1.02.02">BCR 1.1.1.02.02</option>
+              <option value="1.1.1.02.03">BAC 1.1.1.02.03</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Comprobante / Referencia Bancaria</label>
+          <input type="text" id="rpp_comprobante" placeholder="Ej: TRANSF-883920" required class="fd-inp" style="width:100%;">
+        </div>
+
+        <!-- Caja de Simulación de Ahorro para Abonos Extraordinarios -->
+        <div id="rpp_simulacion_box" style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px;">
+          <div style="font-size:11px; font-weight:700; color:#166534; margin-bottom:4px;">SIMULACIÓN DE RECALCULO Y AHORRO EN INTERESES:</div>
+          <div id="rpp_simulacion_txt" style="font-size:12px; color:#15803d; line-height:1.4;"></div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+          <button type="button" onclick="closeRegistrarPagoModal()" class="btn btn-outline btn-sm" style="font-weight:600;">Cancelar</button>
+          <button type="submit" class="btn btn-blue btn-sm" style="font-weight:700; background:#10b981; color:#fff; border:none; box-shadow:0 2px 8px rgba(16,185,129,0.4);">
+            Aplicar Pago con Asiento Contable
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ── MODAL LEGAL EN LOGIN (POLÍTICA DE PRIVACIDAD Y TÉRMINOS) ── -->
 <div id="fmLegalModal" style="display:none;position:fixed;inset:0;background:rgba(5,9,18,0.85);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);z-index:999999;align-items:center;justify-content:center;padding:20px;">
   <div style="background:#0b1324;border:1px solid rgba(59,130,246,0.35);border-radius:20px;max-width:860px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,0.9), 0 0 30px rgba(37,99,235,0.25);overflow:hidden;position:relative;">
     
@@ -11902,6 +13460,169 @@ function fmGenerarHTMLReporte(tipo, data) {
       </div>
     `;
   }
+
+  
+  // 14. TABLA OFICIAL DE AMORTIZACIÓN Y PLAN DE PAGOS DE DEUDA
+  if (tipo === 'amort_pasivo') {
+    const todos = (typeof MODS !== 'undefined' && MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+    const p = (typeof pfSelIdx !== 'undefined' && pfSelIdx !== null && todos[pfSelIdx]) ? todos[pfSelIdx] : todos[0];
+    
+    if (!p) {
+      return '<div class="fm-rep-card"><div style="padding:40px; text-align:center; color:#9ca3af;">No hay pasivos financieros registrados para generar la tabla de amortización.</div></div>';
+    }
+
+    const plan = (p.versiones_plan || []).find(v => v.version_id === p.version_activa) || (p.versiones_plan || [])[0];
+    const cuotas = plan ? plan.cuotas : [];
+
+    let trsCuotas = cuotas.map(c => `
+      <tr>
+        <td style="text-align:center; font-weight:700;">${c.num_cuota}</td>
+        <td style="text-align:center; font-family:monospace;">${c.fecha_vencimiento}</td>
+        <td class="fm-rep-num">${fmtCRC(c.saldo_inicial)}</td>
+        <td class="fm-rep-num" style="font-weight:700; color:#1e40af;">${fmtCRC(c.cuota_total)}</td>
+        <td class="fm-rep-num" style="color:#dc2626;">${fmtCRC(c.interes)}</td>
+        <td class="fm-rep-num" style="color:#059669; font-weight:600;">${fmtCRC(c.amortizacion_capital)}</td>
+        <td class="fm-rep-num">${fmtCRC(c.saldo_final)}</td>
+        <td style="text-align:center; font-size:8px;">${c.estado}</td>
+        <td style="text-align:center; font-size:8px; font-family:monospace;">${c.fecha_real_pago || '--'}</td>
+      </tr>
+    `).join('');
+
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Cédula / Identificación: ${data.cliente.id}</div>
+            <div class="fm-rep-title">TABLA OFICIAL DE AMORTIZACIÓN Y PLAN DE PAGOS DE DEUDA</div>
+            <div class="fm-rep-sub">Operación: ${p.descripcion} · Acreedor: ${p.acreedor}</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Sistema ${p.sistema.toUpperCase()} · NIIF para Pymes Sección 11)</div>
+          </div>
+
+          <!-- Resumen del Crédito -->
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:12px; font-size:8.5px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 12px;">
+            <div><strong>Monto Principal:</strong> ₡${fmtCRC(p.monto_principal)}</div>
+            <div><strong>Tasa Anual:</strong> ${parseFloat(p.tasa_anual||0).toFixed(2)}%</div>
+            <div><strong>Plazo Total:</strong> ${p.plazo_meses} meses</div>
+            <div><strong>Saldo Capital:</strong> ₡${fmtCRC(p.saldo_capital_actual)}</div>
+          </div>
+
+          <table class="fm-rep-table" style="font-size:8px">
+            <thead>
+              <tr>
+                <th style="width:30px; text-align:center">N.°</th>
+                <th style="width:70px; text-align:center">Vencimiento</th>
+                <th style="width:85px; text-align:right">Saldo Inicial</th>
+                <th style="width:85px; text-align:right">Cuota Total</th>
+                <th style="width:75px; text-align:right">Interés</th>
+                <th style="width:85px; text-align:right">Amort. Capital</th>
+                <th style="width:85px; text-align:right">Saldo Final</th>
+                <th style="width:60px; text-align:center">Estado</th>
+                <th style="width:70px; text-align:center">Fecha Pago</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${trsCuotas}
+              <tr class="fm-rep-grandtot">
+                <td colspan="3" style="text-align:right">TOTALES ACUMULADOS:</td>
+                <td class="fm-rep-num">${fmtCRC(plan ? plan.total_pagar_proyectado : 0)}</td>
+                <td class="fm-rep-num" style="color:#dc2626">${fmtCRC(plan ? plan.total_intereses_proyectados : 0)}</td>
+                <td class="fm-rep-num" style="color:#059669">${fmtCRC(plan ? plan.saldo_base : 0)}</td>
+                <td colspan="3"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          ${fmFirmasHTML(data.cliente, 'Plan de Amortización financiero emitido conforme a las Normas Internacionales de Información Financiera y Código de Comercio de Costa Rica.')}
+        </div>
+      </div>
+    `;
+  }
+
+  // 15. ESTADO CONSOLIDADO DE VENCIMIENTOS Y SERVICIO DE LA DEUDA
+  if (tipo === 'vencimientos_pasivos') {
+    const todos = (typeof MODS !== 'undefined' && MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+    
+    let totalCap12m = 0, totalInt12m = 0, totalServicio12m = 0;
+    const hoyStr = new Date().toISOString().slice(0, 10);
+    const corte12m = new Date(); corte12m.setMonth(corte12m.getMonth() + 12);
+    const corte12mStr = corte12m.toISOString().slice(0, 10);
+
+    let rowsHTML = todos.map(p => {
+      const plan = (p.versiones_plan || []).find(v => v.version_id === p.version_activa) || (p.versiones_plan || [])[0];
+      let cap12m = 0, int12m = 0;
+      if (plan && Array.isArray(plan.cuotas)) {
+        plan.cuotas.forEach(c => {
+          if (c.estado !== 'Pagada' && c.fecha_vencimiento <= corte12mStr) {
+            cap12m += c.amortizacion_capital;
+            int12m += c.interes;
+          }
+        });
+      }
+      totalCap12m += cap12m; totalInt12m += int12m; totalServicio12m += (cap12m + int12m);
+
+      return `
+        <tr>
+          <td class="fm-rep-item">${p.descripcion}<br><span style="font-size:7.5px;color:#6b7280">${p.acreedor} · Tasa: ${p.tasa_anual}%</span></td>
+          <td class="fm-rep-num">${fmtCRC(p.saldo_capital_actual)}</td>
+          <td class="fm-rep-num" style="color:#059669; font-weight:600">${fmtCRC(cap12m)}</td>
+          <td class="fm-rep-num" style="color:#dc2626">${fmtCRC(int12m)}</td>
+          <td class="fm-rep-num" style="font-weight:700; color:#1e40af">${fmtCRC(cap12m + int12m)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    if (!rowsHTML) {
+      rowsHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:#9ca3af;">No hay obligaciones financieras activas registradas.</td></tr>`;
+    }
+
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Hoja 1 de 1 · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Cédula / Identificación: ${data.cliente.id}</div>
+            <div class="fm-rep-title">ESTADO CONSOLIDADO DE VENCIMIENTOS Y SERVICIO DE LA DEUDA</div>
+            <div class="fm-rep-sub">Proyección a Corto Plazo (Próximos 12 Meses) · Al corte de ${data.periodoTxt}</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · NIIF para Pymes Secc. 11 y NIC 1)</div>
+          </div>
+
+          <table class="fm-rep-table" style="font-size:8.5px">
+            <thead>
+              <tr>
+                <th style="text-align:left">Obligación / Entidad Financiera</th>
+                <th style="width:110px; text-align:right">Saldo Capital Actual</th>
+                <th style="width:110px; text-align:right">Amort. Capital (12m)</th>
+                <th style="width:100px; text-align:right">Intereses (12m)</th>
+                <th style="width:110px; text-align:right">Servicio Deuda Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHTML}
+              <tr class="fm-rep-grandtot">
+                <td>TOTAL CONSOLIDADO SERVICIO DE DEUDA (12 MESES)</td>
+                <td class="fm-rep-num">${fmtCRC(todos.reduce((s,p)=>s+p.saldo_capital_actual, 0))}</td>
+                <td class="fm-rep-num" style="color:#059669">${fmtCRC(totalCap12m)}</td>
+                <td class="fm-rep-num" style="color:#dc2626">${fmtCRC(totalInt12m)}</td>
+                <td class="fm-rep-num" style="color:#1e40af">${fmtCRC(totalServicio12m)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          ${fmFirmasHTML(data.cliente, 'Informe de Vencimientos y Servicio de Deuda elaborado para control de tesorería y cumplimiento NIIF.')}
+        </div>
+      </div>
+    `;
+  }
+
 
   return '<div>Seleccione un reporte válido.</div>';
 }
