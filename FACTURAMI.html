@@ -136,23 +136,24 @@
 [data-theme="dark"] #nuevoActivoModalBox,
 [data-theme="dark"] #nuevoActivoModalBox,
 [data-theme="dark"] #nuevoPasivoModalBox,
-[data-theme="dark"] #pagoPasivoModalBox {
+[data-theme="dark"] #pagoPasivoModalBox,
+[data-theme="dark"] #nuevoPatrimModalBox {
   background: #0f172a !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   color: var(--ink) !important;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9) !important;
 }
-.pf-tab-btn {
+.pf-tab-btn, .pat-tab-btn {
   padding: 8px 16px; border: none; background: transparent; color: #6b7280; font-weight: 700; font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;
 }
-.pf-tab-btn.active {
-  color: #1d4ed8; border-bottom-color: #1d4ed8;
+.pf-tab-btn.active, .pat-tab-btn.active {
+  color: #0e7490; border-bottom-color: #0e7490;
 }
-[data-theme="dark"] .pf-tab-btn {
+[data-theme="dark"] .pf-tab-btn, [data-theme="dark"] .pat-tab-btn {
   color: #94a3b8;
 }
-[data-theme="dark"] .pf-tab-btn.active {
-  color: #60a5fa; border-bottom-color: #60a5fa;
+[data-theme="dark"] .pf-tab-btn.active, [data-theme="dark"] .pat-tab-btn.active {
+  color: #22d3ee; border-bottom-color: #22d3ee;
 }
 
 /* ── REFINAMIENTOS PREMIUM MODO OSCURO ── */
@@ -3459,7 +3460,154 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
     </div> <!-- cierra cxp_sec_financieros -->
     </div> <!-- cierra cxp-dynamic -->
   </div> <!-- cierra pg-pasivos -->
-  <div class="page" id="pg-patrim"><div id="mod-patrim"></div></div>
+    <div class="page" id="pg-patrim">
+    <div style="background:#1c3557; color:#fff; padding:14px 24px; display:flex; justify-content:space-between; align-items:center; border-radius:12px; margin-bottom:18px; box-shadow:0 4px 14px rgba(0,0,0,0.15); flex-wrap:wrap; gap:10px;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="font-size:22px;">🏛️</span>
+        <div>
+          <div style="font-size:16px; font-weight:700; letter-spacing:0.02em;">Módulo de Patrimonio y Capital Contable</div>
+          <div style="font-size:11px; opacity:0.8;">Gestión de capital social, aportes societarios, reservas legales y resultados acumulados (NIIF / NIC 1)</div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span id="pat_fecha_topbar" style="font-size:12px; opacity:0.85; margin-right:4px;"></span>
+        <button type="button" onclick="openNuevoPatrimModal()" class="btn btn-blue btn-sm" style="background:#2563eb; color:#fff; font-weight:700; border-radius:7px; padding:7px 15px; font-size:12px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(37,99,235,0.4);">
+          <span>+</span> Registrar Movimiento
+        </button>
+        <button type="button" onclick="patImprimirEstadoCambios()" class="btn btn-sm" style="background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.3); font-weight:700; border-radius:7px; padding:7px 14px; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+          🖨️ Imprimir Estado de Cambios
+        </button>
+      </div>
+    </div>
+
+    <!-- 6 Paneles Principales de Patrimonio -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:18px;">
+      <!-- KPI 1: Patrimonio Neto Total -->
+      <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+        <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Patrimonio Neto Total</div>
+        <div id="pat_kpi_total_patrimonio" style="font-size:18px; font-weight:800; color:#0e7490;">₡0,00</div>
+        <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Movimientos registrados: <span id="pat_kpi_cnt" style="font-weight:700; color:#0e7490;">0</span></div>
+      </div>
+
+      <!-- KPI 2: Capital Social y Aportes -->
+      <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+        <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Capital Social y Aportes</div>
+        <div id="pat_kpi_capital_social" style="font-size:18px; font-weight:800; color:#1e40af;">₡0,00</div>
+        <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Suscrito y pagado</div>
+      </div>
+
+      <!-- KPI 3: Reservas Acumuladas -->
+      <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+        <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Reservas Acumuladas</div>
+        <div id="pat_kpi_reservas" style="font-size:18px; font-weight:800; color:#7c3aed;">₡0,00</div>
+        <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Legal, estatutaria y voluntaria</div>
+      </div>
+
+      <!-- KPI 4: Resultados Acumulados -->
+      <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+        <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Resultados Acumulados</div>
+        <div id="pat_kpi_resultados_acum" style="font-size:18px; font-weight:800; color:#059669;">₡0,00</div>
+        <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Ejercicios anteriores</div>
+      </div>
+
+      <!-- KPI 5: Utilidad del Ejercicio -->
+      <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+        <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Utilidad del Período</div>
+        <div id="pat_kpi_utilidad_periodo" style="font-size:18px; font-weight:800; color:#10b981;">₡0,00</div>
+        <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Resultado del ejercicio actual</div>
+      </div>
+
+      <!-- KPI 6: Superávit y Otros Fondos -->
+      <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+        <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Superávit y Otros</div>
+        <div id="pat_kpi_superavit" style="font-size:18px; font-weight:800; color:#d97706;">₡0,00</div>
+        <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Revaluación y donaciones</div>
+      </div>
+    </div>
+
+    <!-- Tabla Maestra de Patrimonio con Filtros de Categoría y Cuentas -->
+    <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.06); margin-bottom:18px;" class="dr-card">
+      <div style="padding:14px 20px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <span style="font-size:13px; font-weight:700; color:#1c3557;">Categoría:</span>
+          <div id="pat_categoria_chips" style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button type="button" class="pat-chip-btn" onclick="patFiltrar(this, 'TODOS')" style="padding:4px 12px; border-radius:8px; font-size:11px; border:1px solid #1c3557; cursor:pointer; color:#fff; background:#1c3557; font-weight:700;">Todos los Movimientos</button>
+            <button type="button" class="pat-chip-btn" onclick="patFiltrar(this, 'cap')" style="padding:4px 12px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#1e40af; background:#eff6ff; font-weight:600;">Capital Social y Aportes</button>
+            <button type="button" class="pat-chip-btn" onclick="patFiltrar(this, 'res')" style="padding:4px 12px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#7c3aed; background:#f5f3ff; font-weight:600;">Reservas</button>
+            <button type="button" class="pat-chip-btn" onclick="patFiltrar(this, 'resul')" style="padding:4px 12px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#065f46; background:#ecfdf5; font-weight:600;">Resultados y Utilidades</button>
+            <button type="button" class="pat-chip-btn" onclick="patFiltrar(this, 'otros')" style="padding:4px 12px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#92400e; background:#fef3c7; font-weight:600;">Otros Fondos</button>
+          </div>
+        </div>
+
+        <!-- Filtro de Cuenta Contable -->
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:11px; font-weight:600; color:#6b7280;">Cuenta:</span>
+          <select id="pat_filtro_cuenta" onchange="patFiltrarCuenta(this.value)" class="fd-inp" style="padding:4px 10px; font-size:11px; font-weight:600; border-radius:8px; min-width:200px;">
+            <option value="TODAS">Todas las Cuentas</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Tabla Principal de Movimientos -->
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+          <thead>
+            <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
+              <th style="padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Concepto / Descripción</th>
+              <th style="padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Categoría</th>
+              <th style="padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Cuenta Contable</th>
+              <th style="padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Socio / Accionista</th>
+              <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Fecha</th>
+              <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">N° Acta / Doc</th>
+              <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Tipo</th>
+              <th style="padding:10px 12px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Monto</th>
+              <th style="padding:10px 12px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">% Participación</th>
+              <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Estado</th>
+              <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="pat_tabla_body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Panel de Detalle de Patrimonio (3 Tabs) -->
+    <div id="pat_panel_detalle" style="display:none; background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.06);" class="dr-card">
+      <div style="background:#1c3557; color:#fff; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div>
+          <div style="font-size:14px; font-weight:700;" id="pat_det_titulo">Detalle de Patrimonio y Capital Contable</div>
+          <div style="font-size:11px; opacity:0.75;" id="pat_det_sub">Evolución del patrimonio, accionistas y asientos contables sugeridos</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" onclick="patEditarMovimientoSeleccionado()" class="btn btn-sm" style="background:#2563eb; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
+            ✏️ Editar Movimiento
+          </button>
+          <button type="button" onclick="patImprimirEstadoCambios()" class="btn btn-sm" style="background:rgba(255,255,255,0.18); color:#fff; border:1px solid rgba(255,255,255,0.3); padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
+            🖨️ Imprimir Estado
+          </button>
+          <button type="button" onclick="patCerrarDetalle()" class="btn btn-sm" style="background:rgba(255,255,255,0.1); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:5px 10px; border-radius:6px; font-size:11px; cursor:pointer;">
+            ✕ Cerrar
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabs Bar -->
+      <div style="background:#f8fafc; border-bottom:1px solid #e5e7eb; padding:0 20px; display:flex; gap:16px;">
+        <button type="button" class="pat-tab-btn active" id="pat_tab_btn_cambios" onclick="patCambiarTab('cambios')">
+          📊 Estado de Cambios en el Patrimonio
+        </button>
+        <button type="button" class="pat-tab-btn" id="pat_tab_btn_socios" onclick="patCambiarTab('socios')">
+          👥 Composición Societaria y Accionistas
+        </button>
+        <button type="button" class="pat-tab-btn" id="pat_tab_btn_asientos" onclick="patCambiarTab('asientos')">
+          📑 Asientos Contables Sugeridos (NIIF)
+        </button>
+      </div>
+
+      <!-- Contenido de las Tabs -->
+      <div id="pat_tab_contenido" style="padding:0;"></div>
+    </div>
+  </div>
   <div class="page" id="pg-n8n"><div id="n8n-content"></div></div>
 
 
@@ -7233,65 +7381,966 @@ function deletePasivoMov(cat, acctName, idx) {
 }
 
 // ── PATRIMONIO (MODULO INDEPENDIENTE) ─────────────────────────────
-function renderPatrimNeto() {
-  const el = document.getElementById('mod-patrim'); if(!el) return;
-  if(!MODS.patrimonio) MODS.patrimonio = { patrim:{} };
+// ── PATRIMONIO Y CAPITAL CONTABLE (MODULO COMPLETO NIIF / NIC 1) ───
+let patSelIdx = null;
+let patFiltroCat = 'TODOS';
+let patFiltroCuenta = 'TODAS';
+let patTabActiva = 'cambios';
+let patEditMovData = null;
 
-  const acc = { color:'#06b6d4', bg:'linear-gradient(135deg, #155e75 0%, #06b6d4 100%)', icon:'🏛️' };
-  const cat = PATRIMONIO_SCHEMA.patrim;
+// Categorización formal de las cuentas de Patrimonio
+const PATRIM_CAT_MAP = {
+  'cap': {
+    title: 'Capital Social y Aportes',
+    badge: 'background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe;',
+    icon: '🏢',
+    cuentas: ['CAPITAL PERSONA JURIDICA', 'CAPITAL PERSONA FISICA', 'APORTES DE SOCIOS', 'PARTICIPACIONES NO CONTROLADORAS', 'CAPITAL FISCAL', 'OTRAS FORMAS DE CAPITAL']
+  },
+  'res': {
+    title: 'Reservas Legales y Estatutarias',
+    badge: 'background:#f5f3ff; color:#7c3aed; border:1px solid #ddd6fe;',
+    icon: '🛡️',
+    cuentas: ['RESERVAS']
+  },
+  'resul': {
+    title: 'Resultados y Utilidades',
+    badge: 'background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;',
+    icon: '📈',
+    cuentas: ['GANANCIAS O PERDIDAS ACUMULADAS', 'GANANCIAS O PERDIDAS DEL PERIODO']
+  },
+  'otros': {
+    title: 'Otros Fondos y Superávit',
+    badge: 'background:#fef3c7; color:#92400e; border:1px solid #fde68a;',
+    icon: '💎',
+    cuentas: ['SUPERAVIT POR REVALUACION', 'ACCIONES EN TESORERIA', 'DONACIONES', 'OTRAS CUENTAS DE PATRIMONIO']
+  }
+};
 
-  let html = `<div class="asset-grid">
-    <div class="asset-card" id="pcard_patrim" style="grid-column: 1 / -1;">
-      <div class="asset-header" style="border-left:4px solid ${acc.color}">
-        <div style="display:flex; align-items:center; gap:12px; overflow:hidden;">
-          <div class="asset-title" style="flex:1;">${cat.title}</div>
-          <div style="display:flex; gap:6px; align-items:center;">
-            <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('patrimonio')">🖨 Imprimir Reporte</button>
-            <button class="btn-asset-reg" onclick="openPatrimModal()"><span>+</span> Nuevo registro</button>
-            <button class="btn-asset-reg" onclick="openPatrimHistory()" style="padding:0 10px;" title="Ver Historial">📋</button>
-          </div>
-        </div>
-        <div class="asset-icon-box" style="background:${acc.bg}; box-shadow:0 5px 15px ${acc.color}44">${acc.icon}</div>
-      </div>
-      <div style="max-height:600px; overflow-y:auto; padding:16px; display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:12px;">
-        ${cat.items.map(name => `
-          <div onclick="selectPatrimForReg('${name}')" class="entity-subcard" style="border-radius:10px; padding:14px 18px; cursor:pointer; transition:all 0.2s ease; display:flex; flex-direction:column; justify-content:space-between; height:90px" onmouseover="this.style.borderColor='${acc.color}';this.style.transform='translateY(-3px)';this.style.boxShadow='0 6px 16px rgba(6, 182, 212, 0.2)'" onmouseout="this.style.borderColor='var(--cream3)';this.style.transform='none';this.style.boxShadow='var(--shadow)'">
-            <div style="font-size:10px; color:var(--ink3); font-weight:700; line-height:1.3; text-transform:uppercase; letter-spacing:0.02em">${name}</div>
-            <div style="font-family:var(--ff); font-size:17px; font-weight:800; color:var(--ink); margin-top:8px">
-              <span style="font-size:12px; color:var(--ink3); font-weight:600; margin-right:2px">₡</span>${getPatrimBalance(name).toLocaleString('es-CR')}
-            </div>
-          </div>
-        `).join('')}
-      </div>
-      <div style="padding:12px 24px; background:rgba(0,0,0,0.02); border-top:1px solid rgba(0,0,0,0.05); display:flex; justify-content:space-between; align-items:center">
-        <span style="font-size:10px; color:var(--ink3); text-transform:uppercase; letter-spacing:0.05em; font-weight:700">Total Patrimonio</span>
-        <span style="font-family:var(--ff); font-size:14px; font-weight:800; color:${acc.color}" id="ptot_patrim">₡0</span>
-      </div>
-    </div>
-  </div>`;
-  el.innerHTML = html;
-  updatePatrimTotals();
+function ensurePatrimonioStructure() {
+  if (!MODS.patrimonio || typeof MODS.patrimonio !== 'object') {
+    MODS.patrimonio = { patrim: {} };
+  }
+  if (!MODS.patrimonio.patrim || typeof MODS.patrimonio.patrim !== 'object') {
+    MODS.patrimonio.patrim = {};
+  }
+  if (typeof PATRIMONIO_SCHEMA !== 'undefined' && PATRIMONIO_SCHEMA.patrim && Array.isArray(PATRIMONIO_SCHEMA.patrim.items)) {
+    PATRIMONIO_SCHEMA.patrim.items.forEach(name => {
+      if (!MODS.patrimonio.patrim[name] || typeof MODS.patrimonio.patrim[name] !== 'object') {
+        const prev = parseFloat(MODS.patrimonio.patrim[name]) || 0;
+        MODS.patrimonio.patrim[name] = { balance: prev, movs: [] };
+      }
+      if (!Array.isArray(MODS.patrimonio.patrim[name].movs)) {
+        MODS.patrimonio.patrim[name].movs = [];
+      }
+    });
+  }
 }
 
+function patInferirCategoria(acctName) {
+  if (!acctName) return 'cap';
+  const u = acctName.toUpperCase();
+  if (u.includes('RESERVA')) return 'res';
+  if (u.includes('GANANCIA') || u.includes('PERDIDA') || u.includes('RESULTADO') || u.includes('UTILIDAD') || u.includes('DIVIDENDO')) return 'resul';
+  if (u.includes('SUPERAVIT') || u.includes('TESORERIA') || u.includes('DONACION')) return 'otros';
+  if (u.includes('CAPITAL') || u.includes('APORTE') || u.includes('PARTICIPACION') || u.includes('SOCIO')) return 'cap';
+  for (const catKey of Object.keys(PATRIM_CAT_MAP)) {
+    if (PATRIM_CAT_MAP[catKey].cuentas.includes(acctName)) return catKey;
+  }
+  return 'cap';
+}
+
+function renderPatrimNeto() {
+  ensurePatrimonioStructure();
+  const fEl = document.getElementById('pat_fecha_topbar');
+  if (fEl) {
+    const d = new Date();
+    const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    fEl.textContent = 'Período actual: ' + d.getDate() + ' de ' + meses[d.getMonth()] + ' de ' + d.getFullYear();
+  }
+  patCargar();
+}
+
+function patCargar() {
+  ensurePatrimonioStructure();
+  patPopulateCuentaFilter();
+  patRenderKPIs();
+  patRenderTabla();
+  if (patSelIdx !== null) {
+    const list = patGetListaFiltrada();
+    if (list[patSelIdx]) {
+      patRenderTabContenido();
+    } else {
+      patCerrarDetalle();
+    }
+  }
+}
+
+function patPopulateCuentaFilter() {
+  const sel = document.getElementById('pat_filtro_cuenta');
+  if (!sel) return;
+  const curVal = sel.value || 'TODAS';
+  const acctSet = new Set();
+  if (typeof PATRIMONIO_SCHEMA !== 'undefined' && PATRIMONIO_SCHEMA.patrim && Array.isArray(PATRIMONIO_SCHEMA.patrim.items)) {
+    PATRIMONIO_SCHEMA.patrim.items.forEach(n => acctSet.add(n));
+  }
+  if (MODS.patrimonio && MODS.patrimonio.patrim) {
+    Object.keys(MODS.patrimonio.patrim).forEach(n => acctSet.add(n));
+  }
+  let opts = '<option value="TODAS">Todas las Cuentas</option>';
+  Array.from(acctSet).sort().forEach(n => {
+    opts += '<option value="' + n + '"' + (n === curVal ? ' selected' : '') + '>' + n + '</option>';
+  });
+  sel.innerHTML = opts;
+}
+
+function patGetTodosMovimientos() {
+  ensurePatrimonioStructure();
+  const list = [];
+  const pData = MODS.patrimonio.patrim;
+  Object.keys(pData).forEach(acctName => {
+    const item = pData[acctName];
+    if (item && Array.isArray(item.movs)) {
+      item.movs.forEach((m, idx) => {
+        const cat = m.cat || patInferirCategoria(acctName);
+        const tipo = m.tipo || (parseFloat(m.monto) < 0 ? 'disminucion' : 'aumento');
+        const rawMonto = Math.abs(parseFloat(m.monto) || 0);
+        list.push({
+          acct: acctName,
+          idx: idx,
+          det: m.det || ('Movimiento ' + acctName),
+          doc: m.doc || '—',
+          fecha: m.fecha || '2026-01-01',
+          socio: m.socio || 'Socio General / Empresa',
+          cat: cat,
+          tipo: tipo,
+          monto: rawMonto,
+          contrapartida: m.contrapartida || 'Bancos - Cuentas Corrientes',
+          origMov: m
+        });
+      });
+    }
+  });
+  // Ordenar por fecha descendente
+  list.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+  return list;
+}
+
+function patGetListaFiltrada() {
+  const all = patGetTodosMovimientos();
+  return all.filter(m => {
+    const matchCat = (patFiltroCat === 'TODOS') || (m.cat === patFiltroCat);
+    const matchCta = (patFiltroCuenta === 'TODAS') || (m.acct === patFiltroCuenta);
+    return matchCat && matchCta;
+  });
+}
+
+function patFiltrar(btn, cat) {
+  patFiltroCat = cat;
+  const container = document.getElementById('pat_categoria_chips');
+  if (container) {
+    const btns = container.querySelectorAll('.pat-chip-btn');
+    btns.forEach(b => {
+      b.style.background = '#f9fafb';
+      b.style.color = '#4b5563';
+      b.style.borderColor = '#d1d5db';
+      b.style.fontWeight = '600';
+    });
+  }
+  if (btn) {
+    btn.style.background = '#1c3557';
+    btn.style.color = '#fff';
+    btn.style.borderColor = '#1c3557';
+    btn.style.fontWeight = '700';
+  }
+  patSelIdx = null;
+  patCerrarDetalle();
+  patRenderTabla();
+}
+
+function patFiltrarCuenta(acct) {
+  patFiltroCuenta = acct;
+  patSelIdx = null;
+  patCerrarDetalle();
+  patRenderTabla();
+}
+
+function patRenderKPIs() {
+  ensurePatrimonioStructure();
+  const all = patGetTodosMovimientos();
+  let sumCap = 0;
+  let sumRes = 0;
+  let sumResulAcum = 0;
+  let sumOtros = 0;
+
+  all.forEach(m => {
+    const factor = (m.tipo === 'disminucion') ? -1 : 1;
+    const netMonto = m.monto * factor;
+    if (m.cat === 'cap') sumCap += netMonto;
+    else if (m.cat === 'res') sumRes += netMonto;
+    else if (m.cat === 'resul') sumResulAcum += netMonto;
+    else sumOtros += netMonto;
+  });
+
+  // Utilidad neta dinámica del Estado de Resultados
+  let utilNetaG = 0;
+  if (typeof getERVars === 'function') {
+    try {
+      getERVars();
+      if (typeof window.utilNetaG === 'number') utilNetaG = window.utilNetaG;
+    } catch(e) {}
+  }
+
+  const totalPatrimonio = sumCap + sumRes + sumResulAcum + sumOtros + utilNetaG;
+
+  const setT = (id, val, color) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = '₡' + Math.round(val).toLocaleString('es-CR');
+    if (color) el.style.color = color;
+  };
+
+  setT('pat_kpi_total_patrimonio', totalPatrimonio, totalPatrimonio < 0 ? '#dc2626' : '#0e7490');
+  setT('pat_kpi_capital_social', sumCap, sumCap < 0 ? '#dc2626' : '#1e40af');
+  setT('pat_kpi_reservas', sumRes, '#7c3aed');
+  setT('pat_kpi_resultados_acum', sumResulAcum, sumResulAcum < 0 ? '#dc2626' : '#059669');
+  setT('pat_kpi_utilidad_periodo', utilNetaG, utilNetaG < 0 ? '#dc2626' : '#10b981');
+  setT('pat_kpi_superavit', sumOtros, '#d97706');
+
+  const cntEl = document.getElementById('pat_kpi_cnt');
+  if (cntEl) cntEl.textContent = all.length.toString();
+}
+
+function patRenderTabla() {
+  const tbody = document.getElementById('pat_tabla_body');
+  if (!tbody) return;
+  const list = patGetListaFiltrada();
+  const all = patGetTodosMovimientos();
+
+  // Calcular capital total para % de peso
+  let totalCapBase = 0;
+  all.forEach(m => {
+    if (m.cat === 'cap') {
+      totalCapBase += (m.tipo === 'disminucion' ? -m.monto : m.monto);
+    }
+  });
+  if (totalCapBase <= 0) totalCapBase = 1;
+
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:36px; color:#9ca3af; font-size:13px;">No hay movimientos de patrimonio registrados para los filtros seleccionados.<br><button type="button" onclick="openNuevoPatrimModal()" class="btn btn-sm" style="margin-top:10px; background:#1c3557; color:#fff; font-weight:700; border-radius:6px; padding:6px 14px; cursor:pointer;">+ Registrar Primer Movimiento</button></td></tr>';
+    return;
+  }
+
+  let html = '';
+  list.forEach((m, idx) => {
+    const isSelected = (idx === patSelIdx);
+    const catObj = PATRIM_CAT_MAP[m.cat] || PATRIM_CAT_MAP['cap'];
+    const isAumento = (m.tipo === 'aumento');
+    const tipoBadge = isAumento 
+      ? '<span style="background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; display:inline-flex; align-items:center; gap:4px;">⬆️ Aumento</span>'
+      : '<span style="background:#fef2f2; color:#991b1b; border:1px solid #fecaca; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; display:inline-flex; align-items:center; gap:4px;">⬇️ Retiro</span>';
+    
+    const pct = m.cat === 'cap' ? ((m.monto / totalCapBase) * 100).toFixed(1) + '%' : '—';
+    const montoSign = isAumento ? '+' : '-';
+    const montoColor = isAumento ? '#059669' : '#dc2626';
+
+    html += '<tr style="border-bottom:1px solid #f3f4f6; cursor:pointer; background:' + (isSelected ? '#f0fdf4' : '#fff') + '; transition:background 0.15s;" onmouseover="if(' + !isSelected + ') this.style.background=\'#f8fafc\';" onmouseout="if(' + !isSelected + ') this.style.background=\'#fff\';" onclick="patSeleccionarFila(' + idx + ')" ondblclick="patEditarMovimiento(' + idx + ')">';
+    html += '<td style="padding:10px 12px; font-weight:700; color:#1e293b;"><div style="display:flex; align-items:center; gap:6px;"><span>' + catObj.icon + '</span><span>' + m.det + '</span></div></td>';
+    html += '<td style="padding:10px 12px;"><span style="display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; ' + catObj.badge + '">' + catObj.title + '</span></td>';
+    html += '<td style="padding:10px 12px; font-weight:600; color:#475569; font-size:11px;">' + m.acct + '</td>';
+    html += '<td style="padding:10px 12px; font-weight:700; color:#0f172a;"><div style="display:flex; align-items:center; gap:4px;"><span>👤</span><span>' + m.socio + '</span></div></td>';
+    html += '<td style="padding:10px 12px; text-align:center; font-family:monospace; color:#475569;">' + m.fecha + '</td>';
+    html += '<td style="padding:10px 12px; text-align:center; font-family:monospace; font-weight:600; color:#6b7280;">' + m.doc + '</td>';
+    html += '<td style="padding:10px 12px; text-align:center;">' + tipoBadge + '</td>';
+    html += '<td style="padding:10px 12px; text-align:right; font-weight:800; color:' + montoColor + '; font-size:13px;">' + montoSign + ' ₡' + Math.round(m.monto).toLocaleString('es-CR') + '</td>';
+    html += '<td style="padding:10px 12px; text-align:right; font-weight:700; color:#475569;">' + pct + '</td>';
+    html += '<td style="padding:10px 12px; text-align:center;"><span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700;">Vigente</span></td>';
+    html += '<td style="padding:10px 12px; text-align:center;">';
+    html += '<button type="button" onclick="event.stopPropagation(); patMostrarDetalle(' + idx + ')" style="background:none; border:none; cursor:pointer; font-size:14px; margin-right:4px;" title="Ver Detalle y Estado">👁️</button>';
+    html += '<button type="button" onclick="event.stopPropagation(); patEditarMovimiento(' + idx + ')" style="background:none; border:none; cursor:pointer; font-size:14px; margin-right:4px;" title="Editar">✏️</button>';
+    html += '<button type="button" onclick="event.stopPropagation(); patEliminarMovimiento(' + idx + ')" style="background:none; border:none; cursor:pointer; font-size:14px;" title="Eliminar">🗑️</button>';
+    html += '</td>';
+    html += '</tr>';
+  });
+
+  tbody.innerHTML = html;
+}
+
+function patSeleccionarFila(idx) {
+  patSelIdx = idx;
+  patRenderTabla();
+  patMostrarDetalle(idx);
+}
+
+function patMostrarDetalle(idx) {
+  patSelIdx = idx;
+  const drawer = document.getElementById('pat_panel_detalle');
+  if (!drawer) return;
+  drawer.style.display = 'block';
+  const list = patGetListaFiltrada();
+  const m = list[idx];
+  if (m) {
+    const tEl = document.getElementById('pat_det_titulo');
+    const sEl = document.getElementById('pat_det_sub');
+    if (tEl) tEl.textContent = 'Detalle de Movimiento: ' + m.det + ' (' + m.acct + ')';
+    if (sEl) sEl.textContent = 'Titular: ' + m.socio + ' · ' + (m.tipo === 'aumento' ? 'Aumento (+)' : 'Disminución (-)') + ' · Monto: ₡' + Math.round(m.monto).toLocaleString('es-CR');
+  }
+  patRenderTabContenido();
+  drawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function patCerrarDetalle() {
+  const drawer = document.getElementById('pat_panel_detalle');
+  if (drawer) drawer.style.display = 'none';
+  patSelIdx = null;
+  patRenderTabla();
+}
+
+function patCambiarTab(tab) {
+  patTabActiva = tab;
+  ['cambios', 'socios', 'asientos'].forEach(t => {
+    const btn = document.getElementById('pat_tab_btn_' + t);
+    if (!btn) return;
+    if (t === tab) {
+      btn.classList.add('active');
+      btn.style.color = '#0e7490';
+      btn.style.borderBottom = '2px solid #0e7490';
+      btn.style.fontWeight = '700';
+    } else {
+      btn.classList.remove('active');
+      btn.style.color = '#6b7280';
+      btn.style.borderBottom = '2px solid transparent';
+      btn.style.fontWeight = '600';
+    }
+  });
+  patRenderTabContenido();
+}
+
+function patRenderTabContenido() {
+  const container = document.getElementById('pat_tab_contenido');
+  if (!container) return;
+  const list = patGetListaFiltrada();
+  const selMov = (patSelIdx !== null && list[patSelIdx]) ? list[patSelIdx] : null;
+
+  if (patTabActiva === 'cambios') {
+    patRenderTabCambios(container, selMov);
+  } else if (patTabActiva === 'socios') {
+    patRenderTabSocios(container, selMov);
+  } else if (patTabActiva === 'asientos') {
+    patRenderTabAsientos(container, selMov);
+  }
+}
+
+// Tab 1: Estado de Cambios en el Patrimonio
+function patRenderTabCambios(container, selMov) {
+  const all = patGetTodosMovimientos();
+  let saldoInicial = 0;
+  let aumentosCap = 0;
+  let reservasConst = 0;
+  let utilidades = 0;
+  let disminuciones = 0;
+
+  all.forEach(m => {
+    if (m.tipo === 'aumento') {
+      if (m.cat === 'cap') aumentosCap += m.monto;
+      else if (m.cat === 'res') reservasConst += m.monto;
+      else if (m.cat === 'resul') utilidades += m.monto;
+      else aumentosCap += m.monto;
+    } else {
+      disminuciones += m.monto;
+    }
+  });
+
+  let utilNetaG = 0;
+  if (typeof getERVars === 'function') {
+    try {
+      getERVars();
+      if (typeof window.utilNetaG === 'number') utilNetaG = window.utilNetaG;
+    } catch(e) {}
+  }
+  if (utilNetaG > 0) utilidades += utilNetaG;
+  else if (utilNetaG < 0) disminuciones += Math.abs(utilNetaG);
+
+  const saldoFinal = saldoInicial + aumentosCap + reservasConst + utilidades - disminuciones;
+
+  let html = '<div style="padding:20px;">';
+  
+  // Métricas resumen del Estado de Cambios
+  html += '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:18px;">';
+  html += '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px;">';
+  html += '<div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Saldo Inicial</div>';
+  html += '<div style="font-size:14px; font-weight:800; color:#334155;">₡' + Math.round(saldoInicial).toLocaleString('es-CR') + '</div>';
+  html += '</div>';
+
+  html += '<div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px;">';
+  html += '<div style="font-size:10px; font-weight:700; color:#1e40af; text-transform:uppercase;">(+) Aportes Capital</div>';
+  html += '<div style="font-size:14px; font-weight:800; color:#1d4ed8;">₡' + Math.round(aumentosCap).toLocaleString('es-CR') + '</div>';
+  html += '</div>';
+
+  html += '<div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; padding:10px 14px;">';
+  html += '<div style="font-size:10px; font-weight:700; color:#7c3aed; text-transform:uppercase;">(+) Reservas Creadas</div>';
+  html += '<div style="font-size:14px; font-weight:800; color:#6d28d9;">₡' + Math.round(reservasConst).toLocaleString('es-CR') + '</div>';
+  html += '</div>';
+
+  html += '<div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:10px 14px;">';
+  html += '<div style="font-size:10px; font-weight:700; color:#065f46; text-transform:uppercase;">(+) Utilidad Período</div>';
+  html += '<div style="font-size:14px; font-weight:800; color:#059669;">₡' + Math.round(utilidades).toLocaleString('es-CR') + '</div>';
+  html += '</div>';
+
+  html += '<div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:10px 14px;">';
+  html += '<div style="font-size:10px; font-weight:700; color:#991b1b; text-transform:uppercase;">(-) Disminuciones / Div.</div>';
+  html += '<div style="font-size:14px; font-weight:800; color:#dc2626;">₡' + Math.round(disminuciones).toLocaleString('es-CR') + '</div>';
+  html += '</div>';
+
+  html += '<div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; padding:10px 14px;">';
+  html += '<div style="font-size:10px; font-weight:700; color:#0f766e; text-transform:uppercase;">(=) Saldo Final Patrimonio</div>';
+  html += '<div style="font-size:14px; font-weight:800; color:#0f766e;">₡' + Math.round(saldoFinal).toLocaleString('es-CR') + '</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // Tabla cronológica de evolución
+  html += '<div style="overflow-x:auto; border:1px solid #e5e7eb; border-radius:8px;">';
+  html += '<table style="width:100%; border-collapse:collapse; font-size:11.5px;">';
+  html += '<thead><tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0;">';
+  html += '<th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Fecha</th>';
+  html += '<th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Concepto de Variación</th>';
+  html += '<th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Cuenta</th>';
+  html += '<th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Socio / Documento</th>';
+  html += '<th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Efecto</th>';
+  html += '<th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Variación (₡)</th>';
+  html += '<th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Saldo Progresivo (₡)</th>';
+  html += '</tr></thead><tbody>';
+
+  let runningBal = 0;
+  // Ordenar cronológico ascendente para el saldo progresivo
+  const ascList = [...all].sort((a,b) => (a.fecha||'').localeCompare(b.fecha||''));
+  ascList.forEach(m => {
+    const isAum = (m.tipo === 'aumento');
+    const varMonto = isAum ? m.monto : -m.monto;
+    runningBal += varMonto;
+    const isSelRow = (selMov && selMov.acct === m.acct && selMov.idx === m.idx);
+
+    html += '<tr style="border-bottom:1px solid #f1f5f9; background:' + (isSelRow ? '#eff6ff' : '#fff') + ';">';
+    html += '<td style="padding:8px 10px; font-family:monospace; color:#475569;">' + m.fecha + '</td>';
+    html += '<td style="padding:8px 10px; font-weight:700; color:#1e293b;">' + m.det + '</td>';
+    html += '<td style="padding:8px 10px; color:#64748b;">' + m.acct + '</td>';
+    html += '<td style="padding:8px 10px; color:#475569;">' + m.socio + ' <span style="font-family:monospace; font-size:10px; color:#94a3b8;">(' + m.doc + ')</span></td>';
+    html += '<td style="padding:8px 10px; text-align:center;">' + (isAum ? '<span style="color:#059669; font-weight:700;">+ Aumento</span>' : '<span style="color:#dc2626; font-weight:700;">- Disminución</span>') + '</td>';
+    html += '<td style="padding:8px 10px; text-align:right; font-weight:700; color:' + (isAum ? '#059669' : '#dc2626') + ';">' + (isAum ? '+' : '-') + ' ₡' + Math.round(m.monto).toLocaleString('es-CR') + '</td>';
+    html += '<td style="padding:8px 10px; text-align:right; font-weight:800; color:#0e7490;">₡' + Math.round(runningBal).toLocaleString('es-CR') + '</td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div></div>';
+  container.innerHTML = html;
+}
+
+// Tab 2: Composición Societaria y Registro de Accionistas
+function patRenderTabSocios(container, selMov) {
+  const all = patGetTodosMovimientos();
+  const sociosMap = {};
+  let totalCapSocial = 0;
+
+  all.forEach(m => {
+    const sName = m.socio || 'Socio General';
+    if (!sociosMap[sName]) {
+      sociosMap[sName] = {
+        nombre: sName,
+        capitalAportado: 0,
+        movimientosCount: 0,
+        retiros: 0,
+        ultimaFecha: '',
+        cuentas: new Set()
+      };
+    }
+    sociosMap[sName].cuentas.add(m.acct);
+    sociosMap[sName].movimientosCount++;
+    if (!sociosMap[sName].ultimaFecha || m.fecha > sociosMap[sName].ultimaFecha) {
+      sociosMap[sName].ultimaFecha = m.fecha;
+    }
+    if (m.tipo === 'aumento') {
+      sociosMap[sName].capitalAportado += m.monto;
+      if (m.cat === 'cap') totalCapSocial += m.monto;
+    } else {
+      sociosMap[sName].retiros += m.monto;
+      if (m.cat === 'cap') totalCapSocial -= m.monto;
+    }
+  });
+
+  if (totalCapSocial <= 0) totalCapSocial = 1;
+
+  const sociosList = Object.values(sociosMap);
+  sociosList.sort((a,b) => b.capitalAportado - a.capitalAportado);
+
+  let html = '<div style="padding:20px;">';
+  html += '<div style="margin-bottom:14px; font-size:12px; color:#475569; font-weight:600;">Desglose del libro de accionistas, cuotas de participación y estructura de control societario:</div>';
+
+  html += '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px; margin-bottom:20px;">';
+  sociosList.forEach(s => {
+    const netCap = s.capitalAportado - s.retiros;
+    const pct = Math.max(0, (netCap / totalCapSocial) * 100).toFixed(2);
+    const isSel = selMov && selMov.socio === s.nombre;
+
+    html += '<div style="background:#fff; border:1px solid ' + (isSel ? '#2563eb' : '#e2e8f0') + '; border-radius:10px; padding:14px 16px; box-shadow:' + (isSel ? '0 4px 12px rgba(37,99,235,0.15)' : 'none') + ';">';
+    html += '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">';
+    html += '<div>';
+    html += '<div style="font-size:13px; font-weight:800; color:#0f172a;">' + s.nombre + '</div>';
+    html += '<div style="font-size:10px; color:#64748b;">' + s.movimientosCount + ' registros · Último: ' + (s.ultimaFecha || '—') + '</div>';
+    html += '</div>';
+    html += '<span style="background:#eff6ff; color:#1d4ed8; font-weight:800; font-size:12px; padding:2px 8px; border-radius:6px;">' + pct + '%</span>';
+    html += '</div>';
+
+    // Barra de porcentaje
+    html += '<div style="width:100%; height:6px; background:#f1f5f9; border-radius:3px; overflow:hidden; margin:8px 0;">';
+    html += '<div style="width:' + pct + '%; height:100%; background:linear-gradient(90deg, #2563eb, #06b6d4); border-radius:3px;"></div>';
+    html += '</div>';
+
+    html += '<div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; margin-top:6px;">';
+    html += '<span style="color:#64748b;">Capital Neto Aportado:</span>';
+    html += '<span style="font-weight:800; color:#0e7490;">₡' + Math.round(netCap).toLocaleString('es-CR') + '</span>';
+    html += '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// Tab 3: Asientos Contables Sugeridos (NIIF / NIC 1)
+function patRenderTabAsientos(container, selMov) {
+  let html = '<div style="padding:20px; display:flex; flex-direction:column; gap:16px;">';
+  
+  if (selMov) {
+    const isAum = (selMov.tipo === 'aumento');
+    const montoFmt = '₡' + Math.round(selMov.monto).toLocaleString('es-CR');
+    html += '<div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:14px 18px;">';
+    html += '<div style="font-size:13px; font-weight:800; color:#1e40af; margin-bottom:4px;">Asiento Sugerido para el Movimiento Seleccionado</div>';
+    html += '<div style="font-size:11px; color:#475569; margin-bottom:12px;">' + selMov.det + ' · ' + selMov.socio + ' · ' + selMov.fecha + '</div>';
+    
+    html += '<table style="width:100%; border-collapse:collapse; font-size:11.5px; background:#fff; border-radius:6px; overflow:hidden; border:1px solid #dbeafe;">';
+    html += '<thead><tr style="background:#f1f5f9; border-bottom:1px solid #e2e8f0;">';
+    html += '<th style="padding:6px 10px; text-align:left; font-size:10px; font-weight:700; color:#475569;">CUENTA CONTABLE</th>';
+    html += '<th style="padding:6px 10px; text-align:right; font-size:10px; font-weight:700; color:#475569;">DEBE (₡)</th>';
+    html += '<th style="padding:6px 10px; text-align:right; font-size:10px; font-weight:700; color:#475569;">HABER (₡)</th>';
+    html += '</tr></thead><tbody>';
+
+    if (isAum) {
+      // Debe: Contrapartida (Bancos/Caja), Haber: Cuenta de Patrimonio
+      html += '<tr style="border-bottom:1px solid #f1f5f9;">';
+      html += '<td style="padding:8px 10px; font-weight:600; color:#1e293b;">' + selMov.contrapartida + '</td>';
+      html += '<td style="padding:8px 10px; text-align:right; font-weight:700; color:#059669;">' + montoFmt + '</td>';
+      html += '<td style="padding:8px 10px; text-align:right; color:#9ca3af;">—</td>';
+      html += '</tr>';
+
+      html += '<tr>';
+      html += '<td style="padding:8px 10px; padding-left:24px; font-weight:600; color:#1e293b;">' + selMov.acct + ' (' + selMov.socio + ')</td>';
+      html += '<td style="padding:8px 10px; text-align:right; color:#9ca3af;">—</td>';
+      html += '<td style="padding:8px 10px; text-align:right; font-weight:700; color:#059669;">' + montoFmt + '</td>';
+      html += '</tr>';
+    } else {
+      // Debe: Cuenta de Patrimonio, Haber: Contrapartida (Bancos/Dividendos por pagar)
+      html += '<tr style="border-bottom:1px solid #f1f5f9;">';
+      html += '<td style="padding:8px 10px; font-weight:600; color:#1e293b;">' + selMov.acct + ' (' + selMov.socio + ')</td>';
+      html += '<td style="padding:8px 10px; text-align:right; font-weight:700; color:#dc2626;">' + montoFmt + '</td>';
+      html += '<td style="padding:8px 10px; text-align:right; color:#9ca3af;">—</td>';
+      html += '</tr>';
+
+      html += '<tr>';
+      html += '<td style="padding:8px 10px; padding-left:24px; font-weight:600; color:#1e293b;">' + selMov.contrapartida + '</td>';
+      html += '<td style="padding:8px 10px; text-align:right; color:#9ca3af;">—</td>';
+      html += '<td style="padding:8px 10px; text-align:right; font-weight:700; color:#dc2626;">' + montoFmt + '</td>';
+      html += '</tr>';
+    }
+
+    html += '</tbody></table></div>';
+  }
+
+  // Modelos estándar NIIF
+  html += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">';
+  
+  // Asiento Aporte Capital
+  html += '<div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:12px 14px;">';
+  html += '<div style="font-size:12px; font-weight:700; color:#1e40af; margin-bottom:6px;">1. Asiento: Aporte de Capital Social</div>';
+  html += '<div style="font-size:11px; color:#64748b; line-height:1.5;"><strong>Debe:</strong> 1.1.01 Efectivo en Bancos<br><strong>Haber:</strong> 3.1.01 Capital Social Suscrito y Pagado<br><em>(Refleja la entrada de recursos monetarios aportados por socios)</em></div>';
+  html += '</div>';
+
+  // Asiento Reserva Legal
+  html += '<div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:12px 14px;">';
+  html += '<div style="font-size:12px; font-weight:700; color:#7c3aed; margin-bottom:6px;">2. Asiento: Dotación de Reserva Legal (5%)</div>';
+  html += '<div style="font-size:11px; color:#64748b; line-height:1.5;"><strong>Debe:</strong> 3.1.02 Ganancias o Pérdidas Acumuladas<br><strong>Haber:</strong> 3.1.03 Reserva Legal<br><em>(Art. 142 Código de Comercio CR: 5% de utilidad líquida hasta 20% del capital)</em></div>';
+  html += '</div>';
+
+  html += '</div>';
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ── MODAL FORM INTERACTIVE LOGIC ──────────────────────────────────
+function openNuevoPatrimModal() {
+  document.getElementById('npat_modal_title').textContent = 'Registrar Movimiento de Patrimonio';
+  document.getElementById('npat_submit_btn').textContent = 'Guardar Movimiento';
+  document.getElementById('npat_edit_mode').value = 'false';
+  document.getElementById('npat_edit_orig_acct').value = '';
+  document.getElementById('npat_edit_orig_idx').value = '-1';
+  
+  document.getElementById('npat_detalle').value = '';
+  document.getElementById('npat_doc').value = '';
+  document.getElementById('npat_socio').value = '';
+  document.getElementById('npat_monto').value = '';
+  document.getElementById('npat_tipo').value = 'aumento';
+  document.getElementById('npat_fecha').value = new Date().toISOString().slice(0, 10);
+  
+  npatSeleccionarCat('cap');
+  document.getElementById('nuevoPatrimModal').style.display = 'flex';
+}
+
+function closeNuevoPatrimModal() {
+  const m = document.getElementById('nuevoPatrimModal');
+  if (m) m.style.display = 'none';
+}
+
+function npatSeleccionarCat(cat) {
+  const catInput = document.getElementById('npat_cat');
+  if (catInput) catInput.value = cat;
+
+  ['cap', 'res', 'resul', 'otros'].forEach(c => {
+    const btn = document.getElementById('npat_btn_' + c);
+    if (!btn) return;
+    if (c === cat) {
+      btn.style.border = '2px solid #2563eb';
+      btn.style.background = '#eff6ff';
+      btn.style.color = '#1e40af';
+      btn.style.fontWeight = '700';
+    } else {
+      btn.style.border = '1px solid #d1d5db';
+      btn.style.background = '#f9fafb';
+      btn.style.color = '#374151';
+      btn.style.fontWeight = '600';
+    }
+  });
+
+  npatPopulateCuentas(cat);
+  npatRecalcularPreview();
+}
+
+function npatPopulateCuentas(cat) {
+  const dlist = document.getElementById('npat_cuentas_list');
+  const sel = document.getElementById('npat_cuenta_quick');
+  const acctInp = document.getElementById('npat_cuenta');
+  if (!dlist || !sel) return;
+
+  dlist.innerHTML = '';
+  sel.innerHTML = '<option value="" disabled selected>▼ Ver cuentas</option>';
+
+  const catObj = PATRIM_CAT_MAP[cat];
+  const catCuentas = catObj ? catObj.cuentas : [];
+
+  // Agregar primero las cuentas de la categoría seleccionada
+  const grpLabel = catObj ? catObj.title : 'Cuentas Sugeridas';
+  const optgroup = document.createElement('optgroup');
+  optgroup.label = grpLabel;
+
+  catCuentas.forEach(cta => {
+    const opt = document.createElement('option');
+    opt.value = cta;
+    opt.textContent = cta;
+    optgroup.appendChild(opt);
+
+    const dOpt = document.createElement('option');
+    dOpt.value = cta;
+    dlist.appendChild(dOpt);
+  });
+  sel.appendChild(optgroup);
+
+  // Agregar el resto de cuentas de otras categorías para acceso completo
+  Object.keys(PATRIM_CAT_MAP).forEach(k => {
+    if (k !== cat) {
+      const otherGroup = document.createElement('optgroup');
+      otherGroup.label = PATRIM_CAT_MAP[k].title;
+      PATRIM_CAT_MAP[k].cuentas.forEach(cta => {
+        const opt = document.createElement('option');
+        opt.value = cta;
+        opt.textContent = cta;
+        otherGroup.appendChild(opt);
+
+        const dOpt = document.createElement('option');
+        dOpt.value = cta;
+        dlist.appendChild(dOpt);
+      });
+      sel.appendChild(otherGroup);
+    }
+  });
+
+  // Si el campo está vacío o no corresponde a esta categoría, sugerir la primera cuenta
+  if (!acctInp.value || (catCuentas.length > 0 && !catCuentas.includes(acctInp.value))) {
+    acctInp.value = catCuentas[0] || '';
+  }
+}
+
+function npatSeleccionarDeSelect(val) {
+  if (!val) return;
+  const acctInp = document.getElementById('npat_cuenta');
+  if (acctInp) {
+    acctInp.value = val;
+    npatCambiarCuenta(val);
+  }
+}
+
+function npatCambiarCuenta(val) {
+  const detectedCat = patInferirCategoria(val);
+  const curCat = document.getElementById('npat_cat').value;
+  if (detectedCat !== curCat) {
+    // Sincronizar botones de categoría sin sobreescribir la cuenta
+    document.getElementById('npat_cat').value = detectedCat;
+    ['cap', 'res', 'resul', 'otros'].forEach(c => {
+      const btn = document.getElementById('npat_btn_' + c);
+      if (!btn) return;
+      if (c === detectedCat) {
+        btn.style.border = '2px solid #2563eb';
+        btn.style.background = '#eff6ff';
+        btn.style.color = '#1e40af';
+        btn.style.fontWeight = '700';
+      } else {
+        btn.style.border = '1px solid #d1d5db';
+        btn.style.background = '#f9fafb';
+        btn.style.color = '#374151';
+        btn.style.fontWeight = '600';
+      }
+    });
+  }
+  npatRecalcularPreview();
+}
+
+function npatRecalcularPreview() {
+  const rawM = document.getElementById('npat_monto').value; const montoRaw = String(rawM != null ? rawM : '').replace(/[^0-9.-]/g, '');
+  const monto = parseFloat(montoRaw) || 0;
+  const tipo = document.getElementById('npat_tipo').value;
+  const cat = document.getElementById('npat_cat').value;
+  const socio = document.getElementById('npat_socio').value.trim();
+
+  const isAumento = (tipo === 'aumento');
+  const impEl = document.getElementById('npat_prev_impacto');
+  if (impEl) {
+    impEl.textContent = (isAumento ? '+ ' : '- ') + '₡' + Math.round(monto).toLocaleString('es-CR');
+    impEl.style.color = isAumento ? '#059669' : '#dc2626';
+  }
+
+  const catLblEl = document.getElementById('npat_prev_cat_label');
+  if (catLblEl) {
+    const cObj = PATRIM_CAT_MAP[cat];
+    catLblEl.textContent = cObj ? cObj.title : 'Capital Social';
+  }
+
+  const socioLblEl = document.getElementById('npat_prev_socio_label');
+  if (socioLblEl) {
+    socioLblEl.textContent = socio || '—';
+  }
+}
+
+function guardarNuevoPatrimonio(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  ensurePatrimonioStructure();
+
+  const acct = document.getElementById('npat_cuenta').value.trim();
+  const det = document.getElementById('npat_detalle').value.trim();
+  const socio = document.getElementById('npat_socio').value.trim();
+  const doc = document.getElementById('npat_doc').value.trim() || '—';
+  const fecha = document.getElementById('npat_fecha').value || new Date().toISOString().slice(0, 10);
+  const tipo = document.getElementById('npat_tipo').value;
+  const cat = document.getElementById('npat_cat').value;
+  const contrapartida = document.getElementById('npat_contrapartida').value;
+  
+  const rawM = document.getElementById('npat_monto').value; const montoRaw = String(rawM != null ? rawM : '').replace(/[^0-9.-]/g, '');
+  const monto = parseFloat(montoRaw) || 0;
+
+  if (!acct) { showToast('Por favor ingrese o seleccione una cuenta contable'); return; }
+  if (!det) { showToast('Por favor indique el concepto o detalle del movimiento'); return; }
+  if (!socio) { showToast('Por favor indique el socio, accionista o beneficiario'); return; }
+  if (monto <= 0) { showToast('Por favor ingrese un monto válido mayor a 0'); return; }
+
+  const isEdit = (document.getElementById('npat_edit_mode').value === 'true');
+  const origAcct = document.getElementById('npat_edit_orig_acct').value;
+  const origIdx = parseInt(document.getElementById('npat_edit_orig_idx').value, 10);
+
+  const movObj = { det, doc, fecha, monto, socio, cat, tipo, contrapartida };
+
+  if (!MODS.patrimonio.patrim[acct]) {
+    MODS.patrimonio.patrim[acct] = { balance: 0, movs: [] };
+  }
+  if (!Array.isArray(MODS.patrimonio.patrim[acct].movs)) {
+    MODS.patrimonio.patrim[acct].movs = [];
+  }
+
+  if (isEdit && origAcct && origIdx >= 0) {
+    if (origAcct === acct) {
+      MODS.patrimonio.patrim[acct].movs[origIdx] = movObj;
+    } else {
+      if (MODS.patrimonio.patrim[origAcct] && Array.isArray(MODS.patrimonio.patrim[origAcct].movs)) {
+        MODS.patrimonio.patrim[origAcct].movs.splice(origIdx, 1);
+      }
+      MODS.patrimonio.patrim[acct].movs.push(movObj);
+    }
+  } else {
+    MODS.patrimonio.patrim[acct].movs.push(movObj);
+  }
+
+  saveAllData();
+  closeNuevoPatrimModal();
+  patCargar();
+  if (typeof bgCalc === 'function') bgCalc();
+  if (typeof refreshDashboard === 'function') refreshDashboard();
+
+  showToast(isEdit ? 'Movimiento de patrimonio actualizado' : 'Movimiento de patrimonio registrado correctamente');
+}
+
+function patEditarMovimiento(listIdx) {
+  const list = patGetListaFiltrada();
+  const m = list[listIdx];
+  if (!m) return;
+
+  document.getElementById('npat_modal_title').textContent = 'Editar Movimiento de Patrimonio';
+  document.getElementById('npat_submit_btn').textContent = 'Guardar Cambios';
+  document.getElementById('npat_edit_mode').value = 'true';
+  document.getElementById('npat_edit_orig_acct').value = m.acct;
+  document.getElementById('npat_edit_orig_idx').value = m.idx.toString();
+
+  document.getElementById('npat_cuenta').value = m.acct;
+  document.getElementById('npat_detalle').value = m.det;
+  document.getElementById('npat_socio').value = m.socio;
+  document.getElementById('npat_doc').value = m.doc !== '—' ? m.doc : '';
+  document.getElementById('npat_fecha').value = m.fecha;
+  document.getElementById('npat_tipo').value = m.tipo;
+  document.getElementById('npat_monto').value = m.monto;
+  document.getElementById('npat_contrapartida').value = m.contrapartida || 'Bancos - Cuentas Corrientes';
+
+  npatSeleccionarCat(m.cat);
+  npatRecalcularPreview();
+  document.getElementById('nuevoPatrimModal').style.display = 'flex';
+}
+
+function patEditarMovimientoSeleccionado() {
+  if (patSelIdx !== null) {
+    patEditarMovimiento(patSelIdx);
+  }
+}
+
+function patEliminarMovimiento(listIdx) {
+  const list = patGetListaFiltrada();
+  const m = list[listIdx];
+  if (!m) return;
+
+  if (!confirm('¿Está seguro de eliminar el movimiento "' + m.det + '" por ₡' + Math.round(m.monto).toLocaleString('es-CR') + '?')) {
+    return;
+  }
+
+  if (MODS.patrimonio && MODS.patrimonio.patrim && MODS.patrimonio.patrim[m.acct] && Array.isArray(MODS.patrimonio.patrim[m.acct].movs)) {
+    MODS.patrimonio.patrim[m.acct].movs.splice(m.idx, 1);
+  }
+
+  saveAllData();
+  patSelIdx = null;
+  patCerrarDetalle();
+  patCargar();
+  if (typeof bgCalc === 'function') bgCalc();
+  if (typeof refreshDashboard === 'function') refreshDashboard();
+
+  showToast('Movimiento eliminado correctamente');
+}
+
+function patImprimirEstadoCambios() {
+  const all = patGetTodosMovimientos();
+  let utilNetaG = 0;
+  if (typeof getERVars === 'function') {
+    try {
+      getERVars();
+      if (typeof window.utilNetaG === 'number') utilNetaG = window.utilNetaG;
+    } catch(e) {}
+  }
+
+  const clientName = (typeof activeClient !== 'undefined' && activeClient && activeClient.name) ? activeClient.name : 'Empresa';
+  const clientCed = (typeof activeClient !== 'undefined' && activeClient && activeClient.id) ? activeClient.id : '';
+  const anioEl = document.getElementById('anioSel');
+  const anio = anioEl ? anioEl.value : new Date().getFullYear();
+
+  let rowsHtml = '';
+  let runningBal = 0;
+  const ascList = [...all].sort((a,b) => (a.fecha||'').localeCompare(b.fecha||''));
+
+  ascList.forEach(m => {
+    const isAum = (m.tipo === 'aumento');
+    const varMonto = isAum ? m.monto : -m.monto;
+    runningBal += varMonto;
+    rowsHtml += '<tr>';
+    rowsHtml += '<td style="padding:6px 8px; border:1px solid #ccc; font-family:monospace;">' + m.fecha + '</td>';
+    rowsHtml += '<td style="padding:6px 8px; border:1px solid #ccc; font-weight:bold;">' + m.det + '</td>';
+    rowsHtml += '<td style="padding:6px 8px; border:1px solid #ccc;">' + m.acct + '</td>';
+    rowsHtml += '<td style="padding:6px 8px; border:1px solid #ccc;">' + m.socio + '</td>';
+    rowsHtml += '<td style="padding:6px 8px; border:1px solid #ccc; font-family:monospace;">' + m.doc + '</td>';
+    rowsHtml += '<td style="padding:6px 8px; border:1px solid #ccc; text-align:right; font-weight:bold; color:' + (isAum ? '#059669' : '#dc2626') + ';">' + (isAum ? '+' : '-') + ' ₡' + Math.round(m.monto).toLocaleString('es-CR') + '</td>';
+    rowsHtml += '<td style="padding:6px 8px; border:1px solid #ccc; text-align:right; font-weight:bold;">₡' + Math.round(runningBal).toLocaleString('es-CR') + '</td>';
+    rowsHtml += '</tr>';
+  });
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('Por favor permita ventanas emergentes para imprimir');
+    return;
+  }
+
+  const printHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Estado de Cambios en el Patrimonio Neto - ' + clientName + '</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#111;} table{width:100%;border-collapse:collapse;margin-top:16px;font-size:12px;} th{background:#f1f5f9;border:1px solid #ccc;padding:8px;text-align:left;font-size:11px;} td{padding:6px 8px;border:1px solid #ccc;} .head{display:flex;justify-content:space-between;border-bottom:2px solid #1c3557;padding-bottom:12px;margin-bottom:16px;} .tot{margin-top:16px;text-align:right;font-size:14px;font-weight:bold;} @media print{button{display:none;}}</style></head><body>'
+    + '<div class="head"><div><h2 style="margin:0;color:#1c3557;">' + clientName + '</h2><div style="font-size:12px;color:#555;">Cédula: ' + clientCed + '</div></div><div style="text-align:right;"><h3 style="margin:0;">Estado de Cambios en el Patrimonio Neto</h3><div style="font-size:12px;color:#555;">Normas Internacionales de Información Financiera (NIC 1) · Período ' + anio + '</div></div></div>'
+    + '<div style="margin-bottom:12px;"><button onclick="window.print()" style="padding:8px 16px;background:#1c3557;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">🖨️ Imprimir Ahora</button></div>'
+    + '<table><thead><tr><th>FECHA</th><th>CONCEPTO</th><th>CUENTA CONTABLE</th><th>SOCIO / ACCIONISTA</th><th>N° ACTA / DOC</th><th style="text-align:right;">VARIACIÓN (₡)</th><th style="text-align:right;">SALDO RESULTANTE (₡)</th></tr></thead><tbody>'
+    + rowsHtml
+    + '</tbody></table>'
+    + '<div class="tot">Saldo Final del Patrimonio Neto al ' + anio + ': ₡' + Math.round(runningBal + utilNetaG).toLocaleString('es-CR') + '</div>'
+    + '</body></html>';
+
+  printWindow.document.write(printHtml);
+  printWindow.document.close();
+}
+
+// Compatibilidad con funciones y botones previos
+function openPatrimModal(name) {
+  openNuevoPatrimModal();
+  if (name) {
+    const acctInp = document.getElementById('npat_cuenta');
+    if (acctInp) {
+      acctInp.value = name;
+      npatCambiarCuenta(name);
+    }
+  }
+}
+function closePatrimModal() { closeNuevoPatrimModal(); }
+function savePatrimModal() { guardarNuevoPatrimonio(); }
+function openPatrimHistory() { 
+  if (typeof go === 'function') go('patrim');
+  else renderPatrimNeto();
+}
+function closePatrimHistory() { patCerrarDetalle(); }
+
 function getPatrimBalance(name) {
-  if(!MODS.patrimonio || !MODS.patrimonio.patrim) return 0;
+  if (!MODS.patrimonio || !MODS.patrimonio.patrim) return 0;
   const data = MODS.patrimonio.patrim[name];
-  if(!data) return 0;
-  if(typeof data === 'object') {
-    let bal = data.balance || 0;
-    if(data.movs) {
+  if (!data) return 0;
+  if (typeof data === 'object') {
+    let bal = parseFloat(data.balance) || 0;
+    if (Array.isArray(data.movs)) {
       const anioEl = document.getElementById('anioSel');
       const mesEl = document.getElementById('mesSel');
-      const curAnio = anioEl ? anioEl.value : new Date().getFullYear().toString();
-      const curMesStr = mesEl ? mesEl.value : '';
+      const curAnio = (anioEl && anioEl.value) ? anioEl.value : new Date().getFullYear().toString();
+      const curMesStr = (mesEl && mesEl.value) ? mesEl.value : '';
       const M_MAP = { "Enero":"01","Febrero":"02","Marzo":"03","Abril":"04","Mayo":"05","Junio":"06","Julio":"07","Agosto":"08","Septiembre":"09","Octubre":"10","Noviembre":"11","Diciembre":"12" };
       const curMes = M_MAP[curMesStr] || '';
       data.movs.forEach(m => {
-        if(!m.fecha) { bal += (m.monto || 0); return; }
+        const rawM = (typeof m.monto === 'number') ? m.monto : (parseFloat(m.monto) || 0);
+        const sign = (m.tipo === 'disminucion' || rawM < 0) ? -1 : 1;
+        const mMonto = sign * Math.abs(rawM);
+        if (!m.fecha) { bal += mMonto; return; }
         const parts = m.fecha.split('-');
-        if(parts.length < 2) { bal += (m.monto || 0); return; }
+        if (parts.length < 2) { bal += mMonto; return; }
         const y = parts[0], mm = parts[1];
-        if(y < curAnio || (y === curAnio && (curMes === '' || mm <= curMes))) bal += (m.monto || 0);
+        if (!curAnio || y < curAnio || (y === curAnio && (curMes === '' || mm <= curMes))) bal += mMonto;
       });
     }
     return bal;
@@ -7300,139 +8349,7 @@ function getPatrimBalance(name) {
 }
 
 function updatePatrimTotals() {
-  if(!MODS.patrimonio) return;
-  let total = 0;
-  PATRIMONIO_SCHEMA.patrim.items.forEach(name => {
-    total += getPatrimBalance(name);
-  });
-  const el = document.getElementById('ptot_patrim');
-  if(el) el.textContent = '₡' + Math.round(total).toLocaleString('es-CR');
-}
-
-let selectedPatrimName = '';
-let patrimEditMode = false;
-let patrimEditIndex = -1;
-
-function selectPatrimForReg(name) {
-  selectedPatrimName = name;
-  openPatrimModal(name);
-}
-
-function openPatrimModal(preselect) {
-  patrimEditMode = false;
-  patrimEditIndex = -1;
-  const items = PATRIMONIO_SCHEMA.patrim.items;
-  const opts = items.map(n => `<option value="${n}" ${n===(preselect||items[0])?'selected':''}>${n}</option>`).join('');
-  selectedPatrimName = preselect || items[0];
-
-  document.getElementById('patrim_modal_title').textContent = 'Registrar Patrimonio';
-  document.getElementById('patrim_acct_sel').innerHTML = opts;
-  document.getElementById('patrim_det').value = '';
-  document.getElementById('patrim_doc').value = '';
-  document.getElementById('patrim_fecha').value = new Date().toISOString().slice(0,10);
-  document.getElementById('patrim_monto').value = '';
-  document.getElementById('patrimModal').style.display = 'flex';
-}
-
-function closePatrimModal() {
-  document.getElementById('patrimModal').style.display = 'none';
-}
-
-function savePatrimModal() {
-  const name = document.getElementById('patrim_acct_sel').value;
-  const det = document.getElementById('patrim_det').value.trim() || ('Registro ' + name);
-  const doc = document.getElementById('patrim_doc').value.trim();
-  const fecha = document.getElementById('patrim_fecha').value;
-  const monto = parseFloat(document.getElementById('patrim_monto').value) || 0;
-  if(monto === 0) { showToast('Ingrese un monto válido'); return; }
-
-  if(!MODS.patrimonio) MODS.patrimonio = { patrim:{} };
-  if(!MODS.patrimonio.patrim) MODS.patrimonio.patrim = {};
-  if(!MODS.patrimonio.patrim[name]) MODS.patrimonio.patrim[name] = { balance: 0, movs: [] };
-
-  const mov = { det, doc, fecha, monto };
-
-  if(patrimEditMode && patrimEditIndex >= 0) {
-    const oldName = selectedPatrimName;
-    if(oldName !== name) {
-      MODS.patrimonio.patrim[oldName].movs.splice(patrimEditIndex, 1);
-      if(!MODS.patrimonio.patrim[name]) MODS.patrimonio.patrim[name] = { balance: 0, movs: [] };
-      MODS.patrimonio.patrim[name].movs.push(mov);
-    } else {
-      MODS.patrimonio.patrim[name].movs[patrimEditIndex] = mov;
-    }
-  } else {
-    MODS.patrimonio.patrim[name].movs.push(mov);
-  }
-
-  saveData();
-  closePatrimModal();
-  renderPatrimNeto();
-  showToast('Patrimonio registrado correctamente');
-}
-
-function openPatrimHistory() {
-  const data = MODS.patrimonio ? MODS.patrimonio.patrim : {};
-  let rows = [];
-  Object.keys(data || {}).forEach(acctName => {
-    const acct = data[acctName];
-    if(acct && acct.movs) {
-      acct.movs.forEach((m, idx) => { rows.push({ ...m, _acct: acctName, _idx: idx }); });
-    }
-  });
-  rows.sort((a,b) => (b.fecha||'').localeCompare(a.fecha||''));
-
-  document.getElementById('patrim_hist_title').textContent = 'Historial · PATRIMONIO';
-  const tbody = document.getElementById('patrim_hist_tbody');
-  tbody.innerHTML = '';
-  if(rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#9ca3af;">No hay registros.</td></tr>';
-  } else {
-    rows.forEach(r => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;font-weight:600;">${r._acct}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;">${r.det||'—'}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;font-family:monospace;font-size:12px;">${r.doc||'—'}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;font-family:monospace;">${r.fecha||'—'}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600;">₡${Math.round(r.monto||0).toLocaleString('es-CR')}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;text-align:center;">
-          <button onclick="editPatrimMov('${r._acct}',${r._idx})" style="background:none;border:none;cursor:pointer;font-size:14px;" title="Editar">✏️</button>
-          <button onclick="deletePatrimMov('${r._acct}',${r._idx})" style="background:none;border:none;cursor:pointer;font-size:14px;" title="Eliminar">🗑️</button>
-        </td>`;
-      tbody.appendChild(tr);
-    });
-  }
-  document.getElementById('patrimHistoryModal').style.display = 'flex';
-}
-
-function closePatrimHistory() {
-  document.getElementById('patrimHistoryModal').style.display = 'none';
-}
-
-function editPatrimMov(acctName, idx) {
-  closePatrimHistory();
-  const m = MODS.patrimonio.patrim[acctName].movs[idx];
-  if(!m) return;
-  openPatrimModal(acctName);
-  patrimEditMode = true;
-  patrimEditIndex = idx;
-  selectedPatrimName = acctName;
-  document.getElementById('patrim_modal_title').textContent = 'Editar registro';
-  document.getElementById('patrim_acct_sel').value = acctName;
-  document.getElementById('patrim_det').value = m.det || '';
-  document.getElementById('patrim_doc').value = m.doc || '';
-  document.getElementById('patrim_fecha').value = m.fecha || '';
-  document.getElementById('patrim_monto').value = m.monto || '';
-}
-
-function deletePatrimMov(acctName, idx) {
-  if(!confirm('¿Eliminar este registro?')) return;
-  MODS.patrimonio.patrim[acctName].movs.splice(idx, 1);
-  saveData();
-  closePatrimHistory();
-  renderPatrimNeto();
-  showToast('Registro eliminado');
+  if (typeof patRenderKPIs === 'function') patRenderKPIs();
 }
 
 let selectedAssetCat = '';
@@ -12905,6 +13822,131 @@ document.addEventListener('DOMContentLoaded', () => {
         <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:6px;">
           <button type="button" onclick="closeNuevoActivoModal()" style="background:#f3f4f6; color:#4b5563; border:1px solid #d1d5db; border-radius:8px; padding:9px 18px; font-size:12px; font-weight:600; cursor:pointer;">Cancelar</button>
           <button type="submit" id="naf_submit_btn" style="background:#1c3557; color:#fff; border:none; border-radius:8px; padding:9px 20px; font-size:12px; font-weight:700; cursor:pointer;">Guardar Activo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+    <!-- 🏛️ MODAL: REGISTRAR / EDITAR MOVIMIENTO DE PATRIMONIO ================= -->
+  <!-- ====================================================================== -->
+  <div id="nuevoPatrimModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:11000; align-items:center; justify-content:center; backdrop-filter:blur(3px);">
+    <div id="nuevoPatrimModalBox" style="background:#fff; border-radius:12px; width:95%; max-width:720px; max-height:90vh; overflow-y:auto; box-shadow:0 25px 60px rgba(0,0,0,0.3); display:flex; flex-direction:column;">
+      
+      <div style="background:#1c3557; color:#fff; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; border-radius:12px 12px 0 0;">
+        <span style="font-size:15px; font-weight:700;" id="npat_modal_title">Registrar Movimiento de Patrimonio</span>
+        <button type="button" onclick="closeNuevoPatrimModal()" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+
+      <form id="formNuevoPatrim" onsubmit="guardarNuevoPatrimonio(event)" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+        <input type="hidden" id="npat_cat" value="cap">
+        <input type="hidden" id="npat_edit_mode" value="false">
+        <input type="hidden" id="npat_edit_orig_acct" value="">
+        <input type="hidden" id="npat_edit_orig_idx" value="-1">
+
+        <!-- Selector de Categoría mediante Botones -->
+        <div>
+          <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Categoría de Patrimonio *</label>
+          <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;" id="npat_cat_btns">
+            <button type="button" id="npat_btn_cap" onclick="npatSeleccionarCat('cap')" style="padding:8px 4px; border-radius:8px; font-size:11px; font-weight:700; border:2px solid #2563eb; background:#eff6ff; color:#1e40af; cursor:pointer; text-align:center;">
+              Capital Social y Aportes
+            </button>
+            <button type="button" id="npat_btn_res" onclick="npatSeleccionarCat('res')" style="padding:8px 4px; border-radius:8px; font-size:11px; font-weight:600; border:1px solid #d1d5db; background:#f9fafb; color:#374151; cursor:pointer; text-align:center;">
+              Reservas Legales
+            </button>
+            <button type="button" id="npat_btn_resul" onclick="npatSeleccionarCat('resul')" style="padding:8px 4px; border-radius:8px; font-size:11px; font-weight:600; border:1px solid #d1d5db; background:#f9fafb; color:#374151; cursor:pointer; text-align:center;">
+              Resultados / Utilidades
+            </button>
+            <button type="button" id="npat_btn_otros" onclick="npatSeleccionarCat('otros')" style="padding:8px 4px; border-radius:8px; font-size:11px; font-weight:600; border:1px solid #d1d5db; background:#f9fafb; color:#374151; cursor:pointer; text-align:center;">
+              Otros Fondos / Superávit
+            </button>
+          </div>
+        </div>
+
+        <!-- Cuenta Contable Editable con Datalist y Dropdown Companion -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label style="font-size:11px; font-weight:700; color:#374151;">Cuenta Contable (Editable) *</label>
+              <span style="font-size:10px; color:#6b7280;">Escriba o elija</span>
+            </div>
+            <div style="position:relative; display:flex; align-items:center;">
+              <input type="text" id="npat_cuenta" list="npat_cuentas_list" required placeholder="Seleccione o escriba la cuenta..." oninput="npatCambiarCuenta(this.value)" onchange="npatCambiarCuenta(this.value)" class="fd-inp" style="width:100%; font-weight:700; padding-right:32px;">
+              <select id="npat_cuenta_quick" onchange="npatSeleccionarDeSelect(this.value)" style="position:absolute; right:2px; width:28px; height:28px; border:none; background:transparent; cursor:pointer; color:#6b7280; font-size:12px;" title="Ver todas las cuentas disponibles">
+                <option value="" disabled selected>▼</option>
+              </select>
+            </div>
+            <datalist id="npat_cuentas_list"></datalist>
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Concepto / Descripción del Movimiento *</label>
+            <input type="text" id="npat_detalle" required placeholder="Ej: Aporte de capital de socio" class="fd-inp" style="width:100%;">
+          </div>
+        </div>
+
+        <!-- Socio / Accionista y N° Documento -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Socio / Accionista / Titular *</label>
+            <input type="text" id="npat_socio" required placeholder="Ej: Juan Pérez Rodríguez o Empresa S.A." class="fd-inp" style="width:100%;">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">N° de Acta / Documento / Escritura</label>
+            <input type="text" id="npat_doc" placeholder="Ej: Acta Asamblea #05 / Escritura #1024" class="fd-inp" style="width:100%;">
+          </div>
+        </div>
+
+        <!-- Fecha, Tipo de Movimiento y Monto -->
+        <div style="display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:12px;">
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Fecha del Movimiento *</label>
+            <input type="date" id="npat_fecha" required onchange="npatRecalcularPreview()" class="fd-inp" style="width:100%;">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Tipo de Movimiento *</label>
+            <select id="npat_tipo" class="fd-inp" onchange="npatRecalcularPreview()" style="width:100%; font-weight:700;">
+              <option value="aumento" selected>⬆️ Aumento de Patrimonio (+)</option>
+              <option value="disminucion">⬇️ Disminución / Retiro (-)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Monto (₡) *</label>
+            <input type="text" id="npat_monto" required placeholder="0.00" oninput="npatRecalcularPreview()" class="fd-inp" style="width:100%; font-weight:700; color:#0e7490; font-size:14px;">
+          </div>
+        </div>
+
+        <!-- Contrapartida Contable Sugerida -->
+        <div>
+          <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Contrapartida Contable Sugerida</label>
+          <select id="npat_contrapartida" class="fd-inp" style="width:100%;">
+            <option value="Bancos - Cuentas Corrientes" selected>1.1.01 Bancos / Cuentas Corrientes (Efectivo y Equivalentes)</option>
+            <option value="Caja General">1.1.02 Caja General</option>
+            <option value="Aportes en Bienes / Propiedad, Planta y Equipo">1.2.01 Aportes en Especie / Activos Fijos</option>
+            <option value="Resultados Acumulados / Utilidades Retenidas">3.1.02 Resultados Acumulados / Retenidos</option>
+            <option value="Cuentas por Cobrar a Accionistas / Suscriptores">1.1.05 Cuentas por Cobrar a Accionistas</option>
+            <option value="Cuentas por Pagar - Dividendos decretados">2.1.08 Dividendos por Pagar</option>
+            <option value="Otra Contrapartida">Otra Contrapartida</option>
+          </select>
+        </div>
+
+        <!-- Live Preview Box -->
+        <div id="npat_preview_box" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;">
+          <div>
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Impacto Neto</div>
+            <div id="npat_prev_impacto" style="font-size:15px; font-weight:800; color:#059669;">+ ₡0,00</div>
+          </div>
+          <div>
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Categoría Asignada</div>
+            <div id="npat_prev_cat_label" style="font-size:13px; font-weight:700; color:#1e40af;">Capital Social</div>
+          </div>
+          <div>
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Socio / Titular</div>
+            <div id="npat_prev_socio_label" style="font-size:13px; font-weight:700; color:#374151;">—</div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:6px;">
+          <button type="button" onclick="closeNuevoPatrimModal()" style="background:#f3f4f6; color:#4b5563; border:1px solid #d1d5db; border-radius:8px; padding:9px 18px; font-size:12px; font-weight:600; cursor:pointer;">Cancelar</button>
+          <button type="submit" id="npat_submit_btn" style="background:#1c3557; color:#fff; border:none; border-radius:8px; padding:9px 20px; font-size:12px; font-weight:700; cursor:pointer;">Guardar Movimiento</button>
         </div>
       </form>
     </div>
