@@ -7585,8 +7585,9 @@ function patRenderKPIs() {
   let utilNetaG = 0;
   if (typeof getERVars === 'function') {
     try {
-      getERVars();
-      if (typeof window.utilNetaG === 'number') utilNetaG = window.utilNetaG;
+      const erRes = getERVars();
+      if (erRes && typeof erRes.utilNeta === 'number') utilNetaG = erRes.utilNeta;
+      else if (typeof window !== 'undefined' && typeof window.utilNetaG === 'number') utilNetaG = window.utilNetaG;
     } catch(e) {}
   }
 
@@ -7753,8 +7754,9 @@ function patRenderTabCambios(container, selMov) {
   let utilNetaG = 0;
   if (typeof getERVars === 'function') {
     try {
-      getERVars();
-      if (typeof window.utilNetaG === 'number') utilNetaG = window.utilNetaG;
+      const erRes = getERVars();
+      if (erRes && typeof erRes.utilNeta === 'number') utilNetaG = erRes.utilNeta;
+      else if (typeof window !== 'undefined' && typeof window.utilNetaG === 'number') utilNetaG = window.utilNetaG;
     } catch(e) {}
   }
   if (utilNetaG > 0) utilidades += utilNetaG;
@@ -8252,8 +8254,9 @@ function patImprimirEstadoCambios() {
   let utilNetaG = 0;
   if (typeof getERVars === 'function') {
     try {
-      getERVars();
-      if (typeof window.utilNetaG === 'number') utilNetaG = window.utilNetaG;
+      const erRes = getERVars();
+      if (erRes && typeof erRes.utilNeta === 'number') utilNetaG = erRes.utilNeta;
+      else if (typeof window !== 'undefined' && typeof window.utilNetaG === 'number') utilNetaG = window.utilNetaG;
     } catch(e) {}
   }
 
@@ -10185,14 +10188,22 @@ function renderD101(){
     e41.classList.add('fd-inp-autofill');
     e41.readOnly = true;
   }
+  const e42 = document.getElementById('c42');
+  if(e42) {
+    e42.value = (dVars.gastoDeprec || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+    e42.classList.add('fd-inp-autofill');
+    e42.readOnly = true;
+  }
   
   d101Calc();
 }
 
 let utilNetaG = 0;
 function getERVars(){
-  const anio = document.getElementById('anioSel').value;
-  const mesStr = document.getElementById('mesSel').value;
+  const anioEl = document.getElementById('anioSel');
+  const mesEl = document.getElementById('mesSel');
+  const anio = (anioEl && anioEl.value) ? anioEl.value : new Date().getFullYear().toString();
+  const mesStr = (mesEl && mesEl.value) ? mesEl.value : '';
   const M_MAP = {'Enero':'01','Febrero':'02','Marzo':'03','Abril':'04','Mayo':'05','Junio':'06','Julio':'07','Agosto':'08','Septiembre':'09','Octubre':'10','Noviembre':'11','Diciembre':'12'};
   const mes = M_MAP[mesStr] || ''; // '' = anual
   let v=0, cmv=0, go=0;
@@ -10210,30 +10221,45 @@ function getERVars(){
   if(MODS['costos']) MODS['costos'].rows.forEach(r=>{if(matchPeriod(r.fecha)){ const g=(r.c05||0)+(r.c1||0)+(r.c2||0)+(r.c4||0)+(r.c8||0)+(r.c13||0); cmv+=((parseFloat(g)+(parseFloat(r.ex)||0)+(parseFloat(r.ns)||0))*getS(r.tipo)); }});
   if(MODS['gastos']) MODS['gastos'].rows.forEach(r=>{if(matchPeriod(r.fecha)){ const g=(r.c05||0)+(r.c1||0)+(r.c2||0)+(r.c4||0)+(r.c8||0)+(r.c13||0); go+=((parseFloat(g)+(parseFloat(r.ex)||0)+(parseFloat(r.ns)||0))*getS(r.tipo)); }});
   
-  // NIIF Secc 17: Gasto por Depreciación del Período
+  // NIIF Secc 17 / NIC 16 / NIC 38: Gasto por Depreciación y Amortización del Período
   let gastoDeprec = 0;
-  if (MODS.activos && MODS.activos.no_cor) {
-    Object.keys(MODS.activos.no_cor).forEach(cat => {
-      const cData = MODS.activos.no_cor[cat];
-      if (cData && Array.isArray(cData.movs)) {
-        cData.movs.forEach(m => {
-          const depM = parseFloat(m.depMensual) || 0;
-          if (depM > 0 && m.fecha) {
-            const adqAnio = parseInt(m.fecha.split('-')[0], 10);
-            const adqMes = parseInt(m.fecha.split('-')[1], 10);
-            const selAnioNum = parseInt(anio, 10);
-            if (selAnioNum > adqAnio || selAnioNum === adqAnio) {
-              if (mes) {
-                const selMesNum = parseInt(mes, 10);
-                if (selAnioNum > adqAnio || (selAnioNum === adqAnio && selMesNum >= adqMes)) {
-                  gastoDeprec += depM;
+  if (MODS.activos) {
+    ['no_cor', 'intan'].forEach(catKey => {
+      const catObj = MODS.activos[catKey];
+      if (catObj && typeof catObj === 'object') {
+        Object.keys(catObj).forEach(cta => {
+          const cData = catObj[cta];
+          if (cData && Array.isArray(cData.movs)) {
+            cData.movs.forEach(m => {
+              const depM = parseFloat(m.depMensual) || 0;
+              const yrs = parseInt(m.yrs, 10) || 0;
+              const totalMeses = yrs * 12;
+              if (depM > 0 && totalMeses > 0 && m.fecha) {
+                const parts = String(m.fecha).split('-');
+                const adqAnio = parseInt(parts[0], 10);
+                const adqMes = parseInt(parts[1], 10);
+                const selAnioNum = parseInt(anio, 10);
+
+                if (!isNaN(adqAnio) && !isNaN(adqMes) && !isNaN(selAnioNum)) {
+                  if (mes) {
+                    const selMesNum = parseInt(mes, 10);
+                    const elapsed = (selAnioNum - adqAnio) * 12 + (selMesNum - adqMes);
+                    if (elapsed >= 0 && elapsed < totalMeses) {
+                      gastoDeprec += depM;
+                    }
+                  } else {
+                    let activeMonthsInYear = 0;
+                    for (let mm = 1; mm <= 12; mm++) {
+                      const elapsed = (selAnioNum - adqAnio) * 12 + (mm - adqMes);
+                      if (elapsed >= 0 && elapsed < totalMeses) {
+                        activeMonthsInYear++;
+                      }
+                    }
+                    gastoDeprec += (depM * activeMonthsInYear);
+                  }
                 }
-              } else {
-                const startM = (selAnioNum === adqAnio) ? adqMes : 1;
-                const monthsCount = Math.max(0, 12 - startM + 1);
-                gastoDeprec += (depM * monthsCount);
               }
-            }
+            });
           }
         });
       }
@@ -10241,15 +10267,40 @@ function getERVars(){
   }
   gastoDeprec = Math.round(gastoDeprec * 100) / 100;
 
-  const gv=id=>{const e=document.getElementById('er_'+id);return e?parseFloat(e.value.replace(/,/g,''))||0:0;};
-  const oi = gv('oi'), og = gv('og'), imp = gv('imp');
-  
+  // Gastos Financieros: Intereses de Pasivos Financieros devengados/pagados en el período
+  let gastoIntereses = 0;
+  if (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) {
+    MODS.pasivos.financieros.forEach(p => {
+      if (Array.isArray(p.pagos)) {
+        p.pagos.forEach(pg => {
+          if (pg.estado !== 'reversado' && pg.fecha && pg.fecha.startsWith(anio)) {
+            if (!mes || pg.fecha.split('-')[1] === mes) {
+              gastoIntereses += (parseFloat(pg.monto_interes) || 0);
+            }
+          }
+        });
+      }
+    });
+  }
+  gastoIntereses = Math.round(gastoIntereses * 100) / 100;
+
+  const gv = id => { const e = document.getElementById('er_' + id); return e ? parseFloat(e.value.replace(/,/g, '')) || 0 : 0; };
+  const oi = gv('oi');
+  let og = gv('og');
+  // Precargar intereses calculados si no hay valor manual ingresado
+  const erOgEl = document.getElementById('er_og');
+  if (og === 0 && (!erOgEl || erOgEl.value === '0.00' || !erOgEl.value)) {
+    og = gastoIntereses;
+  }
+  const imp = gv('imp');
+
   const ub = v - cmv;
   const uo = ub - go - gastoDeprec;
   const uai = uo + oi - og;
   utilNetaG = uai - imp;
-  
-  return {v, cmv, go, gastoDeprec, ub, uo, oi, og, uai, imp, utilNeta: utilNetaG};
+  if (typeof window !== "undefined") window.utilNetaG = utilNetaG;
+
+  return { v, cmv, go, gastoDeprec, gastoIntereses, ub, uo, oi, og, uai, imp, utilNeta: utilNetaG };
 }
 
 // ── ESTADO DE RESULTADOS ──────────────────────────────────────────
@@ -10270,23 +10321,30 @@ function erCalc(){
     }
   };
   sv('ub', d.ub); sv('uo', d.uo); sv('uai', d.uai); sv('un', utilNetaG);
+  const depEl = document.getElementById('er_deprec');
+  if (depEl && depEl.tagName === 'INPUT') {
+    depEl.value = d.gastoDeprec.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  }
   if(document.getElementById('bg_ut')) bgCalc();
   if(document.getElementById('fe_ut')) feCalc();
   if(document.getElementById('cp_ut')) cpCalc();
+  if(document.getElementById('pat_kpi_utilidad_periodo') && typeof patRenderKPIs === 'function') patRenderKPIs();
 }
+
 function renderEstRes(){
   const el=document.getElementById('estres-content');if(!el)return;
-  const anio = document.getElementById('anioSel').value;
-  const mesStr = document.getElementById('mesSel').value;
+  const anio = (document.getElementById('anioSel') && document.getElementById('anioSel').value) ? document.getElementById('anioSel').value : new Date().getFullYear().toString();
+  const mesStr = (document.getElementById('mesSel') && document.getElementById('mesSel').value) ? document.getElementById('mesSel').value : '';
   const periodoTxt = mesStr ? `${mesStr} ${anio}` : `Año ${anio}`;
   const d = getERVars();
   const fN=(n)=>n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
   const rT = (id,lbl,val='0.00',ext='')=>`<div class="fd104-tot" style="${ext}"><label>${lbl}</label><span class="fd-val" id="er_${id}">${val}</span></div>`;
   const rI = (id,lbl,isRO=false,val='0.00')=>`<div class="fd104-r"><label>${lbl}</label><input class="fd-inp${isRO?' fd-inp-autofill':''}" id="er_${id}" type="text" value="${val}" ${isRO?'readonly':''} oninput="erCalc()" onblur="erBlur(this)"/></div>`;
   
-  const getP = (id)=>(document.getElementById('er_'+id) ? document.getElementById('er_'+id).value : '0.00');
-  let v_oi=fN(0), v_og=fN(0), v_imp=fN(0);
-  if(document.getElementById('er_oi')){ v_oi=getP('oi'); v_og=getP('og'); v_imp=getP('imp'); }
+  const getP = (id)=>(document.getElementById('er_'+id) ? document.getElementById('er_'+id).value : '');
+  let v_oi = getP('oi') || fN(0);
+  let v_og = getP('og') || fN(d.gastoIntereses || 0);
+  let v_imp = getP('imp') || fN(0);
 
   el.innerHTML=`<div class="fd104" style="max-width:800px">
     <div style="background:var(--white);border:1px solid var(--cream3);border-radius:var(--r2);overflow:hidden;margin-bottom:16px;box-shadow:var(--shadow)">
@@ -10309,11 +10367,12 @@ function renderEstRes(){
       
       <div class="fd104-hd" style="margin-top:20px;border-top:1px solid var(--cream2);padding-top:20px">Gastos de Operación</div>
       ${rI('gastos','Gastos Administrativos / Ventas',true,fN(d.go))}
+      ${rI('deprec','(-) Gasto por Depreciación y Amortización (NIIF)',true,fN(d.gastoDeprec))}
       ${rT('uo','UTILIDAD DE OPERACIÓN',fN(d.uo),'background:var(--cream)')}
       
       <div class="fd104-hd" style="margin-top:20px;border-top:1px solid var(--cream2);padding-top:20px">Otros Ingresos y Egresos Netos</div>
       ${rI('oi','Otros Ingresos (Intereses ganado, etc.)',false,v_oi)}
-      ${rI('og','Otros Gastos (Financieros, etc.)',false,v_og)}
+      ${rI('og','Otros Gastos Financieros (Intereses de préstamos/pasivos)',false,v_og)}
       ${rT('uai','UTILIDAD ANTES DE IMPUESTOS',fN(d.uai))}
       
       <div class="fd104-hd" style="margin-top:20px;border-top:1px solid var(--cream2);padding-top:20px">Impuestos</div>
@@ -10518,7 +10577,7 @@ function renderEfectivo(){
     <div class="fd104-sec">
       <div class="fd104-hd">Actividades de Operación</div>
       ${rT('ut','Utilidad Neta del Ejercicio',fN(utilNetaG))}
-      ${rI('dep','( + ) Depreciaciones y Amortizaciones')}
+      ${rI('dep','( + ) Depreciaciones y Amortizaciones',false,fN(d.gastoDeprec || 0))}
       ${rI('cxc','(+/-) Cambio en Cuentas por Cobrar')}
       ${rI('cxp','(+/-) Cambio en Cuentas por Pagar')}
       ${rI('inv','(+/-) Cambio en Inventarios')}
