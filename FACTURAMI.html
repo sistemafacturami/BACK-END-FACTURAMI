@@ -881,7 +881,7 @@
 [data-theme="dark"] #fm-inbox,
 [data-theme="dark"] .fm-upload-card,
 [data-theme="dark"] .fm-preview-card,
-[data-theme="dark"] #n8nCredModal > div {
+[data-theme="dark"] #fmSyncCredModal > div {
   background: #0f172a !important;
   color: var(--ink) !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
@@ -895,8 +895,8 @@
 [data-theme="dark"] #pasivoModal select,
 [data-theme="dark"] #patrimModal input,
 [data-theme="dark"] #patrimModal select,
-[data-theme="dark"] #n8nCredModal select,
-[data-theme="dark"] #n8nCredModal input {
+[data-theme="dark"] #fmSyncCredModal select,
+[data-theme="dark"] #fmSyncCredModal input {
   background: #080c14 !important;
   color: #f8fafc !important;
   border-color: rgba(255, 255, 255, 0.15) !important;
@@ -1955,12 +1955,12 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
 .iva-table tfoot td{padding:10px 10px;font-size:11px;font-weight:700;text-align:right;background:var(--surface-dark, #0f172a);color:#fff;border:none}
 .iva-table tfoot td:first-child{text-align:left;border-radius:var(--r) 0 0 var(--r)}
 .iva-table tfoot tr td:last-child{border-radius:0 var(--r) var(--r) 0}
-#n8n-content .iva-table thead th,
-#n8n-content .iva-table thead th:first-child,
-#n8n-content .iva-table td,
-#n8n-content .iva-table td:first-child,
-#n8n-content .iva-table tfoot td,
-#n8n-content .iva-table tfoot td:first-child{text-align:center}
+#fm-sync-content .iva-table thead th,
+#fm-sync-content .iva-table thead th:first-child,
+#fm-sync-content .iva-table td,
+#fm-sync-content .iva-table td:first-child,
+#fm-sync-content .iva-table tfoot td,
+#fm-sync-content .iva-table tfoot td:first-child{text-align:center}
 
 /* ══ CHART ════════════════════════════════════════════════════ */
 .chart-area{display:flex;align-items:flex-end;gap:8px;height:150px;padding:4px 0 0}
@@ -3584,9 +3584,9 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
         <div class="ni" onclick="go('prop',this)"><span class="ni-ico"><i data-lucide="pie-chart" stroke-width="2.5" width="16" height="16"></i></span><span>Proporcionalidad</span></div>
     
     <div>
-      <div class="ni" onclick="toggleN8nMenu(this)" id="btn-sidebar-n8n"><span class="ni-ico"><i data-lucide="download-cloud" stroke-width="2.5" width="16" height="16"></i></span><span>Cargar facturas</span><span id="fm-conn-dot" title="Verificando conexión..." style="width:7px;height:7px;border-radius:50%;background:#888;margin-left:6px;flex-shrink:0;transition:background 0.4s,box-shadow 0.4s"></span><span id="fm-sidebar-badge" style="display:none;margin-left:auto;background:#f59e0b;color:#fff;font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px;box-shadow:0 0 8px rgba(245,158,11,0.7);animation:pulse 2s infinite">0</span></div>
-      <div id="n8n-sub-menu" style="display:none;flex-direction:column;gap:4px;margin:4px 10px 10px 32px;border-left:1px solid rgba(255,255,255,0.1);padding-left:10px">
-        <div onclick="go('n8n', document.getElementById('btn-sidebar-n8n')); fmCargar();" style="padding:8px 12px;font-size:12px;font-weight:500;color:rgba(255,255,255,0.6);cursor:pointer;border-radius:6px;transition:0.2s;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,0.07)';this.style.color='#fff';" onmouseout="this.style.background='transparent';this.style.color='rgba(255,255,255,0.6)';">
+      <div class="ni" onclick="toggleSyncMenu(this)" id="btn-sidebar-sync" class="ni"><span class="ni-ico"><i data-lucide="download-cloud" stroke-width="2.5" width="16" height="16"></i></span><span>Cargar facturas</span><span id="fm-conn-dot" title="Verificando conexión..." style="width:7px;height:7px;border-radius:50%;background:#888;margin-left:6px;flex-shrink:0;transition:background 0.4s,box-shadow 0.4s"></span><span id="fm-sidebar-badge" style="display:none;margin-left:auto;background:#f59e0b;color:#fff;font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px;box-shadow:0 0 8px rgba(245,158,11,0.7);animation:pulse 2s infinite">0</span></div>
+      <div id="fm-sync-sub-menu" style="display:none;flex-direction:column;gap:4px;margin:4px 10px 10px 32px;border-left:1px solid rgba(255,255,255,0.1);padding-left:10px">
+        <div onclick="go('facturas_inbox', document.getElementById('btn-sidebar-sync')); fmCargar();" style="padding:8px 12px;font-size:12px;font-weight:500;color:rgba(255,255,255,0.6);cursor:pointer;border-radius:6px;transition:0.2s;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,0.07)';this.style.color='#fff';" onmouseout="this.style.background='transparent';this.style.color='rgba(255,255,255,0.6)';">
           <span style="width:4px;height:4px;border-radius:50%;background:#3b82f6;flex-shrink:0"></span>
           Registrar Facturas
         </div>
@@ -4252,7 +4252,7 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
       <div id="pat_tab_contenido" style="padding:0;"></div>
     </div>
   </div>
-  <div class="page" id="pg-n8n"><div id="n8n-content"></div></div>
+  <div class="page" id="pg-facturas_inbox"><div id="fm-sync-content"></div></div>
 
 
 
@@ -4654,7 +4654,7 @@ const D = {
 };
 
 // ═══ AUTOSYNC & PERSISTENCIA EN DISCO E: ═══════════════════════════════
-const SEED_DATABASE = {"f_clients": [{"type": "PF", "name": "pepe", "id": "123456788", "tel": "", "mail": "", "dir": "", "act": "", "rep": ""}, {"type": "PF", "name": "Luis Vargas Medina", "id": "504470991", "tel": "", "mail": "", "dir": "", "webhook": "http://localhost:5678/webhook-test/Lvarmedi Gmail", "act": "", "rep": ""}, {"type": "PF", "name": "Games CR", "id": "504470992", "tel": "", "mail": "", "dir": "", "act": "Contador", "rep": "", "webhook": "http://localhost:5678/webhook-test/b3a88180-5150-4f03-a152-9ec6902df776"}], "f_theme": "light", "n8n_creds": {}, "f_data_123456788": {"ingresos": {"title": "Ingresos", "sub": "Ventas e ingresos del período", "color": "#0a7c52", "rows": [{"fecha": "2026-06-01", "l": "Ingr. por servicios de construcción", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 3981869}, {"fecha": "2026-06-02", "l": "Otros ingresos gravados", "ns": 0, "ex": 0, "c05": 0, "c1": 1500, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-05", "l": "Ingresos exentos", "ns": 0, "ex": 250000, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-10", "l": "Ingresos no sujetos", "ns": 180000, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}]}, "compras": {"title": "Compras", "sub": "Facturas de compra del período", "color": "#1a56db", "rows": [{"fecha": "2026-06-13", "doc": "001-001-01", "tipo": "Contado", "l": "Materiales de construcción", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 2056913}, {"fecha": "2026-06-27", "doc": "001-001-02", "tipo": "Nota de Credito", "l": "Material recuperable", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 872595}, {"fecha": "2026-06-11", "doc": "F-5582", "tipo": "Contado", "l": "Compras exentas", "ns": 0, "ex": 863338, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-28", "doc": "001-002-44", "tipo": "Contado", "l": "Equipamiento y maquinaria", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 184077}, {"fecha": "2026-01-18", "doc": "—", "tipo": "Contado", "l": "ADQ. ACTIVO: Compra de VEHICULOS", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 12000000}]}, "gastos": {"title": "Gastos", "sub": "Gastos operativos del período", "color": "#92400e", "rows": [{"fecha": "2026-06-01", "doc": "EXP-01", "tipo": "Contado", "l": "Servicios públicos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 20000}, {"fecha": "2026-06-02", "doc": "EXP-02", "tipo": "Contado", "l": "Mantenimiento maq. y equipos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 949801}, {"fecha": "2026-06-03", "doc": "EXP-03", "tipo": "Contado", "l": "Gastos operativos generales", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 465608}, {"fecha": "2026-06-04", "doc": "EXP-04", "tipo": "Contado", "l": "Combustible y transporte", "ns": 0, "ex": 756679, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-05", "doc": "EXP-05", "tipo": "Contado", "l": "Software y licencias", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 10735}]}, "costos": {"title": "Costos", "sub": "Costos directos de obra", "color": "#7c3aed", "rows": [{"l": "Mano de obra directa", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 850000}, {"l": "Subcontratistas", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 950000}, {"l": "Materiales directos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 350000}]}, "obras": {"title": "Obras en Proceso", "sub": "Proyectos activos de construcción", "color": "#0e7490", "rows": [{"l": "Obra Residencial Norte", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 1250000}, {"l": "Proyecto Comercial Sur", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 1800000}, {"l": "Remodelación Industrial", "ns": 0, "ex": 320000, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}]}, "activos": {"cor": {"IVA SOPORTADO": {"balance": 0, "movs": [{"fecha": "2026-01-18", "dia": 18, "doc": "—", "det": "IVA Activo: VEHICULOS", "monto": 1200000}]}}, "no_cor": {"VEHICULOS": {"balance": 0, "movs": [{"det": "Compra de VEHICULOS", "yrs": 5, "residual": 0, "depAnual": 2400000, "depMensual": 200000, "fecha": "2026-01-18", "dia": 18, "doc": "—", "monto": 12000000, "iva": 1200000}]}}, "intan": {}, "depre": {}}}, "f_data_504470991": {"ingresos": {"title": "Ingresos", "sub": "Ventas e ingresos del período", "color": "#0a7c52", "rows": [{"fecha": "2026-06-01", "l": "Ingr. por servicios de construcción", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 3981869}, {"fecha": "2026-06-02", "l": "Otros ingresos gravados", "ns": 0, "ex": 0, "c05": 0, "c1": 1500, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-05", "l": "Ingresos exentos", "ns": 0, "ex": 250000, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-10", "l": "Ingresos no sujetos", "ns": 180000, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}]}, "compras": {"title": "Compras", "sub": "Facturas de compra del período", "color": "#1a56db", "rows": [{"fecha": "2026-06-13", "doc": "001-001-01", "tipo": "Contado", "l": "Materiales de construcción", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 2056913}, {"fecha": "2026-06-27", "doc": "001-001-02", "tipo": "Nota de Credito", "l": "Material recuperable", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 872595}, {"fecha": "2026-06-11", "doc": "F-5582", "tipo": "Contado", "l": "Compras exentas", "ns": 0, "ex": 863338, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-28", "doc": "001-002-44", "tipo": "Contado", "l": "Equipamiento y maquinaria", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 184077}, {"fecha": "2024-01-13", "doc": "111111", "tipo": "Contado", "l": "ADQ. ACTIVO: Compra de VEHICULOS", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 16000000}]}, "gastos": {"title": "Gastos", "sub": "Gastos operativos del período", "color": "#92400e", "rows": [{"fecha": "2026-06-01", "doc": "EXP-01", "tipo": "Contado", "l": "Servicios públicos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 20000}, {"fecha": "2026-06-02", "doc": "EXP-02", "tipo": "Contado", "l": "Mantenimiento maq. y equipos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 949801}, {"fecha": "2026-06-03", "doc": "EXP-03", "tipo": "Contado", "l": "Gastos operativos generales", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 465608}, {"fecha": "2026-06-04", "doc": "EXP-04", "tipo": "Contado", "l": "Combustible y transporte", "ns": 0, "ex": 756679, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-05", "doc": "EXP-05", "tipo": "Contado", "l": "Software y licencias", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 10735}]}, "costos": {"title": "Costos", "sub": "Costos directos de obra", "color": "#7c3aed", "rows": [{"l": "Mano de obra directa", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 850000}, {"l": "Subcontratistas", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 950000}, {"l": "Materiales directos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 350000}]}, "obras": {"title": "Obras en Proceso", "sub": "Proyectos activos de construcción", "color": "#0e7490", "rows": [{"l": "Obra Residencial Norte", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 1250000}, {"l": "Proyecto Comercial Sur", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 1800000}, {"l": "Remodelación Industrial", "ns": 0, "ex": 320000, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}]}, "activos": {"cor": {"IVA SOPORTADO": {"balance": 0, "movs": [{"fecha": "2024-01-13", "dia": 13, "doc": "111111", "det": "IVA Activo: VEHICULOS", "monto": 1600000}]}}, "no_cor": {"VEHICULOS": {"balance": 0, "movs": [{"det": "Compra de VEHICULOS", "yrs": 5, "residual": 0, "depAnual": 3200000, "depMensual": 266666.6666666667, "fecha": "2024-01-13", "dia": 13, "doc": "111111", "monto": 16000000, "iva": 1600000}]}}, "intan": {}, "depre": {}}, "pasivos": {"pas_cor": {}, "pas_ncor": {}}, "patrimonio": {"patrim": {"CAPITAL PERSONA FISICA": 17242222, "GANANCIAS O PERDIDAS ACUMULADAS": -8975000}}, "cxp": {"rows": []}, "cxc": {"rows": [{"fecha": "2026-01-12", "vencimiento": "2026-12-11", "cliente": "asda", "doc": "a111", "monto": 100000, "pagado": false}]}}, "f_data_504470992": {"ingresos": {"title": "Ingresos", "sub": "Ventas e ingresos del período", "color": "#0a7c52", "rows": [{"fecha": "2026-06-01", "l": "Ingr. por servicios de construcción", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 3981869}, {"fecha": "2026-06-02", "l": "Otros ingresos gravados", "ns": 0, "ex": 0, "c05": 0, "c1": 1500, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-05", "l": "Ingresos exentos", "ns": 0, "ex": 250000, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-10", "l": "Ingresos no sujetos", "ns": 180000, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}]}, "compras": {"title": "Compras", "sub": "Facturas de compra del período", "color": "#1a56db", "rows": [{"fecha": "2026-06-13", "doc": "001-001-01", "tipo": "Contado", "l": "Materiales de construcción", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 2056913}, {"fecha": "2026-06-27", "doc": "001-001-02", "tipo": "Nota de Credito", "l": "Material recuperable", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 872595}, {"fecha": "2026-06-11", "doc": "F-5582", "tipo": "Contado", "l": "Compras exentas", "ns": 0, "ex": 863338, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-28", "doc": "001-002-44", "tipo": "Contado", "l": "Equipamiento y maquinaria", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 184077}, {"doc": "1", "fecha": "2026-04-29", "tf": 1, "l": "—", "prov": "", "tipo": "Contado", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}]}, "gastos": {"title": "Gastos", "sub": "Gastos operativos del período", "color": "#92400e", "rows": [{"fecha": "2026-06-01", "doc": "EXP-01", "tipo": "Contado", "l": "Servicios públicos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 20000}, {"fecha": "2026-06-02", "doc": "EXP-02", "tipo": "Contado", "l": "Mantenimiento maq. y equipos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 949801}, {"fecha": "2026-06-03", "doc": "EXP-03", "tipo": "Contado", "l": "Gastos operativos generales", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 465608}, {"fecha": "2026-06-04", "doc": "EXP-04", "tipo": "Contado", "l": "Combustible y transporte", "ns": 0, "ex": 756679, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-05", "doc": "EXP-05", "tipo": "Contado", "l": "Software y licencias", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 10735}]}, "costos": {"title": "Costos", "sub": "Costos directos de obra", "color": "#7c3aed", "rows": [{"l": "Mano de obra directa", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 850000}, {"l": "Subcontratistas", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 950000}, {"l": "Materiales directos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 350000}]}, "obras": {"title": "Obras en Proceso", "sub": "Proyectos activos de construcción", "color": "#0e7490", "rows": [{"l": "Obra Residencial Norte", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 1250000}, {"l": "Proyecto Comercial Sur", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 1800000}, {"l": "Remodelación Industrial", "ns": 0, "ex": 320000, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}]}}};
+const SEED_DATABASE = {"f_clients": [{"type": "PF", "name": "pepe", "id": "123456788", "tel": "", "mail": "", "dir": "", "act": "", "rep": ""}, {"type": "PF", "name": "Luis Vargas Medina", "id": "504470991", "tel": "", "mail": "", "dir": "", "webhook": "http://localhost:5001/api/facturas/queue", "act": "", "rep": ""}, {"type": "PF", "name": "Games CR", "id": "504470992", "tel": "", "mail": "", "dir": "", "act": "Contador", "rep": "", "webhook": "http://localhost:5001/api/facturas/queue"}], "f_theme": "light", "sync_creds": {}, "f_data_123456788": {"ingresos": {"title": "Ingresos", "sub": "Ventas e ingresos del período", "color": "#0a7c52", "rows": [{"fecha": "2026-06-01", "l": "Ingr. por servicios de construcción", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 3981869}, {"fecha": "2026-06-02", "l": "Otros ingresos gravados", "ns": 0, "ex": 0, "c05": 0, "c1": 1500, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-05", "l": "Ingresos exentos", "ns": 0, "ex": 250000, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-10", "l": "Ingresos no sujetos", "ns": 180000, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}]}, "compras": {"title": "Compras", "sub": "Facturas de compra del período", "color": "#1a56db", "rows": [{"fecha": "2026-06-13", "doc": "001-001-01", "tipo": "Contado", "l": "Materiales de construcción", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 2056913}, {"fecha": "2026-06-27", "doc": "001-001-02", "tipo": "Nota de Credito", "l": "Material recuperable", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 872595}, {"fecha": "2026-06-11", "doc": "F-5582", "tipo": "Contado", "l": "Compras exentas", "ns": 0, "ex": 863338, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-28", "doc": "001-002-44", "tipo": "Contado", "l": "Equipamiento y maquinaria", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 184077}, {"fecha": "2026-01-18", "doc": "—", "tipo": "Contado", "l": "ADQ. ACTIVO: Compra de VEHICULOS", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 12000000}]}, "gastos": {"title": "Gastos", "sub": "Gastos operativos del período", "color": "#92400e", "rows": [{"fecha": "2026-06-01", "doc": "EXP-01", "tipo": "Contado", "l": "Servicios públicos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 20000}, {"fecha": "2026-06-02", "doc": "EXP-02", "tipo": "Contado", "l": "Mantenimiento maq. y equipos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 949801}, {"fecha": "2026-06-03", "doc": "EXP-03", "tipo": "Contado", "l": "Gastos operativos generales", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 465608}, {"fecha": "2026-06-04", "doc": "EXP-04", "tipo": "Contado", "l": "Combustible y transporte", "ns": 0, "ex": 756679, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-05", "doc": "EXP-05", "tipo": "Contado", "l": "Software y licencias", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 10735}]}, "costos": {"title": "Costos", "sub": "Costos directos de obra", "color": "#7c3aed", "rows": [{"l": "Mano de obra directa", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 850000}, {"l": "Subcontratistas", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 950000}, {"l": "Materiales directos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 350000}]}, "obras": {"title": "Obras en Proceso", "sub": "Proyectos activos de construcción", "color": "#0e7490", "rows": [{"l": "Obra Residencial Norte", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 1250000}, {"l": "Proyecto Comercial Sur", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 1800000}, {"l": "Remodelación Industrial", "ns": 0, "ex": 320000, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}]}, "activos": {"cor": {"IVA SOPORTADO": {"balance": 0, "movs": [{"fecha": "2026-01-18", "dia": 18, "doc": "—", "det": "IVA Activo: VEHICULOS", "monto": 1200000}]}}, "no_cor": {"VEHICULOS": {"balance": 0, "movs": [{"det": "Compra de VEHICULOS", "yrs": 5, "residual": 0, "depAnual": 2400000, "depMensual": 200000, "fecha": "2026-01-18", "dia": 18, "doc": "—", "monto": 12000000, "iva": 1200000}]}}, "intan": {}, "depre": {}}}, "f_data_504470991": {"ingresos": {"title": "Ingresos", "sub": "Ventas e ingresos del período", "color": "#0a7c52", "rows": [{"fecha": "2026-06-01", "l": "Ingr. por servicios de construcción", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 3981869}, {"fecha": "2026-06-02", "l": "Otros ingresos gravados", "ns": 0, "ex": 0, "c05": 0, "c1": 1500, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-05", "l": "Ingresos exentos", "ns": 0, "ex": 250000, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-10", "l": "Ingresos no sujetos", "ns": 180000, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}]}, "compras": {"title": "Compras", "sub": "Facturas de compra del período", "color": "#1a56db", "rows": [{"fecha": "2026-06-13", "doc": "001-001-01", "tipo": "Contado", "l": "Materiales de construcción", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 2056913}, {"fecha": "2026-06-27", "doc": "001-001-02", "tipo": "Nota de Credito", "l": "Material recuperable", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 872595}, {"fecha": "2026-06-11", "doc": "F-5582", "tipo": "Contado", "l": "Compras exentas", "ns": 0, "ex": 863338, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-28", "doc": "001-002-44", "tipo": "Contado", "l": "Equipamiento y maquinaria", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 184077}, {"fecha": "2024-01-13", "doc": "111111", "tipo": "Contado", "l": "ADQ. ACTIVO: Compra de VEHICULOS", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 16000000}]}, "gastos": {"title": "Gastos", "sub": "Gastos operativos del período", "color": "#92400e", "rows": [{"fecha": "2026-06-01", "doc": "EXP-01", "tipo": "Contado", "l": "Servicios públicos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 20000}, {"fecha": "2026-06-02", "doc": "EXP-02", "tipo": "Contado", "l": "Mantenimiento maq. y equipos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 949801}, {"fecha": "2026-06-03", "doc": "EXP-03", "tipo": "Contado", "l": "Gastos operativos generales", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 465608}, {"fecha": "2026-06-04", "doc": "EXP-04", "tipo": "Contado", "l": "Combustible y transporte", "ns": 0, "ex": 756679, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-05", "doc": "EXP-05", "tipo": "Contado", "l": "Software y licencias", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 10735}]}, "costos": {"title": "Costos", "sub": "Costos directos de obra", "color": "#7c3aed", "rows": [{"l": "Mano de obra directa", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 850000}, {"l": "Subcontratistas", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 950000}, {"l": "Materiales directos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 350000}]}, "obras": {"title": "Obras en Proceso", "sub": "Proyectos activos de construcción", "color": "#0e7490", "rows": [{"l": "Obra Residencial Norte", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 1250000}, {"l": "Proyecto Comercial Sur", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 1800000}, {"l": "Remodelación Industrial", "ns": 0, "ex": 320000, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}]}, "activos": {"cor": {"IVA SOPORTADO": {"balance": 0, "movs": [{"fecha": "2024-01-13", "dia": 13, "doc": "111111", "det": "IVA Activo: VEHICULOS", "monto": 1600000}]}}, "no_cor": {"VEHICULOS": {"balance": 0, "movs": [{"det": "Compra de VEHICULOS", "yrs": 5, "residual": 0, "depAnual": 3200000, "depMensual": 266666.6666666667, "fecha": "2024-01-13", "dia": 13, "doc": "111111", "monto": 16000000, "iva": 1600000}]}}, "intan": {}, "depre": {}}, "pasivos": {"pas_cor": {}, "pas_ncor": {}}, "patrimonio": {"patrim": {"CAPITAL PERSONA FISICA": 17242222, "GANANCIAS O PERDIDAS ACUMULADAS": -8975000}}, "cxp": {"rows": []}, "cxc": {"rows": [{"fecha": "2026-01-12", "vencimiento": "2026-12-11", "cliente": "asda", "doc": "a111", "monto": 100000, "pagado": false}]}}, "f_data_504470992": {"ingresos": {"title": "Ingresos", "sub": "Ventas e ingresos del período", "color": "#0a7c52", "rows": [{"fecha": "2026-06-01", "l": "Ingr. por servicios de construcción", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 3981869}, {"fecha": "2026-06-02", "l": "Otros ingresos gravados", "ns": 0, "ex": 0, "c05": 0, "c1": 1500, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-05", "l": "Ingresos exentos", "ns": 0, "ex": 250000, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-10", "l": "Ingresos no sujetos", "ns": 180000, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}]}, "compras": {"title": "Compras", "sub": "Facturas de compra del período", "color": "#1a56db", "rows": [{"fecha": "2026-06-13", "doc": "001-001-01", "tipo": "Contado", "l": "Materiales de construcción", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 2056913}, {"fecha": "2026-06-27", "doc": "001-001-02", "tipo": "Nota de Credito", "l": "Material recuperable", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 872595}, {"fecha": "2026-06-11", "doc": "F-5582", "tipo": "Contado", "l": "Compras exentas", "ns": 0, "ex": 863338, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-28", "doc": "001-002-44", "tipo": "Contado", "l": "Equipamiento y maquinaria", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 184077}, {"doc": "1", "fecha": "2026-04-29", "tf": 1, "l": "—", "prov": "", "tipo": "Contado", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}]}, "gastos": {"title": "Gastos", "sub": "Gastos operativos del período", "color": "#92400e", "rows": [{"fecha": "2026-06-01", "doc": "EXP-01", "tipo": "Contado", "l": "Servicios públicos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 20000}, {"fecha": "2026-06-02", "doc": "EXP-02", "tipo": "Contado", "l": "Mantenimiento maq. y equipos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 949801}, {"fecha": "2026-06-03", "doc": "EXP-03", "tipo": "Contado", "l": "Gastos operativos generales", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 465608}, {"fecha": "2026-06-04", "doc": "EXP-04", "tipo": "Contado", "l": "Combustible y transporte", "ns": 0, "ex": 756679, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}, {"fecha": "2026-06-05", "doc": "EXP-05", "tipo": "Contado", "l": "Software y licencias", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 10735}]}, "costos": {"title": "Costos", "sub": "Costos directos de obra", "color": "#7c3aed", "rows": [{"l": "Mano de obra directa", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 850000}, {"l": "Subcontratistas", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 950000}, {"l": "Materiales directos", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 350000}]}, "obras": {"title": "Obras en Proceso", "sub": "Proyectos activos de construcción", "color": "#0e7490", "rows": [{"l": "Obra Residencial Norte", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 1250000}, {"l": "Proyecto Comercial Sur", "ns": 0, "ex": 0, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 1800000}, {"l": "Remodelación Industrial", "ns": 0, "ex": 320000, "c05": 0, "c1": 0, "c2": 0, "c4": 0, "c8": 0, "c13": 0}]}}};
 
 
 function initStorageFromDiskE() {
@@ -4691,7 +4691,7 @@ function pushToBackend(silent = true) {
     const payload = {
       f_clients: clients,
       f_theme: localStorage.getItem('f_theme') || 'light',
-      n8n_creds: JSON.parse(localStorage.getItem('n8n_creds') || '{}'),
+      sync_creds: JSON.parse(localStorage.getItem('fm_sync_creds') || '{}'),
       cuenta_id: cuentaId
     };
     clients.forEach(c => {
@@ -4752,7 +4752,7 @@ function syncFromBackend(targetCuenta = null) {
         });
 
         if (res.data.f_theme) localStorage.setItem('f_theme', res.data.f_theme);
-        if (res.data.n8n_creds) localStorage.setItem('n8n_creds', JSON.stringify(res.data.n8n_creds));
+        if (res.data.sync_creds) localStorage.setItem('fm_sync_creds', JSON.stringify(res.data.sync_creds));
         
         const clv = document.getElementById('client-list-view');
         if (clv && clv.style.display !== 'none' && typeof showClientList === 'function') {
@@ -4870,7 +4870,7 @@ const TITLES={
   pasivos:['Pasivo','Plan de pagos, tabla de amortización de deuda y gestión de pasivos financieros'],
   patrim:['Patrimonio','Control de cuentas patrimoniales'],
   conv:['Convertidor','Moneda y calculadora IVA'],
-  n8n:['Registrar Facturas','Bandeja de facturas escaneadas por registrar'],
+  facturas_inbox:['Registrar Facturas','Bandeja de facturas escaneadas por registrar'],
 };
 const fmt = n => n===0?'—':'₡'+(n<0?'-':'')+fmFormatNumEspacios(Math.round(Math.abs(n)), 0, 0);
 function fmtCRC(n, forceMinus = false) {
@@ -13698,8 +13698,8 @@ function selectClient(idx) {
     pmv.style.display = 'flex';
     setTimeout(() => pmv.style.opacity = '1', 50);
     fmActualizarBadge();
-    const pgN8n = document.getElementById('pg-n8n');
-    if (pgN8n && pgN8n.classList.contains('on')) fmCargar();
+    const pgInbox = document.getElementById('pg-facturas_inbox');
+    if (pgInbox && pgInbox.classList.contains('on')) fmCargar();
   }, 500);
 }
 
@@ -14408,7 +14408,7 @@ function runTributinAudit(){
 }
 </script>
 <!-- ========================================================
-     BLOQUE FACTURAMI SYNC (n8n Webhook)
+     BLOQUE FACTURAMI SYNC (Facturas Cloud Ingestion)
      ======================================================== -->
 <style>
   #fm-sync-panel {
@@ -14498,7 +14498,7 @@ function runTributinAudit(){
 <div id="fm-sync-panel">
   <div id="fm-inbox">
     <div id="fm-inbox-header">
-      <span>Facturas desde n8n</span>
+      <span>Facturas Pendientes</span>
       <span id="fm-count" style="color:#888;font-weight:400"></span>
     </div>
     <div id="fm-inbox-body">
@@ -14961,8 +14961,8 @@ function fmCerrar() {
 }
 
 async function fmCargar() {
-  const el = document.getElementById('n8n-content');
-  const btn = document.getElementById('btn-sidebar-n8n');
+  const el = document.getElementById('fm-sync-content');
+  const btn = document.getElementById('btn-sidebar-sync');
   if(btn) btn.style.opacity = '0.5';
 
   el.innerHTML = '<div class="empty-state"><div class="empty-state-icon" style="font-size:32px">📥</div><div class="empty-state-title">Cargando facturas...</div><div class="empty-state-desc">Consultando cola en servidor local</div></div>';
@@ -14975,7 +14975,7 @@ async function fmCargar() {
     fmDatos = await res.json();
     if (!Array.isArray(fmDatos)) fmDatos = fmDatos.data || [];
     fmSetConnStatus('online');
-    renderN8nTable();
+    renderSyncTable();
     fmActualizarBadge();
   } catch (err) {
     fmSetConnStatus('offline');
@@ -15006,8 +15006,8 @@ async function fmCargar() {
   }
 }
 
-function renderN8nTable() {
-  const el = document.getElementById('n8n-content');
+function renderSyncTable() {
+  const el = document.getElementById('fm-sync-content');
   if (fmDatos.length === 0) {
     el.innerHTML = '<div class="empty-state"><div class="empty-state-icon" style="font-size:42px">📥</div><div class="empty-state-title">Bandeja Vacía</div><div class="empty-state-desc">No hay facturas pendientes.</div><button onclick="fmAbrirUploadPanel()" style="margin-top:14px;padding:10px 22px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:10px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;font-family:var(--ff)">📄 Subir Facturas (PDF o Fotos)</button></div>';
     return;
@@ -15509,8 +15509,8 @@ async function fmpRegistrar() {
   }
 }
 
-function toggleN8nMenu() {
-  const menu = document.getElementById('n8n-sub-menu');
+function toggleSyncMenu() {
+  const menu = document.getElementById('fm-sync-sub-menu');
   menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
 }
 
@@ -15528,65 +15528,65 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 2000);
 });
 
-function openN8nCredModal() {
-  document.getElementById('n8nCredModal').style.display = 'flex';
-  const creds = JSON.parse(localStorage.getItem('n8n_creds') || '{}');
-  document.getElementById('n8n_client_id').value = creds.clientId || '';
-  document.getElementById('n8n_client_secret').value = creds.clientSecret || '';
-  document.getElementById('n8n_domains').value = creds.domains || 'All';
+function openSyncCredModal() {
+  document.getElementById('fmSyncCredModal').style.display = 'flex';
+  const creds = JSON.parse(localStorage.getItem('fm_sync_creds') || '{}');
+  document.getElementById('fm_client_id').value = creds.clientId || '';
+  document.getElementById('fm_client_secret').value = creds.clientSecret || '';
+  document.getElementById('fm_domains').value = creds.domains || 'All';
 }
 
-function closeN8nCredModal() {
-  document.getElementById('n8nCredModal').style.display = 'none';
+function closeSyncCredModal() {
+  document.getElementById('fmSyncCredModal').style.display = 'none';
 }
 
-function saveN8nCreds() {
-  const clientId = document.getElementById('n8n_client_id').value;
-  const clientSecret = document.getElementById('n8n_client_secret').value;
-  const domains = document.getElementById('n8n_domains').value;
-  localStorage.setItem('n8n_creds', JSON.stringify({ clientId, clientSecret, domains }));
+function saveSyncCreds() {
+  const clientId = document.getElementById('fm_client_id').value;
+  const clientSecret = document.getElementById('fm_client_secret').value;
+  const domains = document.getElementById('fm_domains').value;
+  localStorage.setItem('fm_sync_creds', JSON.stringify({ clientId, clientSecret, domains }));
   if (typeof showToast === 'function') {
     showToast('Credenciales guardadas localmente.');
   }
-  closeN8nCredModal();
+  closeSyncCredModal();
 }
 </script>
 
-<!-- MODAL CREDENCIALES N8N -->
-<div id="n8nCredModal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);justify-content:center;align-items:center;">
+<!-- MODAL CREDENCIALES FACTURAMI SYNC -->
+<div id="fmSyncCredModal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);justify-content:center;align-items:center;">
   <div style="background:#fff;border-radius:12px;width:100%;max-width:550px;padding:24px;box-shadow:0 25px 50px rgba(0,0,0,0.2);display:flex;flex-direction:column;gap:20px;font-family:sans-serif;">
     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eee;padding-bottom:12px;">
       <h2 style="font-size:18px;font-weight:600;color:#111;margin:0;">Credencial</h2>
-      <button onclick="closeN8nCredModal()" style="background:none;border:none;font-size:20px;color:#888;cursor:pointer;">✕</button>
+      <button onclick="closeSyncCredModal()" style="background:none;border:none;font-size:20px;color:#888;cursor:pointer;">✕</button>
     </div>
     
     <div>
       <label style="display:block;font-size:13px;color:#555;margin-bottom:6px;">OAuth Redirect URL</label>
-      <input type="text" readonly value="http://localhost:5678/rest/oauth2-credential/callback" style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;background:#f9f9f9;color:#555;font-size:13px;font-family:monospace;box-sizing:border-box;">
+      <input type="text" readonly value="https://facturami.app/oauth2/callback" style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;background:#f9f9f9;color:#555;font-size:13px;font-family:monospace;box-sizing:border-box;">
       <p style="font-size:11px;color:#777;margin:6px 0 0 0;">In Google Drive, use the URL above when prompted to enter an OAuth callback or redirect URL</p>
     </div>
 
     <div>
       <label style="display:block;font-size:13px;color:#555;margin-bottom:6px;">Client ID <span style="color:#d9534f">*</span></label>
-      <input type="text" id="n8n_client_id" placeholder="8391378...apps.googleusercontent.com" style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:13px;box-sizing:border-box;">
+      <input type="text" id="fm_client_id" placeholder="8391378...apps.googleusercontent.com" style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:13px;box-sizing:border-box;">
     </div>
 
     <div>
       <label style="display:block;font-size:13px;color:#555;margin-bottom:6px;">Client Secret <span style="color:#d9534f">*</span></label>
-      <input type="password" id="n8n_client_secret" placeholder="•••••••••••••••••••••••••••••••••" style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:13px;box-sizing:border-box;">
+      <input type="password" id="fm_client_secret" placeholder="•••••••••••••••••••••••••••••••••" style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:13px;box-sizing:border-box;">
     </div>
 
     <div>
       <label style="display:block;font-size:13px;color:#555;margin-bottom:6px;">Allowed HTTP Request Domains</label>
-      <select id="n8n_domains" style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:13px;box-sizing:border-box;background:#fff;">
+      <select id="fm_domains" style="width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:6px;font-size:13px;box-sizing:border-box;background:#fff;">
         <option>All</option>
         <option>Specific Domains</option>
       </select>
     </div>
 
     <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:10px;">
-      <button onclick="closeN8nCredModal()" style="padding:10px 16px;background:#fff;border:1px solid #ccc;border-radius:6px;color:#555;font-size:13px;cursor:pointer;">Cancelar</button>
-      <button onclick="saveN8nCreds()" style="padding:10px 16px;background:#3b82f6;border:none;border-radius:6px;color:#fff;font-size:13px;cursor:pointer;">Guardar</button>
+      <button onclick="closeSyncCredModal()" style="padding:10px 16px;background:#fff;border:1px solid #ccc;border-radius:6px;color:#555;font-size:13px;cursor:pointer;">Cancelar</button>
+      <button onclick="saveSyncCreds()" style="padding:10px 16px;background:#3b82f6;border:none;border-radius:6px;color:#fff;font-size:13px;cursor:pointer;">Guardar</button>
     </div>
   </div>
 </div>
