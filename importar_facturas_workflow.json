@@ -1,0 +1,332 @@
+{
+  "name": "Importar Facturas PDF",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "importar-facturas",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-240, 16],
+      "id": "a6b0a9b6-5235-421d-aa24-82a4ecc74da8",
+      "name": "Recibir PDF",
+      "webhookId": "importar-facturas"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "={{ $binary.keys()[0] }}",
+        "name": "={{ $binary.values()[0].fileName }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1pGhmiNt6fAchr0ACk0dhWyIlLRVyZdK5",
+          "mode": "list",
+          "cachedResultName": "Facturas Sin Procesar",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1pGhmiNt6fAchr0ACk0dhWyIlLRVyZdK5"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [0, 16],
+      "id": "6117d9d0-6924-4a17-8913-bde1e57c980d",
+      "name": "Subir a Drive",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "wRRK5PPBeKTauAf9",
+          "name": "Facturami Credencial"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [200, 16],
+      "id": "e52bf9f2-eb3e-4d34-b40a-13b522521533",
+      "name": "Procesar uno a uno"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{$json.id}}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [420, 16],
+      "id": "d7ffa560-e7c8-48ee-8273-e4b31fa27f07",
+      "name": "Descargar PDF",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "wRRK5PPBeKTauAf9",
+          "name": "Facturami Credencial"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "destinationKey": "base64",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [600, 16],
+      "id": "b1aa1aaa-1900-437a-8513-91a998de3406",
+      "name": "Extraer Base64"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "=key",
+              "value": "AIzaSyA5gNHyC4HupianfV9XIPeNgPE-s3Uy__k"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "=Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"role\": \"user\",\n      \"parts\": [\n        {\n          \"inlineData\": {\n            \"mimeType\": \"{{ $('Descargar PDF').item.binary.data.mimeType }}\",\n            \"data\": \"{{ $('Extraer Base64').item.json.base64 }}\"\n          }\n        },\n        {\n          \"text\": \"Mi empresa es Contabilidad LVM, que es el receptor de la factura.\\n\\n**INSTRUCCIÓN CRÍTICA:** Debes devolver estrictamente un **array JSON** que contenga **un solo objeto** con toda la información extraída. Ejemplo de formato esperado: **[ { ...objeto con datos... } ]**\\n\\nA partir del documento de factura proporcionado, extrae los siguientes campos y devuelve el objeto JSON con los campos en el orden exacto listado a continuación. Los nombres de las claves deben coincidir exactamente con los solicitados, incluyendo espacios y caracteres especiales:\\n\\n⸻\\n\\n• FECHAFACTURA: La fecha en que se emitió la factura. Formato estrictamente así: DD/MM/AAAA (p. ej. 15/11/2025).\\n• Categoria: Clasifica el gasto en una de las siguientes categorías predefinidas:\\n    • Servicios Profesionales y Legales (Abogados, Notarios, Contadores, Consultoría especializada)\\n    • Costes de IT y Software (Licencias, Hosting, Servidores, Desarrollo web, Mantenimiento informático)\\n    • Telefonía y Comunicaciones (Internet, Líneas móviles, Teléfono fijo, Plataformas de comunicación)\\n    • Material de Oficina y Consumibles (Papelería, Tóner/Tinta, Suministros básicos de oficina)\\n    • Viajes, Alojamiento y Dietas (Billetes de avión/tren, Hoteles, Comidas de negocios, Taxis/Ubers)\\n    • Marketing y Publicidad (Campañas online/offline, Diseño gráfico, Publicidad en redes, Impresión publicitaria)\\n    • Suscripciones y Membresías (Cuotas de asociaciones, Revistas especializadas, Servicios de streaming)\\n    • Formación y Educación (Cursos, Seminarios, Talleres, Libros técnicos, Congresos)\\n    • Alquileres y Renta (Alquiler de oficinas, Locales, Equipos o Maquinaria)\\n    • Suministros Básicos (Electricidad, Agua, Gas, Servicios de limpieza)\\n    • Gastos Financieros y Bancarios (Comisiones bancarias, Intereses, Gastos de transferencia)\\n    • Reparaciones y Mantenimiento de Activos (Vehículos, Mobiliario, Equipos, Mantenimiento general)\\n    • Seguros (Pólizas de oficina, Vehículos, Responsabilidad civil)\\n    • Impuestos, Tasas y Permisos (Pagos a entidades gubernamentales, Licencias municipales)\\n    • Nóminas y Seguridad Social (Salarios, Cargas sociales, Prestaciones)\\n    • Otros Gastos Operativos No Clasificados\\n• PROVEEDOR: El nombre de la empresa o persona que emitió la factura.\\n• NUMEROFACTURA: El número de identificación único de la factura o comprobante. Debe incluir la serie y el consecutivo (p. ej., 'F001-00000123' o '00254').\\n• SUB TOTAL: El precio neto total de la factura (suma de todas las bases imponibles). Si la factura es de formato PriceSmart, esta suma **excluye** los ítems Exentos (código 'E').\\n    • Formato con coma como separador decimal. Ejemplo: \\\"1200,00\\\".\\n• **IVA 1%**: La suma total del impuesto (IVA) aplicado a la tasa del 1%. **Si es PriceSmart, aplica el 1% sobre los ítems marcados con 'P'.** Es CRÍTICO desglosar este monto del Total IVA.\\n    • Formato con coma como separador decimal. Escribe \\\"0,00\\\" si no aplica.\\n• **IVA 2%**: La suma total del impuesto (IVA) aplicado a la tasa del 2%. **Si es PriceSmart, aplica el 2% sobre los ítems marcados con 'M'.** Es CRÍTICO desglosar este monto del Total IVA.\\n    • Formato con coma como separador decimal. Escribe \\\"0,00\\\" si no aplica.\\n• **IVA 13%**: La suma total del impuesto (IVA) aplicado a la tasa del 13%. **Si es PriceSmart, aplica el 13% sobre los ítems marcados con 'G'.** Es CRÍTICO desglosar este monto del Total IVA.\\n    • Formato con coma como separador decimal. Escribe \\\"0,00\\\" si no aplica.\\n• **IVA otros**: La suma total del impuesto (IVA) aplicado a CUALQUIER otra tasa (p. ej. 4% [Código 'S'], 19%, 21%). **Si es PriceSmart, aplica el 4% sobre los ítems marcados con 'S'.** Es CRÍTICO desglosar este monto del Total IVA.\\n    • Formato con coma como separador decimal. Escribe \\\"0,00\\\" si no aplica.\\n• TOTAL: El importe total incluido el IVA.\\n    • Formato con coma como separador decimal.\\n• Notas: Debe contener un resumen de los productos o servicios adquiridos y cualquier observación relevante, incluyendo si se aplicaron códigos de IVA (P, M, S, G, E).\\n• URL: Dado que la factura fue subida como archivo, este campo siempre debe ser \\\"N/A\\\".\\n\\n⸻\\n\\n✅ Asegúrate de:\\n• Formato consistente en todos los campos.\\n• Ningún campo vacío (usa \\\"N/A\\\" o \\\"0,00\\\" según corresponda).\\n• Cumplimiento estricto del orden y claves indicadas.\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"temperature\": 0,\n    \"topK\": 1,\n    \"topP\": 0.95,\n    \"maxOutputTokens\": 1024,\n    \"responseMimeType\": \"application/json\"\n  }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [780, 16],
+      "id": "b9e1cac4-9b5a-4c6e-943e-fca6668203c0",
+      "name": "Gemini Analizar"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fe29fadf-1d53-4be3-885f-4f03967fd23b",
+              "name": "JsonString",
+              "value": "={{JSON.parse($json.candidates[0].content.parts[0].text)}}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [960, 16],
+      "id": "cf348171-d985-47bb-85e9-1c04c3315c5b",
+      "name": "Parsear JSON"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:5001/api/facturas/queue",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  \"client_id\": $('Recibir PDF').item.json.body?.client_id || \"default\",\n  \"FECHA\": $json.JsonString[0].FECHAFACTURA,\n  \"FACTURA\": $json.JsonString[0].NUMEROFACTURA,\n  \"Categoria\": $json.JsonString[0].Categoria,\n  \"PROVEEDOR\": $json.JsonString[0].PROVEEDOR,\n  \"SUB TOTAL\": $json.JsonString[0][\"SUB TOTAL\"],\n  \"IVA 1%\": $json.JsonString[0][\"IVA 1%\"],\n  \"IVA 2%\": $json.JsonString[0][\"IVA 2%\"],\n  \"IVA 4%\": $json.JsonString[0][\"IVA otros\"],\n  \"IVA 13%\": $json.JsonString[0][\"IVA 13%\"],\n  \"TOTAL\": $json.JsonString[0].TOTAL,\n  \"Notas\": $json.JsonString[0].Notas,\n  \"DRIVE_ID\": $('Descargar PDF').item.json.id\n}) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1140, 16],
+      "id": "dc10e564-92c4-42e8-a018-03917ebda74a",
+      "name": "Enviar a FACTURAMI"
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Descargar PDF').item.json.id }}",
+          "mode": "id"
+        },
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "19OBoRIXSdthtmuVMShgg8HuNwg4EWPV1",
+          "mode": "list",
+          "cachedResultName": "Facturas Procesadas",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/19OBoRIXSdthtmuVMShgg8HuNwg4EWPV1"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1320, 16],
+      "id": "da8d1b56-44f9-4b65-ab4c-876579564534",
+      "name": "Mover a Procesadas",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "wRRK5PPBeKTauAf9",
+          "name": "Facturami Credencial"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ok\": true, \"procesadas\": {{ $('Procesar uno a uno').item.json.length || 1 }}, \"msg\": \"Facturas procesadas exitosamente\"}"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1500, -200],
+      "id": "resp-001",
+      "name": "Responder OK"
+    }
+  ],
+  "connections": {
+    "Recibir PDF": {
+      "main": [
+        [
+          {
+            "node": "Subir a Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Subir a Drive": {
+      "main": [
+        [
+          {
+            "node": "Procesar uno a uno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar uno a uno": {
+      "main": [
+        [
+          {
+            "node": "Responder OK",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Descargar PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar PDF": {
+      "main": [
+        [
+          {
+            "node": "Extraer Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Base64": {
+      "main": [
+        [
+          {
+            "node": "Gemini Analizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Analizar": {
+      "main": [
+        [
+          {
+            "node": "Parsear JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear JSON": {
+      "main": [
+        [
+          {
+            "node": "Enviar a FACTURAMI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar a FACTURAMI": {
+      "main": [
+        [
+          {
+            "node": "Mover a Procesadas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mover a Procesadas": {
+      "main": [
+        [
+          {
+            "node": "Procesar uno a uno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "0ee4f148d73f783c097c7d121dd71450fa02dc1d8cc8332da3fc7985ff7692e6"
+  }
+}

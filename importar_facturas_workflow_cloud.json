@@ -1,0 +1,358 @@
+{
+  "name": "Importar Facturas PDF",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "importar-facturas",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        800,
+        384
+      ],
+      "id": "67b20269-3ad0-42f1-9396-1af2b9ac0bd1",
+      "name": "Recibir PDF",
+      "webhookId": "importar-facturas"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": true,\n  \"procesadas\": 1,\n  \"msg\": \"Facturas procesadas exitosamente\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1520,
+        144
+      ],
+      "id": "c0c4e805-8bc2-47d1-acb9-c9807d13dfe9",
+      "name": "Responder OK"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "={{ $binary.keys()[0] }}",
+        "name": "={{ $binary.values()[0].fileName }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1pGhmiNt6fAchr0ACk0dhWyIlLRVyZdK5",
+          "mode": "list",
+          "cachedResultName": "Facturas Sin Procesar",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1pGhmiNt6fAchr0ACk0dhWyIlLRVyZdK5"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        992,
+        384
+      ],
+      "id": "d829448c-cd14-4ea8-aeae-0723c53feda0",
+      "name": "Subir a Drive1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "7rAQtcuIOwf3ktu2",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1200,
+        384
+      ],
+      "id": "0f02770a-3766-4012-9c6f-50a746e01700",
+      "name": "Procesar uno a uno1"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{$json.id}}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1408,
+        384
+      ],
+      "id": "81a0d334-ed0a-461a-9e7a-e3c34a68c317",
+      "name": "Descargar PDF1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "7rAQtcuIOwf3ktu2",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "destinationKey": "base64",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        384
+      ],
+      "id": "c0d06c81-eb98-40ff-af42-42eabe27f835",
+      "name": "Extraer Base"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "=key",
+              "value": "AQ.Ab8RN6KghhRlPEXfIbLLiH4Vv4F3KjGdrevo_b6YY8yjiWtGww"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "=Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"role\": \"user\",\n      \"parts\": [\n        {\n          \"inlineData\": {\n            \"mimeType\": \"{{ $('Descargar PDF1').item.binary.data.mimeType }}\",\n            \"data\": \"{{ $('Extraer Base').item.json.base64 }}\"\n          }\n        },\n        {\n          \"text\": \"Mi empresa es Contabilidad LVM, que es el receptor de la factura.\\n\\n**INSTRUCCIÓN CRÍTICA:** Debes devolver estrictamente un **array JSON** que contenga **un solo objeto** con toda la información extraída. Ejemplo de formato esperado: **[ { ...objeto con datos... } ]**\\n\\nA partir del documento de factura proporcionado, extrae los siguientes campos y devuelve el objeto JSON con los campos en el orden exacto listado a continuación. Los nombres de las claves deben coincidir exactamente con los solicitados, incluyendo espacios y caracteres especiales:\\n\\n• FECHAFACTURA: La fecha en que se emitió la factura. Formato estrictamente así: DD/MM/AAAA.\\n• Categoria: Clasifica el gasto en una de las categorías contables predefinidas.\\n• PROVEEDOR: El nombre de la empresa o persona que emitió la factura.\\n• NUMEROFACTURA: El número de identificación único de la factura o comprobante.\\n• SUB TOTAL: El precio neto total de la factura con coma decimal.\\n• IVA 1%: Suma de IVA 1% con coma decimal.\\n• IVA 2%: Suma de IVA 2% con coma decimal.\\n• IVA 13%: Suma de IVA 13% con coma decimal.\\n• IVA otros: Suma de IVA 4% u otras tasas con coma decimal.\\n• TOTAL: El importe total con coma decimal.\\n• Notas: Resumen de productos/servicios adquiridos.\\n• URL: 'N/A'.\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"temperature\": 0,\n    \"topK\": 1,\n    \"topP\": 0.95,\n    \"maxOutputTokens\": 8192,\n    \"responseMimeType\": \"application/json\",\n    \"thinkingConfig\": {\n      \"thinkingBudget\": 0\n    }\n  }\n}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1776,
+        384
+      ],
+      "id": "109d6617-c0d1-4030-8d6d-8d0a6b33294e",
+      "name": "Gemini Analizar1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fe29fadf-1d53-4be3-885f-4f03967fd23b",
+              "name": "JsonString",
+              "value": "={{ Array.isArray(JSON.parse($json.candidates[0].content.parts[0].text)) ? JSON.parse($json.candidates[0].content.parts[0].text) : [JSON.parse($json.candidates[0].content.parts[0].text)] }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1952,
+        384
+      ],
+      "id": "147e789e-1d05-474f-adce-7168c1f2cd05",
+      "name": "Parsear JSON1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://app:5001/api/facturas/queue",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"client_id\": \"{{ $('Recibir PDF').item.json.body.client_id || 'default' }}\",\n  \"hash_archivo\": \"{{ $('Recibir PDF').item.json.body.hash_archivo || '' }}\",\n  \"origen\": \"pdf_manual\",\n  \"FECHA\": \"{{ $json.JsonString[0].FECHAFACTURA }}\",\n  \"FACTURA\": \"{{ $json.JsonString[0].NUMEROFACTURA }}\",\n  \"Categoria\": \"{{ $json.JsonString[0].Categoria }}\",\n  \"PROVEEDOR\": \"{{ $json.JsonString[0].PROVEEDOR }}\",\n  \"SUB TOTAL\": \"{{ $json.JsonString[0]['SUB TOTAL'] }}\",\n  \"IVA 1%\": \"{{ $json.JsonString[0]['IVA 1%'] }}\",\n  \"IVA 2%\": \"{{ $json.JsonString[0]['IVA 2%'] }}\",\n  \"IVA 4%\": \"{{ $json.JsonString[0]['IVA otros'] }}\",\n  \"IVA 13%\": \"{{ $json.JsonString[0]['IVA 13%'] }}\",\n  \"TOTAL\": \"{{ $json.JsonString[0].TOTAL }}\",\n  \"Notas\": \"{{ $json.JsonString[0].Notas }}\",\n  \"DRIVE_ID\": \"{{ $('Descargar PDF1').item.json.id }}\"\n}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2128,
+        384
+      ],
+      "id": "71b71a8c-8ebc-4d7a-8d4d-1d7bf027a0ae",
+      "name": "Enviar a FACTURAMI1"
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Descargar PDF1').item.json.id }}",
+          "mode": "id"
+        },
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "19OBoRIXSdthtmuVMShgg8HuNwg4EWPV1",
+          "mode": "list",
+          "cachedResultName": "Facturas Procesadas",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/19OBoRIXSdthtmuVMShgg8HuNwg4EWPV1"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2320,
+        384
+      ],
+      "id": "5ee65038-111c-4c86-89b6-f52f62c149b2",
+      "name": "Mover a Procesadas1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "7rAQtcuIOwf3ktu2",
+          "name": "Google Drive account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Recibir PDF": {
+      "main": [
+        [
+          {
+            "node": "Subir a Drive1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Subir a Drive1": {
+      "main": [
+        [
+          {
+            "node": "Procesar uno a uno1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar uno a uno1": {
+      "main": [
+        [
+          {
+            "node": "Responder OK",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Descargar PDF1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar PDF1": {
+      "main": [
+        [
+          {
+            "node": "Extraer Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Base": {
+      "main": [
+        [
+          {
+            "node": "Gemini Analizar1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Analizar1": {
+      "main": [
+        [
+          {
+            "node": "Parsear JSON1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear JSON1": {
+      "main": [
+        [
+          {
+            "node": "Enviar a FACTURAMI1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar a FACTURAMI1": {
+      "main": [
+        [
+          {
+            "node": "Mover a Procesadas1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mover a Procesadas1": {
+      "main": [
+        [
+          {
+            "node": "Procesar uno a uno1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true
+}

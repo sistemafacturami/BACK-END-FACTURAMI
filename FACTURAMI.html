@@ -3303,7 +3303,7 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
         </div>
         <div onclick="fmAbrirUploadPanel()" style="padding:8px 12px;font-size:12px;font-weight:500;color:rgba(255,255,255,0.6);cursor:pointer;border-radius:6px;transition:0.2s;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,0.07)';this.style.color='#fff';" onmouseout="this.style.background='transparent';this.style.color='rgba(255,255,255,0.6)';">
           <span style="width:4px;height:4px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span>
-          Importar PDFs
+          Importar PDFs / Fotos
         </div>
 
       </div>
@@ -14675,7 +14675,7 @@ async function fmCargar() {
 function renderN8nTable() {
   const el = document.getElementById('n8n-content');
   if (fmDatos.length === 0) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon" style="font-size:42px">📥</div><div class="empty-state-title">Bandeja Vacía</div><div class="empty-state-desc">No hay facturas pendientes.</div><button onclick="fmAbrirUploadPanel()" style="margin-top:14px;padding:10px 22px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:10px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;font-family:var(--ff)">📄 Importar PDFs</button></div>';
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon" style="font-size:42px">📥</div><div class="empty-state-title">Bandeja Vacía</div><div class="empty-state-desc">No hay facturas pendientes.</div><button onclick="fmAbrirUploadPanel()" style="margin-top:14px;padding:10px 22px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:10px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;font-family:var(--ff)">📄 Subir Facturas (PDF o Fotos)</button></div>';
     return;
   }
 
@@ -14731,7 +14731,7 @@ function renderN8nTable() {
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <h2 style="font-size:18px;font-family:var(--ff);color:var(--ink);margin:0;">Facturas Detectadas</h2>
       <div style="display:flex;gap:8px;align-items:center">
-        <button onclick="fmAbrirUploadPanel()" style="padding:7px 16px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:8px;font-size:12px;font-weight:600;color:#fff;cursor:pointer;font-family:var(--ff);transition:all .2s" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">📄 Importar PDFs</button>
+        <button onclick="fmAbrirUploadPanel()" style="padding:7px 16px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:8px;font-size:12px;font-weight:600;color:#fff;cursor:pointer;font-family:var(--ff);transition:all .2s" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">📄 Subir Facturas / Fotos</button>
         <span class="badge badge-b" style="background:#3b82f6;color:#fff">${fmDatos.length} registros listos</span>
       </div>
     </div>
@@ -14989,13 +14989,18 @@ function fmpAbrirPreview(fila) {
     extLink.style.display = pdfUrl ? 'inline-flex' : 'none';
   }
   if (pdfTitle) {
-    pdfTitle.textContent = num ? `Factura ${num}` : 'Documento Digital';
+    const esFoto = fila.origen === 'foto_manual';
+    pdfTitle.textContent = num ? `Factura ${num}` : (esFoto ? 'Foto de Factura' : 'Documento Digital');
   }
   if (origenBadge) {
     if (fila.origen === 'gmail') {
       origenBadge.textContent = '✉️ Gmail';
       origenBadge.style.background = '#e0e7ff';
       origenBadge.style.color = '#3730a3';
+    } else if (fila.origen === 'foto_manual') {
+      origenBadge.textContent = '📸 Foto';
+      origenBadge.style.background = '#dcfce7';
+      origenBadge.style.color = '#15803d';
     } else {
       origenBadge.textContent = '📄 PDF';
       origenBadge.style.background = '#fef3c7';
@@ -15320,19 +15325,19 @@ function saveN8nCreds() {
   <div class="fm-upload-card">
     <div class="fm-upload-header">
       <div>
-        <div style="font-size:15px;font-weight:700;letter-spacing:-.01em">📄 Importar Facturas PDF</div>
-        <div style="font-size:11px;opacity:.7;margin-top:2px">Sube facturas para análisis automático con IA</div>
+        <div style="font-size:15px;font-weight:700;letter-spacing:-.01em">📄 Importar Facturas (PDF o Fotos)</div>
+        <div style="font-size:11px;opacity:.7;margin-top:2px">Sube facturas en PDF o fotos de recibos/cámara para análisis con IA</div>
       </div>
       <button onclick="fmCerrarUpload()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer">✕ Cerrar</button>
     </div>
     <div class="fm-upload-body">
       <div class="fm-dropzone" id="fm-dropzone" onclick="document.getElementById('fm-pdf-input').click()">
         <div style="font-size:42px;margin-bottom:8px">📥</div>
-        <div style="font-size:14px;font-weight:600;color:var(--ink);margin-bottom:4px">Arrastra tus PDFs aquí</div>
-        <div style="font-size:12px;color:var(--ink3)">o haz clic para seleccionar archivos</div>
-        <div style="font-size:11px;color:var(--ink4);margin-top:8px">Solo archivos PDF • Máximo 10 archivos</div>
+        <div style="font-size:14px;font-weight:600;color:var(--ink);margin-bottom:4px">Arrastra tus facturas o fotos aquí</div>
+        <div style="font-size:12px;color:var(--ink3)">o haz clic para seleccionar archivos / tomar foto con tu celular</div>
+        <div style="font-size:11px;color:var(--ink4);margin-top:8px">Formatos: PDF, JPG, PNG, WEBP • Máximo 10 archivos</div>
       </div>
-      <input type="file" id="fm-pdf-input" accept=".pdf,application/pdf" multiple style="display:none" onchange="fmAgregarArchivos(this.files)">
+      <input type="file" id="fm-pdf-input" accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/jpg,.jpg,.jpeg,.png,.webp" multiple style="display:none" onchange="fmAgregarArchivos(this.files)">
       <div class="fm-file-list" id="fm-file-list"></div>
       <div class="fm-upload-progress" id="fm-upload-progress">
         <div style="font-size:13px;font-weight:600;color:var(--ink)" id="fm-prog-text">Enviando facturas...</div>
@@ -15383,10 +15388,16 @@ function fmCerrarUpload() {
   if (typeof fmActualizarBadge === 'function') fmActualizarBadge();
 }
 
+function fmEsArchivoValido(f) {
+  const tiposValidos = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+  if (f.type && tiposValidos.includes(f.type.toLowerCase())) return true;
+  return /\.(pdf|jpe?g|png|webp)$/i.test(f.name || '');
+}
+
 function fmAgregarArchivos(fileList) {
   for (const f of fileList) {
-    if (f.type !== 'application/pdf') {
-      if (typeof showToast === 'function') showToast('Solo se permiten archivos PDF');
+    if (!fmEsArchivoValido(f)) {
+      if (typeof showToast === 'function') showToast('Solo se permiten archivos PDF o Imágenes/Fotos (JPG, PNG, WEBP)');
       continue;
     }
     if (fmUploadFiles.length >= 10) {
@@ -15411,11 +15422,13 @@ function fmRenderFileList() {
   const el = document.getElementById('fm-file-list');
   if (fmUploadFiles.length === 0) { el.innerHTML = ''; return; }
   el.innerHTML = fmUploadFiles.map((f, i) => {
+    const esImg = (f.type && f.type.startsWith('image/')) || /\.(jpe?g|png|webp)$/i.test(f.name || '');
+    const icono = esImg ? '📸' : '📄';
     const size = f.size < 1024*1024
       ? (f.size/1024).toFixed(0) + ' KB'
       : (f.size/1024/1024).toFixed(1) + ' MB';
     return `<div class="fm-file-item">
-      <span class="fm-file-icon">📄</span>
+      <span class="fm-file-icon">${icono}</span>
       <span class="fm-file-name" title="${f.name}">${f.name}</span>
       <span class="fm-file-size">${size}</span>
       <button class="fm-file-remove" onclick="fmRemoverArchivo(${i})" title="Quitar">✕</button>
