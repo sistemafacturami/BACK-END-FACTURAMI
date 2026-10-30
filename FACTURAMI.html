@@ -103,11 +103,14 @@
 [data-theme="dark"] #pg-activos,
 [data-theme="dark"] #pg-pasivos,
 [data-theme="dark"] #pg-estres,
+[data-theme="dark"] #pg-balgeneral,
 [data-theme="dark"] #pg-cxp {
   color: var(--ink) !important;
 }
 [data-theme="dark"] #pasivoAmortModal .dr-card,
 [data-theme="dark"] #pg-pasivos .dr-card,
+[data-theme="dark"] #pg-estres .dr-card,
+[data-theme="dark"] #pg-balgeneral .dr-card,
 [data-theme="dark"] #pg-cxp .dr-card,
 [data-theme="dark"] #pasivoAmortModal div[style*="background:#fff"],
 [data-theme="dark"] #pg-pasivos div[style*="background:#fff"],
@@ -10570,29 +10573,43 @@ function renderEstRes(){
   erCalc();
 }
 
-// ── BALANCE GENERAL ───────────────────────────────────────────────
-function bgBlur(el){let v=parseFloat(el.value.replace(/,/g,''))||0;el.value=v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');bgCalc();}
+// ── BALANCE GENERAL (ESTADO DE SITUACIÓN FINANCIERA) ────────────────
+function bgBlur(el){
+  let v = parseFloat(el.value.replace(/,/g, '')) || 0;
+  el.value = v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  bgCalc();
+}
+
 function bgCalc(){
-  const sv = (id,val) => { const e = document.getElementById('bg_'+id); if(e) e.textContent = val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); };
+  const fN = (n) => (typeof n === 'number' ? n : (parseFloat(String(n).replace(/,/g, '')) || 0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const sv = (id, val) => {
+    const e = document.getElementById('bg_' + id);
+    if (e) {
+      const formatted = fN(val);
+      if (e.tagName === 'INPUT') e.value = formatted;
+      else e.textContent = formatted;
+    }
+  };
+
   getERVars(); 
 
-  // Totales desde el módulo de Activos usando getAssetBalance (respeta período)
+  // 1. Activos desde schema y movimientos
   let sumCor = 0, sumNoCor = 0, sumIntan = 0, sumDepre = 0;
-  if(MODS.activos) {
+  if (MODS.activos && typeof ACTIVOS_SCHEMA !== 'undefined') {
     ACTIVOS_SCHEMA.cor.items.forEach(name => sumCor += getAssetBalance('cor', name));
     ACTIVOS_SCHEMA.no_cor.items.forEach(name => sumNoCor += getAssetBalance('no_cor', name));
     ACTIVOS_SCHEMA.intan.items.forEach(name => sumIntan += getAssetBalance('intan', name));
     ACTIVOS_SCHEMA.depre.items.forEach(name => sumDepre += getAssetBalance('depre', name));
   }
 
-  // Totales desde el módulo de Pasivos usando getPasivoBalance (respeta período)
+  // 2. Pasivos desde schema y movimientos
   let sumPasCor = 0, sumPasNoCor = 0;
-  if(MODS.pasivos) {
+  if (MODS.pasivos && typeof PASIVOS_SCHEMA !== 'undefined') {
     PASIVOS_SCHEMA.pas_cor.items.forEach(name => sumPasCor += getPasivoBalance('pas_cor', name));
     PASIVOS_SCHEMA.pas_ncor.items.forEach(name => sumPasNoCor += getPasivoBalance('pas_ncor', name));
   }
 
-  // Integración analítica de Pasivos Financieros (CXP) según categoría y carga de fondos en Activo Corriente
+  // 3. Integración analítica de Pasivos Financieros (CXP) según categoría y carga de fondos en Activo Corriente
   let sumFinCor = 0, sumFinNoCor = 0, sumFondosPasivosActivo = 0;
   if (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) {
     MODS.pasivos.financieros.forEach(p => {
@@ -10627,95 +10644,442 @@ function bgCalc(){
   sv('pas_ncor_tot', tot_pas_nocor_final);
   sv('pas', tot_pas);
   
-  // Totales desde el módulo de Patrimonio entrelazado
-  let sumCap = 0, sumRes = 0, sumOtrosPatrim = 0;
-  if(MODS.patrimonio && MODS.patrimonio.patrim) {
+  // 4. Totales desde el módulo de Patrimonio entrelazado con categorización NIIF
+  let sumCap = 0, sumRes = 0, sumResul = 0, sumOtrosPatrim = 0;
+  if (MODS.patrimonio && MODS.patrimonio.patrim) {
     Object.keys(MODS.patrimonio.patrim).forEach(name => {
       const b = getPatrimBalance(name);
-      if(name.includes('CAPITAL') || name.includes('APORTES')) sumCap += b;
-      else if(name.includes('ACUMULAD') || name.includes('RESERVA') || name.includes('SUPERAVIT')) sumRes += b;
-      else sumOtrosPatrim += b;
+      if (b !== 0) {
+        const cat = (typeof patInferirCategoria === 'function') ? patInferirCategoria(name) : 'cap';
+        if (cat === 'res') sumRes += b;
+        else if (cat === 'resul') sumResul += b;
+        else if (cat === 'otros') sumOtrosPatrim += b;
+        else sumCap += b;
+      }
     });
   }
   sv('cap_tot', sumCap);
-  sv('res_tot', sumRes);
+  sv('res_tot', sumRes + sumResul);
+  sv('resul_tot', sumResul);
+  sv('sup_tot', sumOtrosPatrim);
   
   const ut_el = document.getElementById('bg_ut');
-  if(ut_el) ut_el.textContent = utilNetaG.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  if (ut_el) ut_el.textContent = fN(utilNetaG);
   
-  const pat = sumCap + sumRes + sumOtrosPatrim + utilNetaG;
+  const pat = sumCap + sumRes + sumResul + sumOtrosPatrim + utilNetaG;
   sv('pat', pat);
   
   const pas_pat = tot_pas + pat;
   sv('paspat', pas_pat);
   
+  const diff = tot_act - pas_pat;
+  const estaCuadrado = Math.abs(diff) < 0.05;
+
+  // Actualizar KPI Cards Ejecutivas
+  const setKPI = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) {
+      const isNeg = val < -0.0001;
+      el.textContent = (isNeg ? '- ₡' : '₡') + Math.abs(val).toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+  };
+  setKPI('bg_kpi_activos', tot_act);
+  setKPI('bg_kpi_pasivos', tot_pas);
+  setKPI('bg_kpi_patrimonio', pat);
+
+  const kpiCuadre = document.getElementById('bg_kpi_cuadre');
+  if (kpiCuadre) {
+    if (estaCuadrado) {
+      kpiCuadre.textContent = 'CUADRADO (100%)';
+      kpiCuadre.style.background = '#dcfce7';
+      kpiCuadre.style.color = '#15803d';
+    } else {
+      kpiCuadre.textContent = 'DIF: ₡' + Math.abs(diff).toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      kpiCuadre.style.background = '#fee2e2';
+      kpiCuadre.style.color = '#b91c1c';
+    }
+  }
+
+  const kpiApalanca = document.getElementById('bg_kpi_apalancamiento');
+  if (kpiApalanca) {
+    const pct = tot_act > 0 ? ((tot_pas / tot_act) * 100).toFixed(1) : '0.0';
+    kpiApalanca.textContent = 'Endeudamiento: ' + pct + '%';
+  }
+
+  const pill = document.getElementById('bg_status_pill');
+  if (pill) {
+    if (estaCuadrado) {
+      pill.innerHTML = '✔️ Balance Cuadrado · Activo = Pasivo + Patrimonio';
+      pill.style.background = 'rgba(16, 185, 129, 0.2)';
+      pill.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+      pill.style.color = '#6ee7b7';
+    } else {
+      pill.innerHTML = '⚠️ Descuadre Contable: Diferencia de ₡' + Math.abs(diff).toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      pill.style.background = 'rgba(239, 68, 68, 0.2)';
+      pill.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+      pill.style.color = '#fca5a5';
+    }
+  }
+
   const cuadre = document.getElementById('bg_cuadre');
-  if(cuadre) {
-    const d = tot_act - pas_pat;
-    cuadre.textContent = Math.abs(d)<0.01 ? '✔️ Ecuación Contable Balanceada: Activo = Pasivo + Patrimonio' : '❌ Diferencia = ' + d.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
-    cuadre.style.color = Math.abs(d)<0.01 ? '#34d399' : 'var(--red)';
+  if (cuadre) {
+    if (estaCuadrado) {
+      cuadre.innerHTML = `
+        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:12px 18px; display:flex; justify-content:space-between; align-items:center; color:#065f46; font-size:12px; font-weight:700; flex-wrap:wrap; gap:10px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:16px;">✔️</span>
+            <span>Ecuación Contable Balanceada: Total Activos (₡${tot_act.toLocaleString('es-CR', {minimumFractionDigits:2, maximumFractionDigits:2})}) = Total Pasivo + Patrimonio (₡${pas_pat.toLocaleString('es-CR', {minimumFractionDigits:2, maximumFractionDigits:2})})</span>
+          </div>
+          <span style="font-size:10.5px; background:#10b981; color:#fff; padding:3px 10px; border-radius:20px; font-weight:800; letter-spacing:0.04em;">NIIF / NIC 1 CONFORME</span>
+        </div>
+      `;
+    } else {
+      cuadre.innerHTML = `
+        <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:12px 18px; display:flex; justify-content:space-between; align-items:center; color:#991b1b; font-size:12px; font-weight:700; flex-wrap:wrap; gap:10px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:16px;">⚠️</span>
+            <span>Descuadre Contable Detectado: Diferencia de ₡${Math.abs(diff).toLocaleString('es-CR', {minimumFractionDigits:2, maximumFractionDigits:2})} (Activo: ₡${tot_act.toLocaleString('es-CR', {minimumFractionDigits:2, maximumFractionDigits:2})} vs Pasivo+Pat: ₡${pas_pat.toLocaleString('es-CR', {minimumFractionDigits:2, maximumFractionDigits:2})})</span>
+          </div>
+          <button type="button" class="btn btn-sm" onclick="fmAbrirModalAjusteBalance()" style="background:#dc2626; color:#fff; border:none; border-radius:6px; padding:6px 14px; font-size:11.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+            ⚖️ Cuadrar con Asiento de Ajuste
+          </button>
+        </div>
+      `;
+    }
   }
 }
-function renderBalGeneral(){
-  const el=document.getElementById('balgeneral-content');if(!el)return;
-  const anio = document.getElementById('anioSel').value;
-  const mesStr = document.getElementById('mesSel').value;
-  const periodoTxt = mesStr ? `Al cierre de ${mesStr} ${anio}` : `Al cierre de ${anio}`;
-  let cxcTot=0, cxpTot=0;
-  if(MODS['cxc']) MODS['cxc'].rows.forEach(r=>{if(r.fecha&&r.fecha.startsWith(anio) && !r.pg) cxcTot+=parseFloat(r.tot||0);});
-  if(MODS['cxp']) MODS['cxp'].rows.forEach(r=>{if(r.fecha&&r.fecha.startsWith(anio) && !r.pg) cxpTot+=parseFloat(r.tot||0);});
-  
-  getERVars();
-  
-  const fN=(n)=>n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
-  const rI = (id,lbl,isRO=false,val='0.00')=>`<div class="fd104-r"><label>${lbl}</label><input class="fd-inp${isRO?' fd-inp-autofill':''}" id="bg_${id}" type="text" value="${val}" ${isRO?'readonly':''} oninput="bgCalc()" onblur="bgBlur(this)"/></div>`;
-  const rT = (id,lbl,val='0.00',ext='')=>`<div class="fd104-tot" style="${ext}"><label>${lbl}</label><span class="fd-val" id="bg_${id}">${val}</span></div>`;
-  
-  el.innerHTML=`<div class="fd104" style="max-width:800px">
-    <div style="background:var(--white);border:1px solid var(--cream3);border-radius:var(--r2);overflow:hidden;margin-bottom:16px;box-shadow:var(--shadow)">
-      <div class="d150-head"><div>
-        <div style="font-size:11px;font-weight:500;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Estado Financiero</div>
-        <div style="font-family:var(--ff);font-size:18px;font-weight:600">Balance General (Estado de Situación Financiera)</div>
-        <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:3px">${periodoTxt}</div>
-      </div>
-      <div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end">
-        <div><div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.09em">Empresa</div><div style="font-size:14px;font-weight:600">${activeClient.name}</div></div>
-        <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('balgeneral')">🖨 Imprimir Reporte</button>
-      </div></div>
-      <div class="d150-stripe"></div>
-    </div>
-    <div class="fd104-sec">
-      <div class="fd104-hd">Activos</div>
-      ${rT('act_cor','( + ) TOTAL ACTIVO CORRIENTE','0.00')}
-      ${rT('act_ncor','( + ) TOTAL ACTIVO NO CORRIENTE','0.00')}
-      ${rT('act_intan','( + ) TOTAL ACTIVO INTANGIBLE','0.00')}
-      ${rT('act_depre','( - ) TOTAL DEPRECIACIÓN ACUMULADA','0.00','color:var(--red)')}
-      ${rT('act','TOTAL ACTIVO NETO','0.00','background:var(--cream);color:var(--ink);font-weight:700')}
 
-      <div class="fd104-hd" style="margin-top:20px;border-top:1px solid var(--cream2);padding-top:20px">Pasivos</div>
-      ${rT('pas_cor_tot','( + ) TOTAL PASIVO CORRIENTE','0.00')}
-      ${rT('pas_ncor_tot','( + ) TOTAL PASIVO NO CORRIENTE','0.00')}
-      ${rT('pas','TOTAL PASIVO','0.00','background:var(--cream);color:var(--ink);font-weight:700')}
-      
-      <div class="fd104-hd" style="margin-top:20px;border-top:1px solid var(--cream2);padding-top:20px">Patrimonio Neto</div>
-      ${rT('cap_tot','Capital del Propietario / Aportes','0.00')}
-      ${rT('res_tot','Resultados y Pérdidas/Ganancias Acumuladas','0.00')}
-      ${rT('ut','Utilidad / (Pérdida) Neta del Ejercicio','0.00')}
-      ${rT('pat','TOTAL PATRIMONIO NETO','0.00','background:var(--cream);color:var(--ink);font-weight:700')}
-      
-      <div style="margin-top:14px; display:flex; gap:10px; justify-content:flex-end;">
-        <button type="button" class="btn btn-outline btn-sm" onclick="fmAbrirModalAjusteBalance()" style="font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--cream3);padding:6px 14px;border-radius:6px;background:white;cursor:pointer;color:var(--ink)">⚖️ Registrar Asiento de Ajuste / Saldo Inicial</button>
-      </div>
-      
-      <div style="margin-top:24px;padding:15px;background:var(--surface-dark, #0f172a);border-radius:var(--r);display:flex;justify-content:space-between;align-items:center">
+function renderBalGeneral(){
+  const el = document.getElementById('balgeneral-content'); if(!el) return;
+  const anio = (document.getElementById('anioSel') && document.getElementById('anioSel').value) ? document.getElementById('anioSel').value : new Date().getFullYear().toString();
+  const mesStr = (document.getElementById('mesSel') && document.getElementById('mesSel').value) ? document.getElementById('mesSel').value : '';
+  const periodoTxt = mesStr ? `${mesStr} de ${anio}` : `Ejercicio Anual ${anio}`;
+  
+  const cName = (typeof activeClient !== 'undefined' && activeClient && activeClient.name) ? activeClient.name : 'Empresa Principal';
+  const cId = (typeof activeClient !== 'undefined' && activeClient && activeClient.id) ? activeClient.id : '3-101-000000';
+  
+  const fN = (n) => (typeof n === 'number' ? n : (parseFloat(String(n).replace(/,/g, '')) || 0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+  // 1. Activos
+  let sumCor = 0, sumNoCor = 0, sumIntan = 0, sumDepre = 0;
+  const detalleActivos = { cor: [], no_cor: [], intan: [], depre: [] };
+  if (MODS.activos && typeof ACTIVOS_SCHEMA !== 'undefined') {
+    ACTIVOS_SCHEMA.cor.items.forEach(name => {
+      const b = getAssetBalance('cor', name);
+      sumCor += b;
+      if (b !== 0) detalleActivos.cor.push({ name, monto: b });
+    });
+    ACTIVOS_SCHEMA.no_cor.items.forEach(name => {
+      const b = getAssetBalance('no_cor', name);
+      sumNoCor += b;
+      if (b !== 0) detalleActivos.no_cor.push({ name, monto: b });
+    });
+    ACTIVOS_SCHEMA.intan.items.forEach(name => {
+      const b = getAssetBalance('intan', name);
+      sumIntan += b;
+      if (b !== 0) detalleActivos.intan.push({ name, monto: b });
+    });
+    ACTIVOS_SCHEMA.depre.items.forEach(name => {
+      const b = getAssetBalance('depre', name);
+      sumDepre += b;
+      if (b !== 0) detalleActivos.depre.push({ name, monto: b });
+    });
+  }
+
+  // 2. Pasivos
+  let sumPasCor = 0, sumPasNoCor = 0;
+  const detallePasivos = { pas_cor: [], pas_ncor: [] };
+  if (MODS.pasivos && typeof PASIVOS_SCHEMA !== 'undefined') {
+    PASIVOS_SCHEMA.pas_cor.items.forEach(name => {
+      const b = getPasivoBalance('pas_cor', name);
+      sumPasCor += b;
+      if (b !== 0) detallePasivos.pas_cor.push({ name, monto: b });
+    });
+    PASIVOS_SCHEMA.pas_ncor.items.forEach(name => {
+      const b = getPasivoBalance('pas_ncor', name);
+      sumPasNoCor += b;
+      if (b !== 0) detallePasivos.pas_ncor.push({ name, monto: b });
+    });
+  }
+
+  // 3. Pasivos Financieros (CXP)
+  let sumFinCor = 0, sumFinNoCor = 0, sumFondosPasivosActivo = 0;
+  if (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) {
+    MODS.pasivos.financieros.forEach(p => {
+      if (p.estado !== 'cancelado') {
+        const saldoCap = (p.saldo_capital_actual !== undefined) ? (parseFloat(p.saldo_capital_actual) || 0) : (parseFloat(p.monto_principal) || 0);
+        if (saldoCap > 0) {
+          const esCorriente = (p.tipo === 'pasivo_corriente' || p.tipo === 'corriente');
+          if (esCorriente) {
+            sumFinCor += saldoCap;
+            detallePasivos.pas_cor.push({ name: `Préstamo / Pasivo CP (${p.acreedor || p.descripcion || 'Entidad'})`, monto: saldoCap });
+          } else {
+            sumFinNoCor += saldoCap;
+            detallePasivos.pas_ncor.push({ name: `Préstamo / Pasivo LP (${p.acreedor || p.descripcion || 'Entidad'})`, monto: saldoCap });
+          }
+          sumFondosPasivosActivo += saldoCap;
+          detalleActivos.cor.push({ name: `Fondos Crédito / Pasivo (${p.acreedor || 'Financiamiento'})`, monto: saldoCap });
+        }
+      }
+    });
+  }
+
+  const tot_act_cor = sumCor + sumFondosPasivosActivo;
+  const tot_act_ncor = sumNoCor;
+  const tot_act_intan = sumIntan;
+  const tot_act_depre = sumDepre;
+  const tot_activos = tot_act_cor + tot_act_ncor + tot_act_intan - tot_act_depre;
+
+  const tot_pas_cor = sumPasCor + sumFinCor;
+  const tot_pas_ncor = sumPasNoCor + sumFinNoCor;
+  const tot_pasivos = tot_pas_cor + tot_pas_ncor;
+
+  // 4. Patrimonio
+  let sumCap = 0, sumRes = 0, sumResul = 0, sumOtros = 0;
+  const detallePatrimonio = [];
+  if (MODS.patrimonio && MODS.patrimonio.patrim) {
+    Object.keys(MODS.patrimonio.patrim).forEach(name => {
+      const b = getPatrimBalance(name);
+      if (b !== 0) {
+        detallePatrimonio.push({ name, monto: b });
+        const cat = (typeof patInferirCategoria === 'function') ? patInferirCategoria(name) : 'cap';
+        if (cat === 'res') sumRes += b;
+        else if (cat === 'resul') sumResul += b;
+        else if (cat === 'otros') sumOtros += b;
+        else sumCap += b;
+      }
+    });
+  }
+
+  const dER = getERVars();
+  const utilNeta = (typeof utilNetaG !== 'undefined') ? utilNetaG : (dER.utilNeta || 0);
+  const tot_patrimonio = sumCap + sumRes + sumResul + sumOtros + utilNeta;
+  const tot_pasivo_patrimonio = tot_pasivos + tot_patrimonio;
+  const diff = tot_activos - tot_pasivo_patrimonio;
+  const estaCuadrado = Math.abs(diff) < 0.05;
+
+  // Generar filas para Activo Corriente
+  let actCorRows = detalleActivos.cor.map(a => `<tr><td class="fm-rep-item">${a.name}</td><td class="fm-rep-num">${fN(a.monto)}</td></tr>`).join('');
+  if (!actCorRows) actCorRows = `<tr><td class="fm-rep-item" style="color:#94a3b8;font-style:italic;">Efectivo, Bancos y Equivalentes</td><td class="fm-rep-num">${fN(tot_act_cor)}</td></tr>`;
+
+  // Generar filas para Activo No Corriente
+  let actNoCorRows = detalleActivos.no_cor.map(a => `<tr><td class="fm-rep-item">${a.name}</td><td class="fm-rep-num">${fN(a.monto)}</td></tr>`).join('');
+  if (!actNoCorRows && tot_act_ncor > 0) actNoCorRows = `<tr><td class="fm-rep-item">Propiedad, Planta y Equipo</td><td class="fm-rep-num">${fN(tot_act_ncor)}</td></tr>`;
+  else if (!actNoCorRows) actNoCorRows = `<tr><td class="fm-rep-item" style="color:#94a3b8;font-style:italic;">Sin activos fijos registrados</td><td class="fm-rep-num">0.00</td></tr>`;
+
+  // Generar fila Depreciación Acumulada
+  let actDepreRow = '';
+  if (tot_act_depre > 0) {
+    actDepreRow = `<tr><td class="fm-rep-item" style="color:#dc2626;"><span style="font-weight:700;">( - )</span> Depreciación Acumulada (NIIF Secc. 17)</td><td class="fm-rep-num" style="color:#dc2626;font-weight:700;">- ${fN(tot_act_depre)}</td></tr>`;
+  }
+
+  // Generar filas para Activos Intangibles
+  let actIntanSection = '';
+  if (tot_act_intan > 0 || detalleActivos.intan.length > 0) {
+    let intanRows = detalleActivos.intan.map(a => `<tr><td class="fm-rep-item">${a.name}</td><td class="fm-rep-num">${fN(a.monto)}</td></tr>`).join('');
+    if (!intanRows) intanRows = `<tr><td class="fm-rep-item">Activos Intangibles Netos</td><td class="fm-rep-num">${fN(tot_act_intan)}</td></tr>`;
+    actIntanSection = `
+      <tr class="fm-rep-cat"><td colspan="2">1.3 ACTIVOS INTANGIBLES</td></tr>
+      ${intanRows}
+      <tr class="fm-rep-subtot"><td>TOTAL INTANGIBLES</td><td class="fm-rep-num"><span id="bg_act_intan">${fN(tot_act_intan)}</span></td></tr>
+    `;
+  }
+
+  // Generar filas para Pasivo Corriente
+  let pasCorRows = detallePasivos.pas_cor.map(p => `<tr><td class="fm-rep-item">${p.name}</td><td class="fm-rep-num">${fN(p.monto)}</td></tr>`).join('');
+  if (!pasCorRows && tot_pas_cor > 0) pasCorRows = `<tr><td class="fm-rep-item">Cuentas por Pagar Corrientes</td><td class="fm-rep-num">${fN(tot_pas_cor)}</td></tr>`;
+  else if (!pasCorRows) pasCorRows = `<tr><td class="fm-rep-item" style="color:#94a3b8;font-style:italic;">Sin pasivos corrientes</td><td class="fm-rep-num">0.00</td></tr>`;
+
+  // Generar filas para Pasivo No Corriente
+  let pasNoCorRows = detallePasivos.pas_ncor.map(p => `<tr><td class="fm-rep-item">${p.name}</td><td class="fm-rep-num">${fN(p.monto)}</td></tr>`).join('');
+  if (!pasNoCorRows && tot_pas_ncor > 0) pasNoCorRows = `<tr><td class="fm-rep-item">Obligaciones a Largo Plazo</td><td class="fm-rep-num">${fN(tot_pas_ncor)}</td></tr>`;
+  else if (!pasNoCorRows) pasNoCorRows = `<tr><td class="fm-rep-item" style="color:#94a3b8;font-style:italic;">Sin obligaciones a largo plazo</td><td class="fm-rep-num">0.00</td></tr>`;
+
+  // Generar filas para Patrimonio
+  let patRows = detallePatrimonio.map(p => `<tr><td class="fm-rep-item">${p.name}</td><td class="fm-rep-num">${fN(p.monto)}</td></tr>`).join('');
+  if (!patRows) patRows = `<tr><td class="fm-rep-item">Capital Social y Aportes</td><td class="fm-rep-num">${fN(sumCap)}</td></tr>`;
+
+  el.innerHTML = `
+    <div style="max-width:1020px; margin:0 auto; padding-bottom:40px;">
+      <!-- 1. Barra de Control Ejecutivo y Acciones -->
+      <div style="background:linear-gradient(135deg, #0f2744 0%, #1e3a5f 100%); border-radius:12px; padding:20px 26px; color:#fff; margin-bottom:18px; box-shadow:0 4px 20px rgba(0,0,0,0.1); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
         <div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em">Total Pasivo + Patrimonio</div>
-          <div style="font-family:var(--ff);font-size:20px;font-weight:700;color:#fff" id="bg_paspat">0.00</div>
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+            <span style="font-size:10px; font-weight:700; background:rgba(255,255,255,0.15); padding:3px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.08em;">ESTADO FINANCIERO · NIIF / NIC 1</span>
+            <span id="bg_status_pill" style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; border:1px solid ${estaCuadrado ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)'}; background:${estaCuadrado ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}; color:${estaCuadrado ? '#6ee7b7' : '#fca5a5'};">
+              ${estaCuadrado ? '✔️ Balance Cuadrado · Activo = Pasivo + Patrimonio' : '⚠️ Descuadre Contable: ₡' + fN(Math.abs(diff))}
+            </span>
+          </div>
+          <h2 style="margin:0; font-size:20px; font-weight:800; letter-spacing:-0.02em;">Balance General · Estado de Situación Financiera</h2>
+          <div style="font-size:12px; opacity:0.85; margin-top:3px;">Posición patrimonial, solidez y estructura de capital · <span style="font-weight:700; color:#93c5fd;">${periodoTxt}</span></div>
         </div>
-        <div id="bg_cuadre" style="font-size:12px;font-weight:600"></div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm" onclick="fmAbrirModalAjusteBalance()" style="background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.25); font-weight:700; border-radius:8px; padding:7px 13px; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+            ⚖️ Asiento de Ajuste
+          </button>
+          <button type="button" onclick="bgCalc()" class="btn btn-sm" style="background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.25); font-weight:700; border-radius:8px; padding:7px 13px; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+            🔄 Recalcular
+          </button>
+          <button type="button" onclick="fmAbrirReporteFinanciero('balgeneral')" class="btn btn-blue btn-sm" style="background:#2563eb; color:#fff; font-weight:700; border-radius:8px; padding:7px 16px; font-size:12px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 14px rgba(37,99,235,0.35);">
+            🖨️ Imprimir Reporte Oficial (PDF)
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. Tarjetas KPI Ejecutivas de la Situación Financiera -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:20px;">
+        <!-- KPI 1: Total Activos -->
+        <div class="dr-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:15px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <span style="font-size:10px; font-weight:700; color:#64748b; letter-spacing:0.05em; text-transform:uppercase;">Total Activos</span>
+            <span style="font-size:13px;">🏛️</span>
+          </div>
+          <div id="bg_kpi_activos" style="font-family:'Roboto Mono',monospace; font-size:19px; font-weight:800; color:#0f172a;">₡${fN(tot_activos)}</div>
+          <div style="font-size:10.5px; color:#64748b; margin-top:3px;">Recursos y derechos económicos totales</div>
+        </div>
+
+        <!-- KPI 2: Total Pasivos -->
+        <div class="dr-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:15px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <span style="font-size:10px; font-weight:700; color:#64748b; letter-spacing:0.05em; text-transform:uppercase;">Total Pasivos</span>
+            <span style="font-size:13px;">📉</span>
+          </div>
+          <div id="bg_kpi_pasivos" style="font-family:'Roboto Mono',monospace; font-size:19px; font-weight:800; color:#ef4444;">₡${fN(tot_pasivos)}</div>
+          <div style="font-size:10.5px; color:#64748b; margin-top:3px;">Obligaciones CP y a largo plazo</div>
+        </div>
+
+        <!-- KPI 3: Total Patrimonio Neto -->
+        <div class="dr-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:15px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <span style="font-size:10px; font-weight:700; color:#64748b; letter-spacing:0.05em; text-transform:uppercase;">Patrimonio Neto</span>
+            <span style="font-size:13px;">💎</span>
+          </div>
+          <div id="bg_kpi_patrimonio" style="font-family:'Roboto Mono',monospace; font-size:19px; font-weight:800; color:#0e7490;">₡${fN(tot_patrimonio)}</div>
+          <div style="font-size:10.5px; color:#64748b; margin-top:3px;">Capital, reservas y resultado del ejercicio</div>
+        </div>
+
+        <!-- KPI 4: Ecuación y Solvencia -->
+        <div class="dr-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:15px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <span style="font-size:10px; font-weight:700; color:#64748b; letter-spacing:0.05em; text-transform:uppercase;">Ecuación Contable</span>
+            <span id="bg_kpi_cuadre" style="font-size:9.5px; font-weight:700; background:${estaCuadrado ? '#dcfce7' : '#fee2e2'}; color:${estaCuadrado ? '#15803d' : '#b91c1c'}; padding:2px 6px; border-radius:4px;">
+              ${estaCuadrado ? 'CUADRADO (100%)' : 'DESCUADRE'}
+            </span>
+          </div>
+          <div id="bg_kpi_apalancamiento" style="font-family:'Roboto Mono',monospace; font-size:17px; font-weight:800; color:#1e293b;">
+            Endeudamiento: ${tot_activos > 0 ? ((tot_pasivos / tot_activos) * 100).toFixed(1) : '0.0'}%
+          </div>
+          <div style="font-size:10.5px; color:#64748b; margin-top:3px;">Proporción financiada con pasivos</div>
+        </div>
+      </div>
+
+      <!-- 3. Documento Ejecutivo: Hoja de Balance General a Dos Columnas -->
+      <div class="fm-screen-sheet" style="max-width:1020px; padding:38px 44px 34px 44px;">
+        <div class="fm-screen-badge">Estado de Situación Financiera · NIIF / NIC 1</div>
+
+        <!-- Cabecera Institucional del Reporte -->
+        <div class="fm-rep-header">
+          <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
+          <div class="fm-rep-empresa">${cName}</div>
+          <div class="fm-rep-id">Cédula / Identificación: ${cId}</div>
+          <div class="fm-rep-title">BALANCE GENERAL · ESTADO DE SITUACIÓN FINANCIERA</div>
+          <div class="fm-rep-sub">Al corte de ${periodoTxt}</div>
+          <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Normas NIIF / NIC 1)</div>
+        </div>
+
+        <!-- Disposición en 2 Columnas NIIF -->
+        <div class="fm-bg-grid" style="gap:24px; margin-top:14px; margin-bottom:20px;">
+          <!-- COLUMNA IZQUIERDA: 1. ACTIVOS -->
+          <div>
+            <table class="fm-rep-table">
+              <thead>
+                <tr>
+                  <th style="text-align:left;">1. ACTIVO</th>
+                  <th style="text-align:right; width:130px;">SALDO (₡)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="fm-rep-cat"><td colspan="2">1.1 ACTIVO CORRIENTE</td></tr>
+                ${actCorRows}
+                <tr class="fm-rep-subtot">
+                  <td>TOTAL ACTIVO CORRIENTE</td>
+                  <td class="fm-rep-num"><span id="bg_act_cor">${fN(tot_act_cor)}</span></td>
+                </tr>
+
+                <tr class="fm-rep-cat"><td colspan="2">1.2 ACTIVO NO CORRIENTE</td></tr>
+                ${actNoCorRows}
+                <tr class="fm-rep-subtot">
+                  <td>TOTAL ACTIVO NO CORRIENTE</td>
+                  <td class="fm-rep-num"><span id="bg_act_ncor">${fN(tot_act_ncor)}</span></td>
+                </tr>
+                ${actDepreRow}
+                <span id="bg_act_depre" style="display:none;">${fN(tot_act_depre)}</span>
+
+                ${actIntanSection}
+
+                <tr class="fm-rep-grandtot">
+                  <td style="font-weight:900;">TOTAL ACTIVO NETO</td>
+                  <td class="fm-rep-num" style="font-size:14px; font-weight:900;"><span id="bg_act">${fN(tot_activos)}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- COLUMNA DERECHA: 2. PASIVOS Y PATRIMONIO -->
+          <div>
+            <table class="fm-rep-table">
+              <thead>
+                <tr>
+                  <th style="text-align:left;">2. PASIVO Y PATRIMONIO</th>
+                  <th style="text-align:right; width:130px;">SALDO (₡)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="fm-rep-cat"><td colspan="2">2.1 PASIVO CORRIENTE</td></tr>
+                ${pasCorRows}
+                <tr class="fm-rep-subtot">
+                  <td>TOTAL PASIVO CORRIENTE</td>
+                  <td class="fm-rep-num"><span id="bg_pas_cor_tot">${fN(tot_pas_cor)}</span></td>
+                </tr>
+
+                <tr class="fm-rep-cat"><td colspan="2">2.2 PASIVO NO CORRIENTE</td></tr>
+                ${pasNoCorRows}
+                <tr class="fm-rep-subtot">
+                  <td>TOTAL PASIVO NO CORRIENTE</td>
+                  <td class="fm-rep-num"><span id="bg_pas_ncor_tot">${fN(tot_pas_ncor)}</span></td>
+                </tr>
+                <tr class="fm-rep-subtot" style="background:rgba(241,245,249,0.7); font-weight:800;">
+                  <td>TOTAL PASIVOS</td>
+                  <td class="fm-rep-num"><span id="bg_pas">${fN(tot_pasivos)}</span></td>
+                </tr>
+
+                <tr class="fm-rep-cat"><td colspan="2">2.3 PATRIMONIO NETO</td></tr>
+                ${patRows}
+                <tr>
+                  <td class="fm-rep-item">Utilidad (o Pérdida) Neta del Ejercicio</td>
+                  <td class="fm-rep-num"><span id="bg_ut">${fN(utilNeta)}</span></td>
+                </tr>
+                <span id="bg_cap_tot" style="display:none;">${fN(sumCap)}</span>
+                <span id="bg_res_tot" style="display:none;">${fN(sumRes + sumResul)}</span>
+                <tr class="fm-rep-subtot">
+                  <td>TOTAL PATRIMONIO NETO</td>
+                  <td class="fm-rep-num"><span id="bg_pat">${fN(tot_patrimonio)}</span></td>
+                </tr>
+
+                <tr class="fm-rep-grandtot">
+                  <td style="font-weight:900;">TOTAL PASIVO Y PATRIMONIO</td>
+                  <td class="fm-rep-num" style="font-size:14px; font-weight:900;"><span id="bg_paspat">${fN(tot_pasivo_patrimonio)}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 4. Cuadro de Verificación de Cuadre Contable (Activo = Pasivo + Patrimonio) -->
+        <div id="bg_cuadre" style="margin-top:20px;"></div>
       </div>
     </div>
-  </div>`;
+  `;
   bgCalc();
 }
 
@@ -14821,6 +15185,13 @@ document.addEventListener('DOMContentLoaded', () => {
   padding-bottom: 4px !important;
   background: #fafafa;
 }
+
+@media (max-width: 768px) {
+  .fm-bg-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 .fm-bg-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -15014,7 +15385,17 @@ document.addEventListener('DOMContentLoaded', () => {
   line-height: 1.5;
 }
 
-/* Dark mode for Estado de Resultados Screen Sheet */
+/* Dark mode for Estado de Resultados & Balance General Screen Sheet */
+[data-theme="dark"] #pg-balgeneral .dr-card {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] #pg-balgeneral .dr-card div[style*="color: #0f172a"],
+[data-theme="dark"] #pg-balgeneral .dr-card div[style*="color:#0f172a"] {
+  color: #f8fafc !important;
+}
+
 [data-theme="dark"] #pg-estres .dr-card {
   background: #0f172a !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
