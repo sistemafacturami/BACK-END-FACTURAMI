@@ -4980,8 +4980,10 @@ function closeNuevoPasivoModal() {
 }
 
 function npfCambiarContrapartida(val) {
-  document.getElementById('npf_banco_wrap').style.display = (val === 'banco') ? 'block' : 'none';
-  document.getElementById('npf_activo_wrap').style.display = (val === 'activo') ? 'block' : 'none';
+  const bWrap = document.getElementById('npf_banco_wrap');
+  if (bWrap) bWrap.style.display = (val === 'banco') ? 'block' : 'none';
+  const aWrap = document.getElementById('npf_activo_wrap');
+  if (aWrap) aWrap.style.display = (val === 'activo') ? 'block' : 'none';
 }
 
 function npfRecalcularPreview() {
@@ -5030,9 +5032,12 @@ function guardarNuevoPasivo(e) {
   const gracia = parseInt(document.getElementById('npf_gracia').value) || 0;
   const rawCom = (document.getElementById('npf_comision').value || '0').replace(/[^0-9.]/g, '');
   const comision = parseFloat(rawCom) || 0;
-  const contrapartida = document.getElementById('npf_contrapartida').value;
-  const cuentaBanco = document.getElementById('npf_cuenta_banco').value;
-  const cuentaActivo = document.getElementById('npf_cuenta_activo').value;
+  const elContra = document.getElementById('npf_contrapartida');
+  const contrapartida = elContra ? elContra.value : 'banco';
+  const elCtaBanco = document.getElementById('npf_cuenta_banco');
+  const cuentaBanco = elCtaBanco ? elCtaBanco.value : '1.1.1.02.01';
+  const elCtaActivo = document.getElementById('npf_cuenta_activo');
+  const cuentaActivo = elCtaActivo ? elCtaActivo.value : '';
   const doc = document.getElementById('npf_doc').value.trim() || 'PAGARE';
 
   // 1. Generar Plan V1
@@ -11499,7 +11504,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
           <div>
-            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Descripción del Crédito *</label>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Descripción *</label>
             <input type="text" id="npf_desc" required placeholder="Ej: Préstamo Vehicular BNCR" class="fd-inp" style="width:100%;">
           </div>
           <div>
@@ -11571,33 +11576,6 @@ document.addEventListener('DOMContentLoaded', () => {
           <div>
             <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Comisión Formalización (₡)</label>
             <input type="text" id="npf_comision" placeholder="0.00" class="fd-inp" style="width:100%;">
-          </div>
-        </div>
-
-        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-          <label style="font-size:11px; font-weight:700; color:#1e293b; display:block; margin-bottom:6px;">Contrapartida Contable Inicial (Destino de los Fondos):</label>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-            <div>
-              <select id="npf_contrapartida" onchange="npfCambiarContrapartida(this.value)" class="fd-inp" style="width:100%; font-weight:600;">
-                <option value="banco">Desembolso a Cuenta Bancaria</option>
-                <option value="activo">Financiamiento de Activo Fijo</option>
-                <option value="capital_aporte">Aporte Inicial / Saldo Histórico</option>
-              </select>
-            </div>
-            <div id="npf_banco_wrap">
-              <select id="npf_cuenta_banco" class="fd-inp" style="width:100%;">
-                <option value="1.1.1.02.01">1.1.1.02.01 - Banco Nacional de Costa Rica (BNCR)</option>
-                <option value="1.1.1.02.02">1.1.1.02.02 - Banco de Costa Rica (BCR)</option>
-                <option value="1.1.1.02.03">1.1.1.02.03 - BAC Credomatic</option>
-              </select>
-            </div>
-            <div id="npf_activo_wrap" style="display:none;">
-              <select id="npf_cuenta_activo" class="fd-inp" style="width:100%;">
-                <option value="1.2.1.01">1.2.1.01 - Vehículos</option>
-                <option value="1.2.1.02">1.2.1.02 - Maquinaria y Herramientas</option>
-                <option value="1.2.1.03">1.2.1.03 - Mobiliario y Equipo de Oficina</option>
-              </select>
-            </div>
           </div>
         </div>
 
