@@ -4721,8 +4721,14 @@ function afRenderTabDepre(a) {
           <div style="font-size:13px; font-weight:800; color:#b45309;">₡${fmtCRC(a.depMensual)}</div>
         </div>
         <div>
+          <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Monto Depreciado</div>
+          <div style="font-size:13px; font-weight:800; color:#dc2626;">₡${fmtCRC(a.depAcumulada)}</div>
+          <div style="font-size:10px; color:#64748b; font-weight:600;">${a.pctAmortizado.toFixed(1)}% amortizado</div>
+        </div>
+        <div>
           <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Meses Efectivos</div>
           <div style="font-size:13px; font-weight:800; color:#059669;">${a.mesesEfectivos} de ${a.totalMeses}</div>
+          <div style="font-size:10px; color:#64748b;">${a.mesesRestantes} restantes</div>
         </div>
         <div>
           <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Valor en Libros Actual</div>
@@ -5282,6 +5288,9 @@ function afImprimirDetalleActivo(globalIdx = null) {
         <div><span>Base Depreciable</span><strong>₡${fmtCRC(a.baseDepreciable)}</strong></div>
         <div><span>Vida Útil</span><strong>${a.yrs} años (${a.totalMeses} meses)</strong></div>
         <div><span>Depreciación Mensual</span><strong>₡${fmtCRC(a.depMensual)}</strong></div>
+        <div><span>Monto Depreciado Actual</span><strong style="color:#dc2626;">₡${fmtCRC(a.depAcumulada)} (${a.pctAmortizado.toFixed(1)}%)</strong></div>
+        <div><span>Meses Transcurridos</span><strong style="color:#059669;">${a.mesesEfectivos} de ${a.totalMeses} meses</strong></div>
+        <div><span>Valor en Libros Actual</span><strong style="color:#1d4ed8;">₡${fmtCRC(a.valorLibros)}</strong></div>
       </div>
 
       ${a.yrs > 0 ? `
