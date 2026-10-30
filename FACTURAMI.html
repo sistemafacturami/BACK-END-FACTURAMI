@@ -100,6 +100,7 @@
   position: fixed; inset: 0; background: #f0f4f8; z-index: 10000; overflow-y: auto; font-family: 'Segoe UI', Arial, sans-serif;
 }
 [data-theme="dark"] #pasivoAmortModal,
+[data-theme="dark"] #pg-activos,
 [data-theme="dark"] #pg-pasivos,
 [data-theme="dark"] #pg-cxp {
   color: var(--ink) !important;
@@ -131,6 +132,9 @@
 [data-theme="dark"] #pg-cxp th {
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
+[data-theme="dark"] #nuevoActivoModalBox,
+[data-theme="dark"] #nuevoActivoModalBox,
+[data-theme="dark"] #nuevoActivoModalBox,
 [data-theme="dark"] #nuevoPasivoModalBox,
 [data-theme="dark"] #pagoPasivoModalBox {
   background: #0f172a !important;
@@ -3097,7 +3101,168 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
   <div class="page" id="pg-gastos"><div id="mod-gastos"></div></div>
   <div class="page" id="pg-costos"><div id="mod-costos"></div></div>
   <div class="page" id="pg-obras"><div id="mod-obras"></div></div>
-  <div class="page" id="pg-activos"><div id="mod-activos"></div></div>
+    <div class="page" id="pg-activos">
+    <div id="activos-dynamic">
+      <!-- Encabezado de Activos / Control Patrimonial -->
+      <div style="background:#1c3557; color:#fff; padding:14px 24px; display:flex; justify-content:space-between; align-items:center; border-radius:12px; margin-bottom:18px; box-shadow:0 4px 14px rgba(0,0,0,0.15); flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="font-size:22px;">💼</span>
+          <div>
+            <div style="font-size:16px; font-weight:700; letter-spacing:0.02em;">Módulo de Activos / Control Patrimonial y Tablas de Depreciación</div>
+            <div style="font-size:11px; opacity:0.8;">Gestión integral de activos corrientes, no corrientes, intangibles y depreciación acumulada (NIIF / NIC 16)</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <span id="af_fecha_topbar" style="font-size:12px; opacity:0.85; margin-right:4px;"></span>
+          <button type="button" onclick="openNuevoActivoModal()" class="btn btn-blue btn-sm" style="background:#2563eb; color:#fff; font-weight:700; border-radius:7px; padding:7px 15px; font-size:12px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(37,99,235,0.4);">
+            <span>+</span> Registrar Activo
+          </button>
+          <button type="button" onclick="fmAbrirReporteFinanciero('activos')" style="background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.25); border-radius:7px; padding:7px 13px; font-size:12px; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:5px;">
+            🖨️ Imprimir Reporte de Activos
+          </button>
+        </div>
+      </div>
+
+      <!-- Contenedor Principal -->
+      <div style="max-width:1380px; margin:0 auto; padding:0 0 50px; display:flex; flex-direction:column; gap:20px;">
+
+        <!-- Fila de 6 KPIs Requeridos -->
+        <div style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:12px;" id="af_kpis_grid">
+          
+          <!-- KPI 1: Activo y su monto -->
+          <div style="background:#1c3557; border-radius:10px; padding:14px 16px; color:#fff; box-shadow:0 4px 12px rgba(28,53,87,0.2);">
+            <div style="font-size:10px; font-weight:700; color:rgba(255,255,255,0.7); letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Activo y su Monto</div>
+            <div id="af_kpi_total_monto" style="font-size:18px; font-weight:800; color:#fff;">₡0,00</div>
+            <div style="font-size:10px; color:rgba(255,255,255,0.7); margin-top:3px;">Activos: <span id="af_kpi_cnt" style="font-weight:700; color:#93c5fd;">0</span> registros</div>
+          </div>
+
+          <!-- KPI 2: Depreciación Mensual -->
+          <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+            <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Depreciación Mensual</div>
+            <div id="af_kpi_dep_mensual" style="font-size:18px; font-weight:800; color:#b45309;">₡0,00</div>
+            <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Gasto mensual estimado</div>
+          </div>
+
+          <!-- KPI 3: Depreciación Acumulada según monto desde registro -->
+          <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+            <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Depreciación Acumulada</div>
+            <div id="af_kpi_dep_acumulada" style="font-size:18px; font-weight:800; color:#dc2626;">₡0,00</div>
+            <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Según fecha de registro</div>
+          </div>
+
+          <!-- KPI 4: Vida útil y valor residual -->
+          <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+            <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Vida Útil y Residual</div>
+            <div id="af_kpi_vida_residual" style="font-size:18px; font-weight:800; color:#7c3aed;">0.0 años</div>
+            <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Residual: <span id="af_kpi_residual_val" style="font-weight:700; color:#475569;">₡0,00</span></div>
+          </div>
+
+          <!-- KPI 5: % Amortizado -->
+          <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+            <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">% Amortizado</div>
+            <div id="af_kpi_pct_amortizado" style="font-size:18px; font-weight:800; color:#059669;">0.0%</div>
+            <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Amortizado / depreciado</div>
+          </div>
+
+          <!-- KPI 6: Valor en Libros -->
+          <div class="dr-card" style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;">
+            <div style="font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Valor en Libros</div>
+            <div id="af_kpi_valor_libros" style="font-size:18px; font-weight:800; color:#2563eb;">₡0,00</div>
+            <div style="font-size:10px; color:#9ca3af; margin-top:3px;">Monto neto actual</div>
+          </div>
+
+        </div>
+
+        <!-- Tabla Maestra de Activos con Filtros de Categoría y Cuentas -->
+        <div style="background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.06);" class="dr-card">
+          
+          <div style="padding:14px 20px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <span style="font-size:13px; font-weight:700; color:#1c3557;">Categoría:</span>
+              <div id="af_categoria_chips" style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button type="button" class="af-chip-btn" onclick="afFiltrar(this, 'TODOS')" style="padding:4px 12px; border-radius:8px; font-size:11px; border:1px solid #1c3557; cursor:pointer; color:#fff; background:#1c3557; font-weight:700;">Todos los Activos</button>
+                <button type="button" class="af-chip-btn" onclick="afFiltrar(this, 'cor')" style="padding:4px 12px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#065f46; background:#ecfdf5; font-weight:600;">Activo Corriente</button>
+                <button type="button" class="af-chip-btn" onclick="afFiltrar(this, 'no_cor')" style="padding:4px 12px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#1e40af; background:#eff6ff; font-weight:600;">Activo No Corriente</button>
+                <button type="button" class="af-chip-btn" onclick="afFiltrar(this, 'intan')" style="padding:4px 12px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#5b21b6; background:#f5f3ff; font-weight:600;">Activo Intangible</button>
+              </div>
+            </div>
+
+            <!-- Filtro de Cuenta Contable -->
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:11px; font-weight:600; color:#6b7280;">Cuenta:</span>
+              <select id="af_filtro_cuenta" onchange="afFiltrarCuenta(this.value)" class="fd-inp" style="padding:4px 10px; font-size:11px; font-weight:600; border-radius:8px; min-width:200px;">
+                <option value="TODAS">Todas las Cuentas</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Tabla Principal -->
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:12px;">
+              <thead>
+                <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
+                  <th style="padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Descripción / Documento</th>
+                  <th style="padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Categoría</th>
+                  <th style="padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Cuenta Contable</th>
+                  <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Fecha Adq.</th>
+                  <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Vida Útil</th>
+                  <th style="padding:10px 12px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Monto Inicial</th>
+                  <th style="padding:10px 12px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Dep. Mensual</th>
+                  <th style="padding:10px 12px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Dep. Acumulada</th>
+                  <th style="padding:10px 12px; text-align:right; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Valor en Libros</th>
+                  <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">% Amortizado</th>
+                  <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Estado</th>
+                  <th style="padding:10px 12px; text-align:center; font-size:10px; font-weight:700; color:#6b7280; letter-spacing:.05em; text-transform:uppercase;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="af_tabla_body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Panel de Detalle del Activo Seleccionado (Tabla de Depreciación, Historial, Asientos) -->
+        <div id="af_panel_detalle" style="display:none; background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.06);" class="dr-card">
+          
+          <!-- Detalle Header -->
+          <div style="background:#1c3557; color:#fff; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div>
+              <div style="font-size:14px; font-weight:700;" id="af_det_titulo">Detalle del Activo</div>
+              <div style="font-size:11px; opacity:0.75;" id="af_det_sub">Información contable y proyección de depreciación</div>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button type="button" onclick="afEditarActivoSeleccionado()" class="btn btn-sm" style="background:#2563eb; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
+                ✏️ Editar Activo
+              </button>
+              <button type="button" onclick="afImprimirDetalleActivo()" class="btn btn-sm" style="background:rgba(255,255,255,0.18); color:#fff; border:1px solid rgba(255,255,255,0.3); padding:5px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
+                🖨️ Imprimir Ficha / Tabla
+              </button>
+              <button type="button" onclick="afCerrarDetalle()" class="btn btn-sm" style="background:rgba(255,255,255,0.1); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:5px 10px; border-radius:6px; font-size:11px; cursor:pointer;">
+                ✕ Cerrar
+              </button>
+            </div>
+          </div>
+
+          <!-- Tabs de Navegación del Detalle -->
+          <div style="background:#f8fafc; border-bottom:1px solid #e5e7eb; padding:0 20px; display:flex; gap:16px;">
+            <button type="button" id="af_tab_btn_depre" onclick="afCambiarTab('depre')" style="padding:10px 4px; font-size:12px; font-weight:700; color:#1c3557; border:none; background:transparent; border-bottom:2px solid #1c3557; cursor:pointer;">
+              📅 Tabla de Depreciación / Vida Útil
+            </button>
+            <button type="button" id="af_tab_btn_historial" onclick="afCambiarTab('historial')" style="padding:10px 4px; font-size:12px; font-weight:600; color:#6b7280; border:none; background:transparent; border-bottom:2px solid transparent; cursor:pointer;">
+              📜 Historial y Movimientos
+            </button>
+            <button type="button" id="af_tab_btn_asientos" onclick="afCambiarTab('asientos')" style="padding:10px 4px; font-size:12px; font-weight:600; color:#6b7280; border:none; background:transparent; border-bottom:2px solid transparent; cursor:pointer;">
+              📑 Asientos Contables Sugeridos
+            </button>
+          </div>
+
+          <!-- Contenido de las Tabs -->
+          <div id="af_tab_contenido" style="padding:0;"></div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
     <div class="page" id="pg-pasivos">
     <div id="cxp-dynamic">
       <!-- Sección: Pasivos Financieros / Plan de Pagos / Tabla de Amortización -->
@@ -4042,73 +4207,1112 @@ const ACTIVOS_SCHEMA = {
   depre: { title:'DEPRECIACION ACUMULADA', items:['DEP TERRENOS','DEP EDIFICIOS E INSTALACIONES','DEP VEHICULOS','DEP EQUIPO DE TRANSPORTE','DEP MAQUINARIA Y HERRAMIENTAS','DEP MOBILIARIO Y EQUIPO DE OFICINA','DEP EQUIPO DE COMPUTO','DEP OTROS ACTIVOS DEPRECIABLES','DEP ACTIVOS EN ARRENDAMIENTO FINANCIERO','AGOTAMIENTO ACTIVOS BIOLOGICOS'] }
 };
 
+// ======================================================================
+// 💼 GESTIÓN MODERNA DE ACTIVOS, CATEGORÍAS Y DEPRECIACIÓN (NIIF / NIC 16)
+// ======================================================================
+// 💼 GESTIÓN MODERNA DE ACTIVOS, CATEGORÍAS Y DEPRECIACIÓN (NIIF / NIC 16)
+// ======================================================================
+
+let afFiltroCat = 'TODOS';
+let afFiltroCuenta = 'TODAS';
+let afSelIdx = null;
+let afTabActiva = 'depre';
+let afEditCat = null;
+let afEditCta = null;
+let afEditMovIdx = null;
+
+function ensureActivosStructure() {
+  if (!MODS.activos || typeof MODS.activos !== 'object' || Array.isArray(MODS.activos)) {
+    MODS.activos = {};
+  }
+  ['cor', 'no_cor', 'intan', 'depre'].forEach(k => {
+    if (!MODS.activos[k] || typeof MODS.activos[k] !== 'object' || Array.isArray(MODS.activos[k])) {
+      MODS.activos[k] = {};
+    }
+  });
+}
+
 function renderActivos() {
   try {
-    const el = document.getElementById('mod-activos'); if(!el) return;
     ensureActivosStructure();
-    Object.keys(ACTIVOS_SCHEMA).forEach(k => { if(!MODS.activos[k] || typeof MODS.activos[k] !== 'object' || Array.isArray(MODS.activos[k])) MODS.activos[k] = {}; });
-  
-  const accents = {
-    cor: { color:'#10b981', bg:'linear-gradient(135deg, #065f46 0%, #10b981 100%)', icon:'📈' },
-    no_cor: { color:'#3b82f6', bg:'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)', icon:'🏗️' },
-    intan: { color:'#8b5cf6', bg:'linear-gradient(135deg, #5b21b6 0%, #8b5cf6 100%)', icon:'💎' },
-    depre: { color:'#ef4444', bg:'linear-gradient(135deg, #991b1b 0%, #ef4444 100%)', icon:'📉' }
-  };
-
-  let html = `
-    <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
-      <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('activos')">🖨 Imprimir Reporte de Activos</button>
-    </div>
-    <div class="asset-grid">`;
-  
-  Object.keys(ACTIVOS_SCHEMA).forEach(catKey => {
-    const cat = ACTIVOS_SCHEMA[catKey];
-    const data = MODS.activos[catKey] || {};
-    const acc = accents[catKey] || { color:'#fff', bg:'#333', icon:'📁' };
-    
-    html += `
-    <div class="asset-card" id="card_${catKey}">
-      <div class="asset-header" style="border-left:4px solid ${acc.color}">
-        <div style="display:flex; align-items:center; gap:12px; overflow:hidden;">
-          <div class="asset-title" style="flex:1;">${cat.title}</div>
-          <div style="display:flex; gap:6px;">
-            ${catKey === 'depre'
-              ? `<button class="btn-asset-reg" onclick="openDepreReport()" style="background:#1c3557;color:#fff;border-color:#1c3557;">📉 Reporte Depreciación</button>`
-              : `<button class="btn-asset-reg" onclick="openAssetModal('${catKey}')"><span>+</span> Nuevo registro</button>
-                 <button class="btn-asset-reg" onclick="openAssetHistory('${catKey}')" style="padding:0 10px;" title="Ver Historial">📋</button>`
-            }
-          </div>
-        </div>
-        <div class="asset-icon-box" style="background:${acc.bg}; box-shadow:0 5px 15px ${acc.color}44">${acc.icon}</div>
-      </div>
-      
-      <div id="mov_cont_${catKey}" style="border-bottom:1px solid rgba(0,0,0,0.05)"></div>
-
-      <div style="max-height:450px; overflow-y:auto; padding:16px; display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:12px;">
-        ${cat.items.map(name => `
-          <div onclick="selectAssetForReg('${catKey}','${name}')" class="entity-subcard" style="border-radius:10px; padding:14px 18px; cursor:pointer; transition:all 0.2s ease; display:flex; flex-direction:column; justify-content:space-between; height:90px" onmouseover="this.style.borderColor='${acc.color}';this.style.transform='translateY(-3px)';this.style.boxShadow='0 6px 16px ${acc.color}33'" onmouseout="this.style.borderColor='var(--cream3)';this.style.transform='none';this.style.boxShadow='var(--shadow)'">
-            <div style="font-size:10px; color:var(--ink3); font-weight:700; line-height:1.3; text-transform:uppercase; letter-spacing:0.02em">${name}</div>
-            <div style="font-family:var(--ff); font-size:17px; font-weight:800; color:var(--ink); margin-top:8px">
-              <span style="font-size:12px; color:var(--ink3); font-weight:600; margin-right:2px">₡</span>${getAssetBalance(catKey, name).toLocaleString('es-CR')}
-            </div>
-            <input type="hidden" id="inp_${catKey}_${name}" value="${getAssetBalance(catKey, name).toLocaleString('es-CR')}">
-          </div>
-        `).join('')}
-      </div>
-      <div style="padding:12px 24px; background:rgba(0,0,0,0.02); border-top:1px solid rgba(0,0,0,0.05); display:flex; justify-content:space-between; align-items:center">
-        <span style="font-size:10px; color:var(--ink3); text-transform:uppercase; letter-spacing:0.05em; font-weight:700">Total Categoría</span>
-        <span style="font-family:var(--ff); font-size:14px; font-weight:800; color:${acc.color}" id="tot_${catKey}">₡0</span>
-      </div>
-    </div>`;
-  });
-  
-  html += `</div>`;
-  el.innerHTML = html;
-    updateAssetTotals();
-  } catch(err) {
-    console.error("[FACTURAMI] Error en renderActivos:", err);
+    const hoy = new Date();
+    const elF = document.getElementById('af_fecha_topbar');
+    if (elF) {
+      elF.textContent = 'Al corte: ' + hoy.toLocaleDateString('es-CR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+    }
+    afCargar();
+  } catch (err) {
+    console.error('[FACTURAMI] Error en renderActivos:', err);
   }
 }
+
+function afCargar() {
+  ensureActivosStructure();
+  afPopulateCuentaFilter();
+  afRenderKPIs();
+  afRenderTabla();
+  const todos = afGetTodosActivos();
+  if (afSelIdx !== null && todos[afSelIdx]) {
+    afMostrarDetalle(afSelIdx);
+  } else if (todos.length > 0 && afSelIdx === null) {
+    afMostrarDetalle(0);
+  } else if (todos.length === 0) {
+    const p = document.getElementById('af_panel_detalle');
+    if (p) p.style.display = 'none';
+  }
+}
+
+function afMesesDesde(fechaAdq) {
+  if (!fechaAdq) return 0;
+  const parts = String(fechaAdq).split('-');
+  if (parts.length < 2) return 0;
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  if (isNaN(y) || isNaN(m)) return 0;
+
+  const now = new Date();
+  const nowY = now.getFullYear();
+  const nowM = now.getMonth() + 1;
+
+  const elapsed = (nowY - y) * 12 + (nowM - m);
+  return Math.max(0, elapsed);
+}
+
+function afGetTodosActivos() {
+  ensureActivosStructure();
+  const res = [];
+  const cats = [
+    { key: 'cor', label: 'Activo Corriente', badgeClass: 'background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;' },
+    { key: 'no_cor', label: 'Activo No Corriente', badgeClass: 'background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe;' },
+    { key: 'intan', label: 'Activo Intangible', badgeClass: 'background:#f5f3ff; color:#5b21b6; border:1px solid #ddd6fe;' }
+  ];
+
+  cats.forEach(c => {
+    const catData = MODS.activos[c.key] || {};
+    Object.keys(catData).forEach(cta => {
+      if (cta === 'IVA SOPORTADO' || cta === 'IVA DEDUCIBLE - PROPORCIONALIDAD') return;
+      const entry = catData[cta];
+      if (!entry) return;
+      const movs = Array.isArray(entry.movs) ? entry.movs : [];
+      movs.forEach((m, movIdx) => {
+        if (!m || typeof m !== 'object') return;
+        const monto = parseFloat(m.monto) || 0;
+        if (monto <= 0) return;
+
+        const fecha = m.fecha || new Date().toISOString().slice(0, 10);
+        const det = m.det || m.detalle || `Adquisición de ${cta}`;
+        const doc = m.doc || m.ndoc || '-';
+        const iva = parseFloat(m.iva) || 0;
+        const yrs = (m.yrs !== undefined && m.yrs !== null) ? parseInt(m.yrs) : (c.key === 'no_cor' ? (NC_DEP_YEARS[cta] || 0) : 0);
+        const residual = parseFloat(m.residual) || 0;
+
+        const baseDepreciable = Math.max(0, monto - residual);
+        const totalMeses = yrs > 0 ? yrs * 12 : 0;
+        const depMensual = totalMeses > 0 ? (baseDepreciable / totalMeses) : 0;
+        const depAnual = yrs > 0 ? (baseDepreciable / yrs) : 0;
+
+        const mesesTranscurridos = afMesesDesde(fecha);
+        const mesesEfectivos = Math.min(mesesTranscurridos, totalMeses);
+        const depAcumulada = totalMeses > 0 ? Math.min(depMensual * mesesEfectivos, baseDepreciable) : 0;
+        const valorLibros = Math.max(residual, monto - depAcumulada);
+        const pctAmortizado = baseDepreciable > 0 ? (depAcumulada / baseDepreciable) * 100 : 0;
+
+        let estado = 'No depreciable';
+        let estadoBadge = 'background:#fef3c7; color:#92400e; border:1px solid #fde68a;';
+        if (yrs > 0) {
+          if (mesesTranscurridos >= totalMeses) {
+            estado = 'Totalmente Depreciado';
+            estadoBadge = 'background:#f3f4f6; color:#4b5563; border:1px solid #e5e7eb;';
+          } else if (mesesTranscurridos === 0) {
+            estado = 'Sin Iniciar';
+            estadoBadge = 'background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd;';
+          } else {
+            estado = 'En Depreciación';
+            estadoBadge = 'background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;';
+          }
+        }
+
+        res.push({
+          globalIdx: res.length,
+          catKey: c.key,
+          catLabel: c.label,
+          badgeStyle: c.badgeClass,
+          cta: cta,
+          movIdx: movIdx,
+          det: det,
+          doc: doc,
+          fecha: fecha,
+          monto: monto,
+          iva: iva,
+          yrs: yrs,
+          residual: residual,
+          baseDepreciable: baseDepreciable,
+          totalMeses: totalMeses,
+          depMensual: depMensual,
+          depAnual: depAnual,
+          mesesTranscurridos: mesesTranscurridos,
+          mesesEfectivos: mesesEfectivos,
+          mesesRestantes: Math.max(0, totalMeses - mesesTranscurridos),
+          depAcumulada: depAcumulada,
+          valorLibros: valorLibros,
+          pctAmortizado: pctAmortizado,
+          estado: estado,
+          estadoBadge: estadoBadge,
+          rawMov: m
+        });
+      });
+    });
+  });
+
+  return res;
+}
+
+function afGetListaFiltrada() {
+  const todos = afGetTodosActivos();
+  return todos.filter(a => {
+    if (afFiltroCat !== 'TODOS' && a.catKey !== afFiltroCat) return false;
+    if (afFiltroCuenta !== 'TODAS' && a.cta !== afFiltroCuenta) return false;
+    return true;
+  });
+}
+
+function afFiltrar(btn, cat) {
+  afFiltroCat = cat;
+  const container = document.getElementById('af_categoria_chips');
+  if (container) {
+    container.querySelectorAll('button').forEach(b => {
+      b.style.background = 'transparent';
+      b.style.color = '#6b7280';
+      b.style.borderColor = '#d1d5db';
+      b.style.fontWeight = '600';
+    });
+    btn.style.background = '#1c3557';
+    btn.style.color = '#fff';
+    btn.style.borderColor = '#1c3557';
+    btn.style.fontWeight = '700';
+  }
+  afPopulateCuentaFilter();
+  afRenderKPIs();
+  afRenderTabla();
+}
+
+function afFiltrarCuenta(cta) {
+  afFiltroCuenta = cta;
+  afRenderKPIs();
+  afRenderTabla();
+}
+
+function afPopulateCuentaFilter() {
+  const sel = document.getElementById('af_filtro_cuenta');
+  if (!sel) return;
+  const oldVal = sel.value || 'TODAS';
+
+  let ctas = [];
+  if (afFiltroCat === 'TODOS') {
+    ['cor', 'no_cor', 'intan'].forEach(k => {
+      if (ACTIVOS_SCHEMA[k] && ACTIVOS_SCHEMA[k].items) {
+        ctas.push(...ACTIVOS_SCHEMA[k].items);
+      }
+    });
+  } else if (ACTIVOS_SCHEMA[afFiltroCat] && ACTIVOS_SCHEMA[afFiltroCat].items) {
+    ctas = [...ACTIVOS_SCHEMA[afFiltroCat].items];
+  }
+  ctas = [...new Set(ctas)].sort();
+
+  sel.innerHTML = '<option value="TODAS">Todas las Cuentas</option>' +
+    ctas.map(c => `<option value="${c}">${c}</option>`).join('');
+
+  if (ctas.includes(oldVal)) {
+    sel.value = oldVal;
+    afFiltroCuenta = oldVal;
+  } else {
+    sel.value = 'TODAS';
+    afFiltroCuenta = 'TODAS';
+  }
+}
+
+function afRenderKPIs() {
+  const lista = afGetListaFiltrada();
+  let totMonto = 0;
+  let totDepMensual = 0;
+  let totDepAcumulada = 0;
+  let totResidual = 0;
+  let totBaseDepreciable = 0;
+  let totValorLibros = 0;
+  let sumAnos = 0;
+  let countConAnos = 0;
+
+  lista.forEach(a => {
+    totMonto += a.monto;
+    totDepMensual += a.depMensual;
+    totDepAcumulada += a.depAcumulada;
+    totResidual += a.residual;
+    totBaseDepreciable += a.baseDepreciable;
+    totValorLibros += a.valorLibros;
+    if (a.yrs > 0) {
+      sumAnos += a.yrs;
+      countConAnos++;
+    }
+  });
+
+  const pctAmortizado = totBaseDepreciable > 0 ? (totDepAcumulada / totBaseDepreciable) * 100 : 0;
+  const vidaPromedio = countConAnos > 0 ? (sumAnos / countConAnos).toFixed(1) : '0';
+
+  // 1. Activo y su monto
+  const elMonto = document.getElementById('af_kpi_total_monto');
+  if (elMonto) elMonto.textContent = '₡' + fmtCRC(totMonto);
+  const elCnt = document.getElementById('af_kpi_cnt');
+  if (elCnt) elCnt.textContent = lista.length;
+
+  // 2. Depreciación Mensual
+  const elDepM = document.getElementById('af_kpi_dep_mensual');
+  if (elDepM) elDepM.textContent = '₡' + fmtCRC(totDepMensual);
+
+  // 3. Depreciación Acumulada
+  const elDepA = document.getElementById('af_kpi_dep_acumulada');
+  if (elDepA) elDepA.textContent = '₡' + fmtCRC(totDepAcumulada);
+
+  // 4. Vida Útil y Valor Residual
+  const elVida = document.getElementById('af_kpi_vida_residual');
+  if (elVida) elVida.textContent = countConAnos > 0 ? `${vidaPromedio} años` : '0 años';
+  const elRes = document.getElementById('af_kpi_residual_val');
+  if (elRes) elRes.textContent = '₡' + fmtCRC(totResidual);
+
+  // 5. % Amortizado
+  const elPct = document.getElementById('af_kpi_pct_amortizado');
+  if (elPct) elPct.textContent = pctAmortizado.toFixed(1) + '%';
+
+  // 6. Valor en Libros
+  const elLibros = document.getElementById('af_kpi_valor_libros');
+  if (elLibros) elLibros.textContent = '₡' + fmtCRC(totValorLibros);
+}
+
+function afRenderTabla() {
+  const tbody = document.getElementById('af_tabla_body');
+  if (!tbody) return;
+
+  const lista = afGetListaFiltrada();
+  if (lista.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="12" style="text-align:center; padding:36px; color:#9ca3af;">
+          <div style="font-size:24px; margin-bottom:8px;">💼</div>
+          <div style="font-weight:600; font-size:13px; color:#4b5563;">No hay activos registrados en este filtro</div>
+          <div style="font-size:11px; margin-top:4px;">Haga clic en <b>"+ Registrar Activo"</b> para incorporar un bien patrimonial.</div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = lista.map(a => {
+    const isSelected = (afSelIdx === a.globalIdx);
+    const rowBg = isSelected ? 'background:#f0f7ff;' : '';
+    return `
+      <tr style="${rowBg} border-bottom:1px solid #e5e7eb; cursor:pointer;" onclick="afSeleccionarFila(${a.globalIdx})" ondblclick="afEditarActivo(${a.globalIdx})" title="Doble clic para editar">
+        <td style="padding:10px 12px; font-weight:600; color:#111827;">
+          <div>${a.det}</div>
+          <div style="font-size:10px; color:#6b7280; font-family:monospace;">Doc: ${a.doc}</div>
+        </td>
+        <td style="padding:10px 12px;">
+          <span style="display:inline-block; padding:2px 8px; border-radius:6px; font-size:10px; font-weight:700; ${a.badgeStyle}">
+            ${a.catLabel}
+          </span>
+        </td>
+        <td style="padding:10px 12px; font-size:11px; font-weight:700; color:#1e40af;">${a.cta}</td>
+        <td style="padding:10px 12px; text-align:center; font-family:monospace; font-size:11px;">${a.fecha}</td>
+        <td style="padding:10px 12px; text-align:center; font-size:11px;">${a.yrs > 0 ? `${a.yrs} años` : '-'}</td>
+        <td style="padding:10px 12px; text-align:right; font-family:monospace; font-weight:700; color:#0f172a;">₡${fmtCRC(a.monto)}</td>
+        <td style="padding:10px 12px; text-align:right; font-family:monospace; color:#b45309; font-weight:600;">₡${fmtCRC(a.depMensual)}</td>
+        <td style="padding:10px 12px; text-align:right; font-family:monospace; color:#dc2626; font-weight:600;">₡${fmtCRC(a.depAcumulada)}</td>
+        <td style="padding:10px 12px; text-align:right; font-family:monospace; color:#2563eb; font-weight:800;">₡${fmtCRC(a.valorLibros)}</td>
+        <td style="padding:10px 12px; text-align:center;">
+          <div style="display:flex; align-items:center; gap:6px; justify-content:center;">
+            <div style="flex:1; max-width:50px; height:6px; background:#e5e7eb; border-radius:3px; overflow:hidden;">
+              <div style="width:${Math.min(100, a.pctAmortizado)}%; height:100%; background:#10b981; border-radius:3px;"></div>
+            </div>
+            <span style="font-size:10px; font-family:monospace; font-weight:600;">${a.pctAmortizado.toFixed(1)}%</span>
+          </div>
+        </td>
+        <td style="padding:10px 12px; text-align:center;">
+          <span style="display:inline-block; padding:2px 8px; border-radius:12px; font-size:10px; font-weight:600; ${a.estadoBadge}">
+            ${a.estado}
+          </span>
+        </td>
+        <td style="padding:10px 12px; text-align:center;" onclick="event.stopPropagation()">
+          <div style="display:flex; justify-content:center; gap:5px;">
+            <button type="button" onclick="afMostrarDetalle(${a.globalIdx})" class="btn btn-sm" style="background:#f3f4f6; color:#374151; border:1px solid #d1d5db; padding:3px 7px; border-radius:5px; font-size:11px; cursor:pointer;" title="Ver detalle y tabla de depreciación">
+              👁️
+            </button>
+            <button type="button" onclick="afEditarActivo(${a.globalIdx})" class="btn btn-sm" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:3px 7px; border-radius:5px; font-size:11px; cursor:pointer;" title="Editar activo">
+              ✏️
+            </button>
+            <button type="button" onclick="afEliminarActivo(${a.globalIdx})" class="btn btn-sm" style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; padding:3px 7px; border-radius:5px; font-size:11px; cursor:pointer;" title="Eliminar activo">
+              🗑️
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function afSeleccionarFila(globalIdx) {
+  afSelIdx = globalIdx;
+  afRenderTabla();
+  afMostrarDetalle(globalIdx);
+}
+
+function afMostrarDetalle(globalIdx) {
+  afSelIdx = globalIdx;
+  const todos = afGetTodosActivos();
+  const a = todos[globalIdx];
+  const panel = document.getElementById('af_panel_detalle');
+  if (!panel || !a) return;
+
+  panel.style.display = 'block';
+  document.getElementById('af_det_titulo').textContent = `Activo: ${a.det}`;
+  document.getElementById('af_det_sub').textContent = `${a.cta} (${a.catLabel}) | Adquisición: ${a.fecha} | Doc: ${a.doc} | Monto: ₡${fmtCRC(a.monto)}`;
+
+  afRenderTabContenido(a);
+  
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function afCerrarDetalle() {
+  const panel = document.getElementById('af_panel_detalle');
+  if (panel) panel.style.display = 'none';
+  afSelIdx = null;
+  afRenderTabla();
+}
+
+function afCambiarTab(tabName) {
+  afTabActiva = tabName;
+  ['depre', 'historial', 'asientos'].forEach(t => {
+    const btn = document.getElementById(`af_tab_btn_${t}`);
+    if (btn) {
+      if (t === tabName) {
+        btn.style.color = '#1c3557';
+        btn.style.borderBottom = '2px solid #1c3557';
+        btn.style.fontWeight = '700';
+      } else {
+        btn.style.color = '#6b7280';
+        btn.style.borderBottom = '2px solid transparent';
+        btn.style.fontWeight = '600';
+      }
+    }
+  });
+
+  const todos = afGetTodosActivos();
+  if (afSelIdx !== null && todos[afSelIdx]) {
+    afRenderTabContenido(todos[afSelIdx]);
+  }
+}
+
+function afRenderTabContenido(a) {
+  const cont = document.getElementById('af_tab_contenido');
+  if (!cont) return;
+
+  if (afTabActiva === 'depre') {
+    cont.innerHTML = afRenderTabDepre(a);
+    setTimeout(() => {
+      const curRow = document.getElementById('af_row_cur_month');
+      if (curRow) curRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  } else if (afTabActiva === 'historial') {
+    cont.innerHTML = afRenderTabHistorial(a);
+  } else if (afTabActiva === 'asientos') {
+    cont.innerHTML = afRenderTabAsientos(a);
+  }
+}
+
+function afRenderTabDepre(a) {
+  if (a.yrs <= 0) {
+    return `
+      <div style="padding:40px 20px; text-align:center; color:#6b7280;">
+        <div style="font-size:36px; margin-bottom:10px;">🏷️</div>
+        <div style="font-size:15px; font-weight:700; color:#374151; margin-bottom:6px;">Activo No Depreciable</div>
+        <div style="font-size:12px; max-width:480px; margin:0 auto; line-height:1.5;">
+          Este activo tiene una vida útil de 0 años (ej. Terrenos o Activos Corrientes). Su valor contable no se deprecia y permanece en <b>₡${fmtCRC(a.monto)}</b>.
+        </div>
+      </div>
+    `;
+  }
+
+  const parts = a.fecha.split('-');
+  const startY = parseInt(parts[0], 10);
+  const startM = parseInt(parts[1], 10);
+
+  const now = new Date();
+  const curY = now.getFullYear();
+  const curM = now.getMonth() + 1;
+
+  let acum = 0;
+  let rowsHtml = '';
+
+  for (let m = 1; m <= a.totalMeses; m++) {
+    const totalMonthOffset = (startM - 1) + (m - 1);
+    const calY = startY + Math.floor(totalMonthOffset / 12);
+    const calM = (totalMonthOffset % 12) + 1;
+    const mesStr = `${calY}-${String(calM).padStart(2, '0')}`;
+
+    const isCurrentMonth = (calY === curY && calM === curM);
+    const isPast = (calY < curY || (calY === curY && calM <= curM));
+
+    const depMes = (m === a.totalMeses) ? Math.max(0, a.baseDepreciable - acum) : Math.min(a.depMensual, Math.max(0, a.baseDepreciable - acum));
+    acum += depMes;
+    if (acum > a.baseDepreciable) acum = a.baseDepreciable;
+
+    const libros = Math.max(a.residual, a.monto - acum);
+    const pct = a.baseDepreciable > 0 ? (acum / a.baseDepreciable) * 100 : 0;
+
+    let badge = '';
+    let rowBg = '';
+    if (isCurrentMonth) {
+      badge = '<span style="background:#dbeafe; color:#1e40af; padding:3px 8px; border-radius:12px; font-weight:700; font-size:10px;">⭐ Mes Actual</span>';
+      rowBg = 'background:#eff6ff; font-weight:600;';
+    } else if (isPast) {
+      badge = '<span style="background:#dcfce7; color:#166534; padding:3px 8px; border-radius:12px; font-weight:600; font-size:10px;">✔ Registrado</span>';
+    } else {
+      badge = '<span style="background:#f3f4f6; color:#6b7280; padding:3px 8px; border-radius:12px; font-weight:500; font-size:10px;">⏳ Pendiente</span>';
+    }
+
+    rowsHtml += `
+      <tr style="${rowBg} border-bottom:1px solid #f1f5f9;" id="${isCurrentMonth ? 'af_row_cur_month' : ''}">
+        <td style="padding:8px 12px; text-align:center; font-family:monospace; font-size:11px;">Mes ${m}</td>
+        <td style="padding:8px 12px; text-align:center; font-family:monospace; font-weight:600;">${mesStr}</td>
+        <td style="padding:8px 12px; text-align:right; font-family:monospace;">₡${fmtCRC(depMes)}</td>
+        <td style="padding:8px 12px; text-align:right; font-family:monospace; color:#dc2626; font-weight:600;">₡${fmtCRC(acum)}</td>
+        <td style="padding:8px 12px; text-align:right; font-family:monospace; color:#1d4ed8; font-weight:700;">₡${fmtCRC(libros)}</td>
+        <td style="padding:8px 12px; text-align:center;">
+          <div style="display:flex; align-items:center; gap:6px; justify-content:center;">
+            <div style="flex:1; max-width:55px; height:6px; background:#e5e7eb; border-radius:3px; overflow:hidden;">
+              <div style="width:${Math.min(100, pct)}%; height:100%; background:#10b981; border-radius:3px;"></div>
+            </div>
+            <span style="font-size:10px; font-family:monospace;">${pct.toFixed(1)}%</span>
+          </div>
+        </td>
+        <td style="padding:8px 12px; text-align:center;">${badge}</td>
+      </tr>
+    `;
+  }
+
+  return `
+    <div style="padding:16px; display:flex; flex-direction:column; gap:14px;">
+      <!-- Resumen de Métricas del Activo -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+        <div>
+          <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Costo Adquisición</div>
+          <div style="font-size:13px; font-weight:800; color:#0f172a;">₡${fmtCRC(a.monto)}</div>
+        </div>
+        <div>
+          <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Valor Residual</div>
+          <div style="font-size:13px; font-weight:800; color:#475569;">₡${fmtCRC(a.residual)}</div>
+        </div>
+        <div>
+          <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Base Depreciable</div>
+          <div style="font-size:13px; font-weight:800; color:#2563eb;">₡${fmtCRC(a.baseDepreciable)}</div>
+        </div>
+        <div>
+          <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Dep. Mensual</div>
+          <div style="font-size:13px; font-weight:800; color:#b45309;">₡${fmtCRC(a.depMensual)}</div>
+        </div>
+        <div>
+          <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Meses Efectivos</div>
+          <div style="font-size:13px; font-weight:800; color:#059669;">${a.mesesEfectivos} de ${a.totalMeses}</div>
+        </div>
+        <div>
+          <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Valor en Libros Actual</div>
+          <div style="font-size:13px; font-weight:800; color:#1d4ed8;">₡${fmtCRC(a.valorLibros)}</div>
+        </div>
+      </div>
+
+      <!-- Tabla Mes a Mes -->
+      <div style="max-height:360px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+          <thead style="position:sticky; top:0; background:#f8fafc; z-index:1; border-bottom:1px solid #e2e8f0;">
+            <tr>
+              <th style="padding:9px 12px; text-align:center; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Mes #</th>
+              <th style="padding:9px 12px; text-align:center; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Período</th>
+              <th style="padding:9px 12px; text-align:right; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Gasto Deprec.</th>
+              <th style="padding:9px 12px; text-align:right; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Dep. Acumulada</th>
+              <th style="padding:9px 12px; text-align:right; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Valor en Libros</th>
+              <th style="padding:9px 12px; text-align:center; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">% Amortizado</th>
+              <th style="padding:9px 12px; text-align:center; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function afRenderTabHistorial(a) {
+  return `
+    <div style="padding:16px; display:flex; flex-direction:column; gap:16px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px;">
+          <div style="font-size:12px; font-weight:700; color:#1e293b; margin-bottom:10px;">📋 Datos de Adquisición</div>
+          <div style="display:grid; grid-template-columns:140px 1fr; row-gap:8px; font-size:12px;">
+            <span style="color:#64748b;">Fecha Adquisición:</span>
+            <span style="font-weight:600; font-family:monospace;">${a.fecha}</span>
+
+            <span style="color:#64748b;">Comprobante / Factura:</span>
+            <span style="font-weight:600; font-family:monospace;">${a.doc}</span>
+
+            <span style="color:#64748b;">Descripción:</span>
+            <span style="font-weight:600;">${a.det}</span>
+
+            <span style="color:#64748b;">Categoría:</span>
+            <span><span style="padding:2px 8px; border-radius:6px; font-size:10px; font-weight:700; ${a.badgeStyle}">${a.catLabel}</span></span>
+
+            <span style="color:#64748b;">Cuenta Contable:</span>
+            <span style="font-weight:700; color:#1e40af;">${a.cta}</span>
+          </div>
+        </div>
+
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px;">
+          <div style="font-size:12px; font-weight:700; color:#1e293b; margin-bottom:10px;">💰 Valores Contables</div>
+          <div style="display:grid; grid-template-columns:140px 1fr; row-gap:8px; font-size:12px;">
+            <span style="color:#64748b;">Monto Principal:</span>
+            <span style="font-weight:700; color:#0f172a; font-family:monospace;">₡${fmtCRC(a.monto)}</span>
+
+            <span style="color:#64748b;">IVA Soportado:</span>
+            <span style="font-weight:600; color:#059669; font-family:monospace;">₡${fmtCRC(a.iva)}</span>
+
+            <span style="color:#64748b;">Vida Útil:</span>
+            <span style="font-weight:600;">${a.yrs} años (${a.totalMeses} meses)</span>
+
+            <span style="color:#64748b;">Valor Residual:</span>
+            <span style="font-weight:600; font-family:monospace;">₡${fmtCRC(a.residual)}</span>
+
+            <span style="color:#64748b;">Base Depreciable:</span>
+            <span style="font-weight:700; color:#2563eb; font-family:monospace;">₡${fmtCRC(a.baseDepreciable)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:6px;">
+        <button type="button" onclick="afEditarActivo(${a.globalIdx})" class="btn btn-sm" style="background:#2563eb; color:#fff; border:none; padding:7px 14px; border-radius:6px; font-weight:700; cursor:pointer;">
+          ✏️ Modificar Registro
+        </button>
+        <button type="button" onclick="afEliminarActivo(${a.globalIdx})" class="btn btn-sm" style="background:#dc2626; color:#fff; border:none; padding:7px 14px; border-radius:6px; font-weight:700; cursor:pointer;">
+          🗑️ Eliminar Activo
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function afRenderTabAsientos(a) {
+  const totalPagado = a.monto + a.iva;
+  return `
+    <div style="padding:16px; display:flex; flex-direction:column; gap:16px;">
+      <!-- Asiento 1: Adquisición -->
+      <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+        <div style="background:#f1f5f9; padding:8px 14px; font-size:11px; font-weight:700; color:#334155; display:flex; justify-content:space-between;">
+          <span>ASIENTO #1: ADQUISICIÓN DEL ACTIVO (${a.fecha})</span>
+          <span>NIIF / NIC 16</span>
+        </div>
+        <table style="width:100%; border-collapse:collapse; font-size:11px;">
+          <thead style="background:#f8fafc; border-bottom:1px solid #e2e8f0;">
+            <tr>
+              <th style="padding:6px 12px; text-align:left; color:#64748b;">Cuenta</th>
+              <th style="padding:6px 12px; text-align:left; color:#64748b;">Descripción</th>
+              <th style="padding:6px 12px; text-align:right; color:#64748b;">Debe (₡)</th>
+              <th style="padding:6px 12px; text-align:right; color:#64748b;">Haber (₡)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid #f1f5f9;">
+              <td style="padding:7px 12px; font-weight:600;">${a.cta}</td>
+              <td style="padding:7px 12px; color:#64748b;">${a.det}</td>
+              <td style="padding:7px 12px; text-align:right; font-family:monospace; font-weight:700;">${fmtCRC(a.monto)}</td>
+              <td style="padding:7px 12px; text-align:right; font-family:monospace;">-</td>
+            </tr>
+            ${a.iva > 0 ? `
+            <tr style="border-bottom:1px solid #f1f5f9;">
+              <td style="padding:7px 12px; font-weight:600;">IVA SOPORTADO</td>
+              <td style="padding:7px 12px; color:#64748b;">Crédito fiscal por compra de activo</td>
+              <td style="padding:7px 12px; text-align:right; font-family:monospace; font-weight:700;">${fmtCRC(a.iva)}</td>
+              <td style="padding:7px 12px; text-align:right; font-family:monospace;">-</td>
+            </tr>` : ''}
+            <tr style="border-bottom:1px solid #f1f5f9;">
+              <td style="padding:7px 12px; font-weight:600; padding-left:24px;">BANCOS / CUENTAS POR PAGAR</td>
+              <td style="padding:7px 12px; color:#64748b;">Desembolso o pasivo generado</td>
+              <td style="padding:7px 12px; text-align:right; font-family:monospace;">-</td>
+              <td style="padding:7px 12px; text-align:right; font-family:monospace; font-weight:700;">${fmtCRC(totalPagado)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Asiento 2: Depreciación Recurrente -->
+      ${a.yrs > 0 ? `
+      <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+        <div style="background:#f1f5f9; padding:8px 14px; font-size:11px; font-weight:700; color:#334155; display:flex; justify-content:space-between;">
+          <span>ASIENTO #2: DEPRECIACIÓN MENSUAL RECURRENTE (Fin de cada mes)</span>
+          <span>Cuota Mensual</span>
+        </div>
+        <table style="width:100%; border-collapse:collapse; font-size:11px;">
+          <thead style="background:#f8fafc; border-bottom:1px solid #e2e8f0;">
+            <tr>
+              <th style="padding:6px 12px; text-align:left; color:#64748b;">Cuenta</th>
+              <th style="padding:6px 12px; text-align:left; color:#64748b;">Descripción</th>
+              <th style="padding:6px 12px; text-align:right; color:#64748b;">Debe (₡)</th>
+              <th style="padding:6px 12px; text-align:right; color:#64748b;">Haber (₡)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid #f1f5f9;">
+              <td style="padding:7px 12px; font-weight:600;">GASTO POR DEPRECIACIÓN</td>
+              <td style="padding:7px 12px; color:#64748b;">Depreciación mes ${a.cta}</td>
+              <td style="padding:7px 12px; text-align:right; font-family:monospace; font-weight:700;">${fmtCRC(a.depMensual)}</td>
+              <td style="padding:7px 12px; text-align:right; font-family:monospace;">-</td>
+            </tr>
+            <tr style="border-bottom:1px solid #f1f5f9;">
+              <td style="padding:7px 12px; font-weight:600; padding-left:24px;">DEP. ACUMULADA ${a.cta}</td>
+              <td style="padding:7px 12px; color:#64748b;">Cuenta complementaria de activo</td>
+              <td style="padding:7px 12px; text-align:right; font-family:monospace;">-</td>
+              <td style="padding:7px 12px; text-align:right; font-family:monospace; font-weight:700;">${fmtCRC(a.depMensual)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>` : ''}
+    </div>
+  `;
+}
+
+function openNuevoActivoModal(cat = 'no_cor') {
+  afEditCat = null;
+  afEditCta = null;
+  afEditMovIdx = null;
+
+  const titleEl = document.getElementById('naf_modal_title');
+  if (titleEl) titleEl.textContent = 'Registrar Nuevo Activo';
+
+  const subBtn = document.getElementById('naf_submit_btn');
+  if (subBtn) subBtn.textContent = 'Guardar Activo';
+
+  nafSeleccionarCat(cat);
+
+  document.getElementById('naf_detalle').value = '';
+  document.getElementById('naf_doc').value = '';
+  document.getElementById('naf_fecha').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('naf_monto').value = '';
+  document.getElementById('naf_iva').value = '';
+  document.getElementById('naf_residual').value = '';
+
+  nafRecalcularPreview();
+  const m = document.getElementById('nuevoActivoModal');
+  if (m) m.style.display = 'flex';
+}
+
+function closeNuevoActivoModal() {
+  const m = document.getElementById('nuevoActivoModal');
+  if (m) m.style.display = 'none';
+  afEditCat = null;
+  afEditCta = null;
+  afEditMovIdx = null;
+}
+
+function nafSeleccionarCat(cat) {
+  const hiddenInp = document.getElementById('naf_cat');
+  if (hiddenInp) hiddenInp.value = cat;
+
+  ['cor', 'no_cor', 'intan'].forEach(k => {
+    const btn = document.getElementById(`naf_btn_${k}`);
+    if (btn) {
+      if (k === cat) {
+        btn.style.border = '2px solid #2563eb';
+        btn.style.background = '#eff6ff';
+        btn.style.color = '#1e40af';
+        btn.style.fontWeight = '700';
+      } else {
+        btn.style.border = '1px solid #d1d5db';
+        btn.style.background = '#f9fafb';
+        btn.style.color = '#374151';
+        btn.style.fontWeight = '600';
+      }
+    }
+  });
+
+  nafPopulateCuentas(cat);
+
+  const depRow = document.getElementById('naf_dep_row');
+  const anosInp = document.getElementById('naf_anos');
+  if (cat === 'cor') {
+    if (depRow) depRow.style.opacity = '0.5';
+    if (anosInp) anosInp.value = '0';
+  } else {
+    if (depRow) depRow.style.opacity = '1';
+  }
+
+  nafRecalcularPreview();
+}
+
+function nafPopulateCuentas(cat, preselect = null) {
+  const sel = document.getElementById('naf_cuenta');
+  if (!sel) return;
+
+  const items = (ACTIVOS_SCHEMA[cat] && ACTIVOS_SCHEMA[cat].items) ? ACTIVOS_SCHEMA[cat].items : [];
+  sel.innerHTML = items.map(it => `<option value="${it}">${it}</option>`).join('');
+
+  if (preselect && items.includes(preselect)) {
+    sel.value = preselect;
+  } else if (items.length > 0) {
+    sel.value = items[0];
+  }
+
+  nafCambiarCuenta(sel.value);
+}
+
+function nafCambiarCuenta(cta) {
+  const cat = document.getElementById('naf_cat').value;
+  const anosInp = document.getElementById('naf_anos');
+  const detInp = document.getElementById('naf_detalle');
+
+  if (cat === 'no_cor') {
+    const defYrs = NC_DEP_YEARS[cta] !== undefined ? NC_DEP_YEARS[cta] : 5;
+    if (anosInp && (!afEditMovIdx || anosInp.value === '')) {
+      anosInp.value = defYrs;
+    }
+  } else if (cat === 'cor') {
+    if (anosInp) anosInp.value = 0;
+  }
+
+  if (detInp && !detInp.value) {
+    detInp.value = 'Compra de ' + cta;
+  }
+
+  nafRecalcularPreview();
+}
+
+function nafRecalcularPreview() {
+  const monto = parseFloat(String(document.getElementById('naf_monto')?.value || '0').replace(/[^0-9.]/g, '')) || 0;
+  const iva = parseFloat(String(document.getElementById('naf_iva')?.value || '0').replace(/[^0-9.]/g, '')) || 0;
+  const anos = parseInt(document.getElementById('naf_anos')?.value || '0', 10) || 0;
+  const residual = parseFloat(String(document.getElementById('naf_residual')?.value || '0').replace(/[^0-9.]/g, '')) || 0;
+
+  const base = Math.max(0, monto - residual);
+  const depAnual = anos > 0 ? (base / anos) : 0;
+  const depMensual = depAnual / 12;
+
+  const elBase = document.getElementById('naf_prev_base');
+  if (elBase) elBase.textContent = '₡' + fmtCRC(base);
+
+  const elDepM = document.getElementById('naf_prev_depm');
+  if (elDepM) elDepM.textContent = '₡' + fmtCRC(depMensual);
+
+  const elDepA = document.getElementById('naf_prev_depa');
+  if (elDepA) elDepA.textContent = '₡' + fmtCRC(depAnual);
+
+  const elTot = document.getElementById('naf_prev_total');
+  if (elTot) elTot.textContent = '₡' + fmtCRC(monto + iva);
+}
+
+function guardarNuevoActivo(e) {
+  if (e) e.preventDefault();
+
+  const cat = document.getElementById('naf_cat').value;
+  const cta = document.getElementById('naf_cuenta').value;
+  const det = (document.getElementById('naf_detalle').value || '').trim() || ('Compra de ' + cta);
+  const doc = (document.getElementById('naf_doc').value || '').trim() || '-';
+  const fecha = document.getElementById('naf_fecha').value || new Date().toISOString().slice(0, 10);
+  const monto = parseFloat(String(document.getElementById('naf_monto').value).replace(/[^0-9.]/g, '')) || 0;
+  const iva = parseFloat(String(document.getElementById('naf_iva').value || '0').replace(/[^0-9.]/g, '')) || 0;
+  const yrs = parseInt(document.getElementById('naf_anos').value || '0', 10) || 0;
+  const residual = parseFloat(String(document.getElementById('naf_residual').value || '0').replace(/[^0-9.]/g, '')) || 0;
+
+  if (!cta) {
+    alert('Por favor seleccione una cuenta contable.');
+    return;
+  }
+  if (monto <= 0) {
+    alert('Por favor ingrese un monto principal mayor a cero.');
+    return;
+  }
+
+  const base = Math.max(0, monto - residual);
+  const depAnual = yrs > 0 ? (base / yrs) : 0;
+  const depMensual = depAnual / 12;
+  const dia = parseInt(fecha.split('-')[2], 10) || 1;
+
+  ensureActivosStructure();
+  if (!MODS.activos[cat][cta] || typeof MODS.activos[cat][cta] !== 'object' || Array.isArray(MODS.activos[cat][cta])) {
+    const prev = parseFloat(MODS.activos[cat][cta]) || 0;
+    MODS.activos[cat][cta] = { balance: prev, movs: [] };
+  }
+  if (!Array.isArray(MODS.activos[cat][cta].movs)) {
+    MODS.activos[cat][cta].movs = [];
+  }
+
+  const nuevoMov = {
+    det,
+    doc,
+    fecha,
+    dia,
+    monto,
+    iva,
+    yrs,
+    residual,
+    depAnual,
+    depMensual
+  };
+
+  // Modo Edición
+  if (afEditMovIdx !== null && afEditCat && afEditCta) {
+    // Retirar IVA previo si existía
+    if (MODS.activos[afEditCat] && MODS.activos[afEditCat][afEditCta] && MODS.activos[afEditCat][afEditCta].movs) {
+      const oldMov = MODS.activos[afEditCat][afEditCta].movs[afEditMovIdx];
+      if (oldMov && oldMov.iva > 0 && MODS.activos.cor && MODS.activos.cor['IVA SOPORTADO'] && Array.isArray(MODS.activos.cor['IVA SOPORTADO'].movs)) {
+        const iIdx = MODS.activos.cor['IVA SOPORTADO'].movs.findIndex(im => im.fecha === oldMov.fecha && im.monto === oldMov.iva && im.doc === oldMov.doc);
+        if (iIdx > -1) MODS.activos.cor['IVA SOPORTADO'].movs.splice(iIdx, 1);
+      }
+    }
+
+    // Actualizar o mover a nueva cuenta
+    if (afEditCat === cat && afEditCta === cta) {
+      MODS.activos[cat][cta].movs[afEditMovIdx] = nuevoMov;
+    } else {
+      if (MODS.activos[afEditCat] && MODS.activos[afEditCat][afEditCta] && MODS.activos[afEditCat][afEditCta].movs) {
+        MODS.activos[afEditCat][afEditCta].movs.splice(afEditMovIdx, 1);
+      }
+      MODS.activos[cat][cta].movs.push(nuevoMov);
+    }
+  } else {
+    // Modo Nuevo
+    MODS.activos[cat][cta].movs.push(nuevoMov);
+
+    // Sincronizar con Compras si aplica para impuestos
+    if (!MODS.compras) MODS.compras = { rows: [] };
+    MODS.compras.rows.push({
+      fecha: fecha,
+      doc: doc,
+      tipo: 'Contado',
+      l: 'ADQ. ACTIVO: ' + det,
+      ns: 0,
+      ex: (iva === 0 ? monto : 0),
+      c05: 0, c1: 0, c2: 0, c4: 0, c8: 0,
+      c13: (iva > 0 ? monto : 0)
+    });
+  }
+
+  // Registrar IVA Soportado si aplica
+  if (iva > 0) {
+    if (!MODS.activos.cor) MODS.activos.cor = {};
+    if (!MODS.activos.cor['IVA SOPORTADO'] || typeof MODS.activos.cor['IVA SOPORTADO'] !== 'object' || Array.isArray(MODS.activos.cor['IVA SOPORTADO'])) {
+      const prevIva = parseFloat(MODS.activos.cor['IVA SOPORTADO']) || 0;
+      MODS.activos.cor['IVA SOPORTADO'] = { balance: prevIva, movs: [] };
+    }
+    if (!Array.isArray(MODS.activos.cor['IVA SOPORTADO'].movs)) {
+      MODS.activos.cor['IVA SOPORTADO'].movs = [];
+    }
+    MODS.activos.cor['IVA SOPORTADO'].movs.push({
+      fecha: fecha,
+      dia: dia,
+      doc: doc,
+      det: 'IVA Activo: ' + cta + ' - ' + det,
+      monto: iva
+    });
+  }
+
+  closeNuevoActivoModal();
+  updateAssetTotals();
+  if (typeof bgCalc === 'function') bgCalc();
+  if (typeof saveAllData === 'function') saveAllData();
+  if (typeof refreshDashboard === 'function') refreshDashboard();
+
+  afCargar();
+
+  if (typeof showToast === 'function') {
+    showToast('Activo guardado exitosamente', 'success');
+  }
+}
+
+function afEditarActivo(globalIdx) {
+  const todos = afGetTodosActivos();
+  const a = todos[globalIdx];
+  if (!a) return;
+
+  afEditCat = a.catKey;
+  afEditCta = a.cta;
+  afEditMovIdx = a.movIdx;
+
+  const titleEl = document.getElementById('naf_modal_title');
+  if (titleEl) titleEl.textContent = `Editar Activo: ${a.det}`;
+
+  const subBtn = document.getElementById('naf_submit_btn');
+  if (subBtn) subBtn.textContent = 'Actualizar Activo';
+
+  nafSeleccionarCat(a.catKey);
+  nafPopulateCuentas(a.catKey, a.cta);
+
+  document.getElementById('naf_detalle').value = a.det;
+  document.getElementById('naf_doc').value = a.doc;
+  document.getElementById('naf_fecha').value = a.fecha;
+  document.getElementById('naf_monto').value = a.monto;
+  document.getElementById('naf_iva').value = a.iva > 0 ? a.iva : '';
+  document.getElementById('naf_anos').value = a.yrs;
+  document.getElementById('naf_residual').value = a.residual > 0 ? a.residual : '';
+
+  nafRecalcularPreview();
+  const m = document.getElementById('nuevoActivoModal');
+  if (m) m.style.display = 'flex';
+}
+
+function afEditarActivoSeleccionado() {
+  if (afSelIdx !== null) {
+    afEditarActivo(afSelIdx);
+  }
+}
+
+function afEliminarActivo(globalIdx) {
+  const todos = afGetTodosActivos();
+  const a = todos[globalIdx];
+  if (!a) return;
+
+  const confirmar = confirm(`¿Está seguro de eliminar el activo "${a.det}"?\\n\\nEsta acción recalculará los saldos contables y eliminará su tabla de depreciación.`);
+  if (!confirmar) return;
+
+  if (MODS.activos[a.catKey] && MODS.activos[a.catKey][a.cta] && Array.isArray(MODS.activos[a.catKey][a.cta].movs)) {
+    MODS.activos[a.catKey][a.cta].movs.splice(a.movIdx, 1);
+  }
+
+  // Eliminar IVA soportado correspondiente
+  if (a.iva > 0 && MODS.activos.cor && MODS.activos.cor['IVA SOPORTADO'] && Array.isArray(MODS.activos.cor['IVA SOPORTADO'].movs)) {
+    const iIdx = MODS.activos.cor['IVA SOPORTADO'].movs.findIndex(im => im.fecha === a.fecha && im.monto === a.iva && im.doc === a.doc);
+    if (iIdx > -1) MODS.activos.cor['IVA SOPORTADO'].movs.splice(iIdx, 1);
+  }
+
+  if (afSelIdx === globalIdx) {
+    afSelIdx = null;
+    const panel = document.getElementById('af_panel_detalle');
+    if (panel) panel.style.display = 'none';
+  }
+
+  updateAssetTotals();
+  if (typeof bgCalc === 'function') bgCalc();
+  if (typeof saveAllData === 'function') saveAllData();
+  if (typeof refreshDashboard === 'function') refreshDashboard();
+
+  afCargar();
+
+  if (typeof showToast === 'function') {
+    showToast('Activo eliminado correctamente', 'info');
+  }
+}
+
+function afImprimirDetalleActivo(globalIdx = null) {
+  const idx = (globalIdx !== null) ? globalIdx : afSelIdx;
+  const todos = afGetTodosActivos();
+  const a = (idx !== null) ? todos[idx] : null;
+  if (!a) {
+    alert('Seleccione un activo para imprimir su tabla.');
+    return;
+  }
+
+  const printWin = window.open('', '_blank', 'width=900,height=700');
+  if (!printWin) {
+    alert('Por favor permita ventanas emergentes para imprimir.');
+    return;
+  }
+
+  let rowsHtml = '';
+  if (a.yrs > 0) {
+    const parts = a.fecha.split('-');
+    const startY = parseInt(parts[0], 10);
+    const startM = parseInt(parts[1], 10);
+    let acum = 0;
+    for (let m = 1; m <= a.totalMeses; m++) {
+      const totalMonthOffset = (startM - 1) + (m - 1);
+      const calY = startY + Math.floor(totalMonthOffset / 12);
+      const calM = (totalMonthOffset % 12) + 1;
+      const mesStr = `${calY}-${String(calM).padStart(2, '0')}`;
+      const depMes = (m === a.totalMeses) ? Math.max(0, a.baseDepreciable - acum) : Math.min(a.depMensual, Math.max(0, a.baseDepreciable - acum));
+      acum += depMes;
+      const libros = Math.max(a.residual, a.monto - acum);
+      const pct = a.baseDepreciable > 0 ? (acum / a.baseDepreciable) * 100 : 0;
+      rowsHtml += `<tr>
+        <td style="text-align:center; padding:6px; border:1px solid #ddd;">Mes ${m}</td>
+        <td style="text-align:center; padding:6px; border:1px solid #ddd;">${mesStr}</td>
+        <td style="text-align:right; padding:6px; border:1px solid #ddd;">₡${fmtCRC(depMes)}</td>
+        <td style="text-align:right; padding:6px; border:1px solid #ddd;">₡${fmtCRC(acum)}</td>
+        <td style="text-align:right; padding:6px; border:1px solid #ddd;">₡${fmtCRC(libros)}</td>
+        <td style="text-align:center; padding:6px; border:1px solid #ddd;">${pct.toFixed(1)}%</td>
+      </tr>`;
+    }
+  }
+
+  printWin.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Tabla de Depreciación - ${a.det}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 25px; color: #1e293b; font-size: 12px; }
+        h2 { margin: 0 0 5px; color: #1c3557; }
+        .sub { color: #64748b; margin-bottom: 20px; font-size: 13px; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; }
+        .grid div span { display: block; font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; }
+        .grid div strong { font-size: 14px; color: #0f172a; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
+        th { background: #1c3557; color: #fff; padding: 8px; text-align: left; }
+        td { padding: 6px; border: 1px solid #e2e8f0; }
+      </style>
+    </head>
+    <body>
+      <h2>FACTURAMI - CONTROL DE ACTIVOS Y DEPRECIACIÓN</h2>
+      <div class="sub">Ficha Técnica y Tabla de Amortización Patrimonial (NIIF / NIC 16)</div>
+      
+      <div class="grid">
+        <div><span>Activo</span><strong>${a.det}</strong></div>
+        <div><span>Categoría / Cuenta</span><strong>${a.catLabel} - ${a.cta}</strong></div>
+        <div><span>Documento / Factura</span><strong>${a.doc}</strong></div>
+        <div><span>Fecha de Adquisición</span><strong>${a.fecha}</strong></div>
+        <div><span>Costo Histórico</span><strong>₡${fmtCRC(a.monto)}</strong></div>
+        <div><span>Valor Residual</span><strong>₡${fmtCRC(a.residual)}</strong></div>
+        <div><span>Base Depreciable</span><strong>₡${fmtCRC(a.baseDepreciable)}</strong></div>
+        <div><span>Vida Útil</span><strong>${a.yrs} años (${a.totalMeses} meses)</strong></div>
+        <div><span>Depreciación Mensual</span><strong>₡${fmtCRC(a.depMensual)}</strong></div>
+      </div>
+
+      ${a.yrs > 0 ? `
+      <h3>Proyección Mensual de Depreciación</h3>
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:center;">Mes #</th>
+            <th style="text-align:center;">Período</th>
+            <th style="text-align:right;">Gasto Deprec.</th>
+            <th style="text-align:right;">Dep. Acumulada</th>
+            <th style="text-align:right;">Valor en Libros</th>
+            <th style="text-align:center;">% Amortizado</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+      ` : '<p>Activo no depreciable (Vida útil = 0 años).</p>'}
+
+      <\\x73cript>
+        window.onload = function() { window.print(); };
+      <\\x2fscript>
+    </body>
+    </html>
+  `);
+  printWin.document.close();
+}
+
+// Aliases de compatibilidad hacia el nuevo modal
+window.openAssetModal = function(cat) { openNuevoActivoModal(cat || 'cor'); };
+window.openNoCorrModal = function() { openNuevoActivoModal('no_cor'); };
+
 
 function getAssetBalance(catKey, name) {
   try {
@@ -11492,6 +12696,106 @@ document.addEventListener('DOMContentLoaded', () => {
   <!-- ══════════════════════════════════════════════════════════════════════ -->
   <!-- ── MODAL: NUEVO PASIVO FINANCIERO / CRÉDITO ────────────────────────── -->
   <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- ====================================================================== -->
+  <!-- 💼 MODAL: REGISTRAR / EDITAR ACTIVO CON CATEGORÍAS Y DEPRECIACIÓN ===== -->
+  <!-- ====================================================================== -->
+  <div id="nuevoActivoModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:11000; align-items:center; justify-content:center; backdrop-filter:blur(3px);">
+    <div id="nuevoActivoModalBox" style="background:#fff; border-radius:12px; width:95%; max-width:720px; max-height:90vh; overflow-y:auto; box-shadow:0 25px 60px rgba(0,0,0,0.3); display:flex; flex-direction:column;">
+      
+      <div style="background:#1c3557; color:#fff; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; border-radius:12px 12px 0 0;">
+        <span style="font-size:15px; font-weight:700;" id="naf_modal_title">Registrar Nuevo Activo</span>
+        <button type="button" onclick="closeNuevoActivoModal()" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+
+      <form id="formNuevoActivo" onsubmit="guardarNuevoActivo(event)" style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+        <input type="hidden" id="naf_cat" value="no_cor">
+
+        <!-- Selector de Categoría mediante Botones -->
+        <div>
+          <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:6px;">Categoría de Activo *</label>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;" id="naf_cat_btns">
+            <button type="button" id="naf_btn_cor" onclick="nafSeleccionarCat('cor')" style="padding:8px; border-radius:8px; font-size:12px; font-weight:600; border:1px solid #d1d5db; background:#f9fafb; color:#374151; cursor:pointer; text-align:center;">
+              Activo Corriente
+            </button>
+            <button type="button" id="naf_btn_no_cor" onclick="nafSeleccionarCat('no_cor')" style="padding:8px; border-radius:8px; font-size:12px; font-weight:700; border:2px solid #2563eb; background:#eff6ff; color:#1e40af; cursor:pointer; text-align:center;">
+              Activo No Corriente
+            </button>
+            <button type="button" id="naf_btn_intan" onclick="nafSeleccionarCat('intan')" style="padding:8px; border-radius:8px; font-size:12px; font-weight:600; border:1px solid #d1d5db; background:#f9fafb; color:#374151; cursor:pointer; text-align:center;">
+              Activo Intangible
+            </button>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Cuenta Contable *</label>
+            <select id="naf_cuenta" required onchange="nafCambiarCuenta(this.value)" class="fd-inp" style="width:100%; font-weight:600;"></select>
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Descripción / Detalle *</label>
+            <input type="text" id="naf_detalle" required placeholder="Ej: Toyota Hilux 2024" class="fd-inp" style="width:100%;">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:12px;">
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">N° Documento / Factura</label>
+            <input type="text" id="naf_doc" placeholder="Ej: FE-10492" class="fd-inp" style="width:100%;">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Fecha Adquisición *</label>
+            <input type="date" id="naf_fecha" required onchange="nafRecalcularPreview()" class="fd-inp" style="width:100%;">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Monto Principal (₡) *</label>
+            <input type="text" id="naf_monto" required placeholder="0.00" oninput="nafRecalcularPreview()" class="fd-inp" style="width:100%; font-weight:700; color:#1d4ed8;">
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">IVA Soportado (₡)</label>
+            <input type="text" id="naf_iva" placeholder="0.00" oninput="nafRecalcularPreview()" class="fd-inp" style="width:100%;">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;" id="naf_dep_row">
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Vida Útil (Años) *</label>
+            <input type="number" id="naf_anos" min="0" max="100" value="5" required oninput="nafRecalcularPreview()" class="fd-inp" style="width:100%;">
+            <span style="font-size:10px; color:#9ca3af;">(0 = Activo no depreciable)</span>
+          </div>
+          <div>
+            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Valor Residual / Rescate (₡)</label>
+            <input type="text" id="naf_residual" placeholder="0.00" oninput="nafRecalcularPreview()" class="fd-inp" style="width:100%;">
+          </div>
+        </div>
+
+        <!-- Live Preview Box -->
+        <div id="naf_preview_box" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; display:grid; grid-template-columns:repeat(4, 1fr); gap:10px;">
+          <div>
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Base Depreciable</div>
+            <div id="naf_prev_base" style="font-size:14px; font-weight:800; color:#0f172a;">₡0,00</div>
+          </div>
+          <div>
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Dep. Mensual</div>
+            <div id="naf_prev_depm" style="font-size:14px; font-weight:800; color:#b45309;">₡0,00</div>
+          </div>
+          <div>
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Dep. Anual</div>
+            <div id="naf_prev_depa" style="font-size:14px; font-weight:800; color:#dc2626;">₡0,00</div>
+          </div>
+          <div>
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Total con IVA</div>
+            <div id="naf_prev_total" style="font-size:14px; font-weight:800; color:#1e40af;">₡0,00</div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:6px;">
+          <button type="button" onclick="closeNuevoActivoModal()" style="background:#f3f4f6; color:#4b5563; border:1px solid #d1d5db; border-radius:8px; padding:9px 18px; font-size:12px; font-weight:600; cursor:pointer;">Cancelar</button>
+          <button type="submit" id="naf_submit_btn" style="background:#1c3557; color:#fff; border:none; border-radius:8px; padding:9px 20px; font-size:12px; font-weight:700; cursor:pointer;">Guardar Activo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="nuevoPasivoFinancieroModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:11000; align-items:center; justify-content:center; backdrop-filter:blur(3px);">
     <div id="nuevoPasivoModalBox" style="background:#fff; border-radius:12px; width:95%; max-width:680px; max-height:90vh; overflow-y:auto; box-shadow:0 25px 60px rgba(0,0,0,0.3); display:flex; flex-direction:column;">
       
