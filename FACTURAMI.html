@@ -149,17 +149,54 @@
   color: var(--ink) !important;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9) !important;
 }
-.pf-tab-btn, .pat-tab-btn {
+.pf-tab-btn, .pat-tab-btn, .fe-tab-btn {
   padding: 8px 16px; border: none; background: transparent; color: #6b7280; font-weight: 700; font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;
 }
-.pf-tab-btn.active, .pat-tab-btn.active {
+.pf-tab-btn.active, .pat-tab-btn.active, .fe-tab-btn.active {
   color: #0e7490; border-bottom-color: #0e7490;
 }
-[data-theme="dark"] .pf-tab-btn, [data-theme="dark"] .pat-tab-btn {
+[data-theme="dark"] .pf-tab-btn, [data-theme="dark"] .pat-tab-btn, [data-theme="dark"] .fe-tab-btn {
   color: #94a3b8;
 }
-[data-theme="dark"] .pf-tab-btn.active, [data-theme="dark"] .pat-tab-btn.active {
+[data-theme="dark"] .pf-tab-btn.active, [data-theme="dark"] .pat-tab-btn.active, [data-theme="dark"] .fe-tab-btn.active {
   color: #22d3ee; border-bottom-color: #22d3ee;
+}
+
+.fe-mes-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.fe-mes-pill:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+.fe-mes-pill.active {
+  background: #1e3a5f;
+  color: #ffffff;
+  border-color: #1e3a5f;
+  box-shadow: 0 2px 6px rgba(30, 58, 95, 0.25);
+}
+[data-theme="dark"] .fe-mes-pill {
+  background: #1e293b;
+  color: #cbd5e1;
+  border-color: #334155;
+}
+[data-theme="dark"] .fe-mes-pill:hover {
+  background: #334155;
+  color: #f8fafc;
+}
+[data-theme="dark"] .fe-mes-pill.active {
+  background: #3b82f6;
+  color: #ffffff;
+  border-color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
 }
 
 /* ── REFINAMIENTOS PREMIUM MODO OSCURO ── */
@@ -4207,8 +4244,8 @@ function go(page,el){
     document.getElementById('pgTitle').textContent=TITLES[page][0];
     document.getElementById('pgSub').textContent=TITLES[page][1];
   }
-  const isRep = ['d105','d113','d116','d101','efectivo','patrimonio'].includes(page);
-  const isFinState = ['estres','balgeneral','activos','pasivos','patrim'].includes(page);
+  const isRep = ['d105','d113','d116','d101'].includes(page);
+  const isFinState = ['estres','balgeneral','activos','pasivos','patrim','efectivo','patrimonio'].includes(page);
   const bImp=document.getElementById('btn-imp'), bExp=document.getElementById('btn-exp'), bGen=document.getElementById('btn-gend150'), mSel=document.getElementById('mesSel');
   const bBak=document.getElementById('btn-backup'), bRes=document.getElementById('btn-restore');
   if(bImp) bImp.style.display = (isRep || isFinState) ? 'none' : '';
@@ -11086,81 +11123,207 @@ function renderBalGeneral(){
 }
 
 // ── FLUJO DE EFECTIVO (NIC 7 / NIIF MÉTODO INDIRECTO) ────────────
+let feTabActiva = 'reporte';
+
+const FE_MESES_LISTA = [
+  { num: '01', nom: 'Enero', abrv: 'Ene' },
+  { num: '02', nom: 'Febrero', abrv: 'Feb' },
+  { num: '03', nom: 'Marzo', abrv: 'Mar' },
+  { num: '04', nom: 'Abril', abrv: 'Abr' },
+  { num: '05', nom: 'Mayo', abrv: 'May' },
+  { num: '06', nom: 'Junio', abrv: 'Jun' },
+  { num: '07', nom: 'Julio', abrv: 'Jul' },
+  { num: '08', nom: 'Agosto', abrv: 'Ago' },
+  { num: '09', nom: 'Septiembre', abrv: 'Sep' },
+  { num: '10', nom: 'Octubre', abrv: 'Oct' },
+  { num: '11', nom: 'Noviembre', abrv: 'Nov' },
+  { num: '12', nom: 'Diciembre', abrv: 'Dic' }
+];
+
 function feBlur(el){
   let v = parseFloat(String(el.value).replace(/,/g, '')) || 0;
   el.value = (v < 0 ? '- ' : '') + Math.abs(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   feCalc();
 }
 
-function fmInferirDatosFlujoEfectivo() {
-  const dER = (typeof getERVars === 'function') ? getERVars() : { utilNeta: 0, gastoDeprec: 0 };
-  const utilNeta = (typeof utilNetaG !== 'undefined') ? utilNetaG : (dER.utilNeta || 0);
-  const dep = dER.gastoDeprec || 0;
+function feCambiarTab(tab) {
+  feTabActiva = tab;
+  ['reporte', 'matriz', 'evolucion'].forEach(t => {
+    const b = document.getElementById('fe_tab_btn_' + t);
+    if (b) b.classList.toggle('active', t === tab);
+  });
+  feRenderTabContenido();
+}
 
-  // 1. Actividades de Operación (Cambios en Capital de Trabajo)
+function feSeleccionarMes(mesNombre) {
+  const mesSel = document.getElementById('mesSel');
+  if (mesSel) {
+    mesSel.value = mesNombre;
+  }
+  renderEfectivo();
+}
+
+function fmInferirDatosFlujoEfectivo(filtroMesOverride = null) {
+  const anioEl = document.getElementById('anioSel');
+  const anio = (anioEl && anioEl.value) ? anioEl.value : new Date().getFullYear().toString();
+  
+  const mesSelEl = document.getElementById('mesSel');
+  const M_MAP = { "Enero":"01","Febrero":"02","Marzo":"03","Abril":"04","Mayo":"05","Junio":"06","Julio":"07","Agosto":"08","Septiembre":"09","Octubre":"10","Noviembre":"11","Diciembre":"12" };
+  
+  let curMesStr = '';
+  if (filtroMesOverride !== null) {
+    if (M_MAP[filtroMesOverride]) {
+      curMesStr = filtroMesOverride;
+    } else {
+      const matchObj = FE_MESES_LISTA.find(m => m.num === filtroMesOverride || m.nom.toLowerCase() === String(filtroMesOverride).toLowerCase());
+      curMesStr = matchObj ? matchObj.nom : '';
+    }
+  } else {
+    curMesStr = (mesSelEl && mesSelEl.value) ? mesSelEl.value : '';
+  }
+  const curMes = M_MAP[curMesStr] || ''; // '' = anual
+
+  // Cálculo del Estado de Resultados para el período seleccionado
+  let utilNeta = 0;
+  let dep = 0;
+  if (typeof getERVars === 'function') {
+    // Si se especificó un mes temporal para matriz, calculamos con ese mes
+    const prevMesVal = mesSelEl ? mesSelEl.value : '';
+    if (mesSelEl && filtroMesOverride !== null) mesSelEl.value = curMesStr;
+    try {
+      const dER = getERVars();
+      utilNeta = (typeof utilNetaG !== 'undefined') ? utilNetaG : (dER.utilNeta || 0);
+      dep = dER.gastoDeprec || 0;
+    } catch(e) {}
+    if (mesSelEl && filtroMesOverride !== null) mesSelEl.value = prevMesVal;
+  }
+
+  // 1. Actividades de Operación (Capital de Trabajo en el período)
   let saldoCXC = 0, saldoInv = 0;
-  if (typeof MODS !== 'undefined' && MODS.activos && typeof ACTIVOS_SCHEMA !== 'undefined' && ACTIVOS_SCHEMA.cor && typeof getAssetBalance === 'function') {
+  if (typeof MODS !== 'undefined' && MODS.activos && typeof ACTIVOS_SCHEMA !== 'undefined' && ACTIVOS_SCHEMA.cor) {
     ACTIVOS_SCHEMA.cor.items.forEach(name => {
       const n = name.toUpperCase();
-      const b = getAssetBalance('cor', name);
-      if (n.includes('COBRAR') || n.includes('CLIENTE')) saldoCXC += b;
-      if (n.includes('INVENTARIO') || n.includes('MERCADERIA')) saldoInv += b;
+      const isCxc = n.includes('COBRAR') || n.includes('CLIENTE');
+      const isInv = n.includes('INVENTARIO') || n.includes('MERCADERIA');
+      if (isCxc || isInv) {
+        let b = 0;
+        const cData = MODS.activos.cor ? MODS.activos.cor[name] : null;
+        if (cData && typeof cData === 'object' && Array.isArray(cData.movs) && curMes) {
+          // Filtrar movimientos específicos del mes
+          cData.movs.forEach(m => {
+            if (m.fecha && m.fecha.startsWith(anio + '-' + curMes)) b += (parseFloat(m.monto) || 0);
+          });
+        } else if (typeof getAssetBalance === 'function') {
+          b = getAssetBalance('cor', name);
+        }
+        if (isCxc) saldoCXC += b;
+        if (isInv) saldoInv += b;
+      }
     });
   }
 
   let saldoCXP = 0;
-  if (typeof MODS !== 'undefined' && MODS.pasivos && typeof PASIVOS_SCHEMA !== 'undefined' && PASIVOS_SCHEMA.pas_cor && typeof getPasivoBalance === 'function') {
+  if (typeof MODS !== 'undefined' && MODS.pasivos && typeof PASIVOS_SCHEMA !== 'undefined' && PASIVOS_SCHEMA.pas_cor) {
     PASIVOS_SCHEMA.pas_cor.items.forEach(name => {
       const n = name.toUpperCase();
-      const b = getPasivoBalance('pas_cor', name);
       if (n.includes('PAGAR') || n.includes('PROVEEDOR') || n.includes('ACUMULADO') || n.includes('RETENCION') || n.includes('IVA')) {
+        let b = 0;
+        const pData = MODS.pasivos.pas_cor ? MODS.pasivos.pas_cor[name] : null;
+        if (pData && typeof pData === 'object' && Array.isArray(pData.movs) && curMes) {
+          pData.movs.forEach(m => {
+            if (m.fecha && m.fecha.startsWith(anio + '-' + curMes)) b += (parseFloat(m.monto) || 0);
+          });
+        } else if (typeof getPasivoBalance === 'function') {
+          b = getPasivoBalance('pas_cor', name);
+        }
         saldoCXP += b;
       }
     });
   }
 
-  // 2. Actividades de Inversión (Activos Fijos e Intangibles)
+  // 2. Actividades de Inversión (Compras de activos en el período)
   let saldoAF = 0, saldoIntan = 0;
-  if (typeof MODS !== 'undefined' && MODS.activos && typeof ACTIVOS_SCHEMA !== 'undefined' && typeof getAssetBalance === 'function') {
+  if (typeof MODS !== 'undefined' && MODS.activos && typeof ACTIVOS_SCHEMA !== 'undefined') {
     if (ACTIVOS_SCHEMA.no_cor) {
-      ACTIVOS_SCHEMA.no_cor.items.forEach(name => saldoAF += getAssetBalance('no_cor', name));
+      ACTIVOS_SCHEMA.no_cor.items.forEach(name => {
+        const cData = MODS.activos.no_cor ? MODS.activos.no_cor[name] : null;
+        if (cData && typeof cData === 'object' && Array.isArray(cData.movs) && curMes) {
+          cData.movs.forEach(m => {
+            if (m.fecha && m.fecha.startsWith(anio + '-' + curMes)) saldoAF += (parseFloat(m.monto) || 0);
+          });
+        } else if (typeof getAssetBalance === 'function') {
+          saldoAF += getAssetBalance('no_cor', name);
+        }
+      });
     }
     if (ACTIVOS_SCHEMA.intan) {
-      ACTIVOS_SCHEMA.intan.items.forEach(name => saldoIntan += getAssetBalance('intan', name));
+      ACTIVOS_SCHEMA.intan.items.forEach(name => {
+        const cData = MODS.activos.intan ? MODS.activos.intan[name] : null;
+        if (cData && typeof cData === 'object' && Array.isArray(cData.movs) && curMes) {
+          cData.movs.forEach(m => {
+            if (m.fecha && m.fecha.startsWith(anio + '-' + curMes)) saldoIntan += (parseFloat(m.monto) || 0);
+          });
+        } else if (typeof getAssetBalance === 'function') {
+          saldoIntan += getAssetBalance('intan', name);
+        }
+      });
     }
   }
 
-  // 3. Actividades de Financiamiento (Préstamos, Capital y Dividendos)
+  // 3. Actividades de Financiamiento (Préstamos, Capital y Dividendos en el período)
   let sumFin = 0;
   if (typeof MODS !== 'undefined' && MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) {
     MODS.pasivos.financieros.forEach(p => {
       if (p.estado !== 'cancelado') {
-        const saldoCap = (p.saldo_capital_actual !== undefined) ? (parseFloat(p.saldo_capital_actual) || 0) : (parseFloat(p.monto_principal) || 0);
-        if (saldoCap > 0) sumFin += saldoCap;
+        if (curMes) {
+          if (p.fecha && p.fecha.startsWith(anio + '-' + curMes)) {
+            sumFin += (parseFloat(p.monto_principal) || 0);
+          }
+          if (Array.isArray(p.pagos)) {
+            p.pagos.forEach(pg => {
+              if (pg.fecha && pg.fecha.startsWith(anio + '-' + curMes)) {
+                sumFin -= (parseFloat(pg.amortizacion) || 0);
+              }
+            });
+          }
+        } else {
+          const saldoCap = (p.saldo_capital_actual !== undefined) ? (parseFloat(p.saldo_capital_actual) || 0) : (parseFloat(p.monto_principal) || 0);
+          if (saldoCap > 0) sumFin += saldoCap;
+        }
       }
     });
   }
 
   let sumCap = 0, sumDiv = 0;
-  if (typeof MODS !== 'undefined' && MODS.patrimonio && MODS.patrimonio.patrim) {
-    Object.keys(MODS.patrimonio.patrim).forEach(name => {
-      const b = (typeof getPatrimBalance === 'function') ? getPatrimBalance(name) : 0;
-      const n = name.toUpperCase();
-      if (n.includes('CAPITAL') || n.includes('APORTE')) sumCap += b;
-    });
-  }
-  if (typeof MODS !== 'undefined' && MODS.patrimonio && Array.isArray(MODS.patrimonio.movimientos)) {
-    MODS.patrimonio.movimientos.forEach(m => {
-      const t = (m.tipo || '').toUpperCase();
-      const c = (m.cuenta || '').toUpperCase();
-      const monto = parseFloat(m.monto) || 0;
-      if (t.includes('DIVIDENDO') || t.includes('RETIRO') || c.includes('DIVIDENDO') || c.includes('RETIRO')) {
-        sumDiv += Math.abs(monto);
+  if (typeof MODS !== 'undefined' && MODS.patrimonio) {
+    if (curMes && Array.isArray(MODS.patrimonio.movimientos)) {
+      MODS.patrimonio.movimientos.forEach(m => {
+        if (m.fecha && m.fecha.startsWith(anio + '-' + curMes)) {
+          const t = (m.tipo || '').toUpperCase();
+          const monto = Math.abs(parseFloat(m.monto) || 0);
+          if (t.includes('APORTE') || t === 'AUMENTO') sumCap += monto;
+          if (t.includes('DIVIDENDO') || t.includes('RETIRO') || t === 'DISMINUCION') sumDiv += monto;
+        }
+      });
+    } else {
+      if (MODS.patrimonio.patrim) {
+        Object.keys(MODS.patrimonio.patrim).forEach(name => {
+          const b = (typeof getPatrimBalance === 'function') ? getPatrimBalance(name) : 0;
+          const n = name.toUpperCase();
+          if (n.includes('CAPITAL') || n.includes('APORTE')) sumCap += b;
+        });
       }
-    });
+      if (Array.isArray(MODS.patrimonio.movimientos)) {
+        MODS.patrimonio.movimientos.forEach(m => {
+          const t = (m.tipo || '').toUpperCase();
+          const monto = Math.abs(parseFloat(m.monto) || 0);
+          if (t.includes('DIVIDENDO') || t.includes('RETIRO')) sumDiv += monto;
+        });
+      }
+    }
   }
 
-  // 4. Efectivo y Equivalentes en Balance General (Referencia de Tesorería)
+  // 4. Efectivo y Equivalentes en Balance General
   let efectivoBG = 0;
   if (typeof MODS !== 'undefined' && MODS.activos && typeof ACTIVOS_SCHEMA !== 'undefined' && ACTIVOS_SCHEMA.cor && typeof getAssetBalance === 'function') {
     ACTIVOS_SCHEMA.cor.items.forEach(name => {
@@ -11170,21 +11333,30 @@ function fmInferirDatosFlujoEfectivo() {
       }
     });
   }
-  efectivoBG += sumFin;
+  if (!curMes) {
+    if (typeof MODS !== 'undefined' && MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) {
+      MODS.pasivos.financieros.forEach(p => {
+        if (p.estado !== 'cancelado') {
+          const saldoCap = (p.saldo_capital_actual !== undefined) ? (parseFloat(p.saldo_capital_actual) || 0) : (parseFloat(p.monto_principal) || 0);
+          if (saldoCap > 0) efectivoBG += saldoCap;
+        }
+      });
+    }
+  }
 
   // Ajustes de signos indirectos según NIC 7:
-  const cxcVal = -saldoCXC; // Aumento de CXC resta efectivo
-  const invVal = -saldoInv; // Aumento de Inventarios resta efectivo
-  const cxpVal = saldoCXP;  // Aumento de CXP suma efectivo
+  const cxcVal = -saldoCXC;
+  const invVal = -saldoInv;
+  const cxpVal = saldoCXP;
   const ao = utilNeta + dep + cxcVal + invVal + cxpVal;
 
-  const afVal = -saldoAF;   // Adquisición de PPE resta efectivo
-  const oiVal = -saldoIntan; // Adquisición de intangibles resta efectivo
+  const afVal = -saldoAF;
+  const oiVal = -saldoIntan;
   const ai = afVal + oiVal;
 
-  const presVal = sumFin;   // Créditos y financiamiento suman efectivo
-  const capVal = sumCap;    // Aportes de capital suman efectivo
-  const divVal = -sumDiv;   // Dividendos y retiros restan efectivo
+  const presVal = sumFin;
+  const capVal = sumCap;
+  const divVal = -sumDiv;
   const af_tot = presVal + capVal + divVal;
 
   const inc = ao + ai + af_tot;
@@ -11192,6 +11364,9 @@ function fmInferirDatosFlujoEfectivo() {
   const fin = inc + iniVal;
 
   return {
+    curMesStr,
+    curMes,
+    isAnual: curMes === '',
     utilNeta,
     dep,
     cxc: cxcVal,
@@ -11237,17 +11412,16 @@ function feCalc(){
     }
   };
 
-  const dER = (typeof getERVars === 'function') ? getERVars() : { utilNeta: 0 };
-  const utilNeta = (typeof utilNetaG !== 'undefined') ? utilNetaG : (dER.utilNeta || 0);
+  const auto = fmInferirDatosFlujoEfectivo();
   const ut_el = document.getElementById('fe_ut');
-  if (ut_el) ut_el.textContent = fN(utilNeta);
+  if (ut_el) ut_el.textContent = fN(auto.utilNeta);
 
   const dep = gv('dep');
   const cxc = gv('cxc');
   const cxp = gv('cxp');
   const inv = gv('inv');
 
-  const ao = utilNeta + dep + cxc + cxp + inv;
+  const ao = auto.utilNeta + dep + cxc + cxp + inv;
   sv('ao', ao);
 
   const af = gv('af');
@@ -11268,26 +11442,7 @@ function feCalc(){
   const fin = inc + ini;
   sv('fin', fin);
 
-  // Obtener saldo de efectivo en Balance General (Referencia de Tesorería)
-  let efectivoBG = 0;
-  let sumFinCor = 0;
-  if (typeof MODS !== 'undefined' && MODS.activos && typeof ACTIVOS_SCHEMA !== 'undefined' && ACTIVOS_SCHEMA.cor && typeof getAssetBalance === 'function') {
-    ACTIVOS_SCHEMA.cor.items.forEach(name => {
-      const n = name.toUpperCase();
-      if (n.includes('EFECTIVO') || n.includes('BANCO') || n.includes('CAJA')) {
-        efectivoBG += getAssetBalance('cor', name);
-      }
-    });
-  }
-  if (typeof MODS !== 'undefined' && MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) {
-    MODS.pasivos.financieros.forEach(p => {
-      if (p.estado !== 'cancelado') {
-        const saldoCap = (p.saldo_capital_actual !== undefined) ? (parseFloat(p.saldo_capital_actual) || 0) : (parseFloat(p.monto_principal) || 0);
-        if (saldoCap > 0) sumFinCor += saldoCap;
-      }
-    });
-  }
-  efectivoBG += sumFinCor;
+  const efectivoBG = auto.efectivoBG;
   sv('bg_ref', efectivoBG);
 
   const diff = fin - efectivoBG;
@@ -11379,26 +11534,9 @@ function fmAutoConciliarFlujoEfectivo() {
     return isNeg ? ('- ' + formatted) : formatted;
   };
 
-  let efectivoBG = 0;
-  if (typeof MODS !== 'undefined' && MODS.activos && typeof ACTIVOS_SCHEMA !== 'undefined' && ACTIVOS_SCHEMA.cor && typeof getAssetBalance === 'function') {
-    ACTIVOS_SCHEMA.cor.items.forEach(name => {
-      const n = name.toUpperCase();
-      if (n.includes('EFECTIVO') || n.includes('BANCO') || n.includes('CAJA')) {
-        efectivoBG += getAssetBalance('cor', name);
-      }
-    });
-  }
-  if (typeof MODS !== 'undefined' && MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) {
-    MODS.pasivos.financieros.forEach(p => {
-      if (p.estado !== 'cancelado') {
-        const saldoCap = (p.saldo_capital_actual !== undefined) ? (parseFloat(p.saldo_capital_actual) || 0) : (parseFloat(p.monto_principal) || 0);
-        if (saldoCap > 0) efectivoBG += saldoCap;
-      }
-    });
-  }
-
+  const auto = fmInferirDatosFlujoEfectivo();
   const inc = gv('inc');
-  const targetIni = efectivoBG - inc;
+  const targetIni = auto.efectivoBG - inc;
 
   const iniInp = document.getElementById('fe_ini');
   if (iniInp) {
@@ -11421,16 +11559,105 @@ function renderEfectivo(){
   const cName = (typeof activeClient !== 'undefined' && activeClient && activeClient.name) ? activeClient.name : 'Empresa Principal';
   const cId = (typeof activeClient !== 'undefined' && activeClient && activeClient.id) ? activeClient.id : '3-101-000000';
 
+  const auto = fmInferirDatosFlujoEfectivo();
+
+  // Barra de Pills de Meses
+  let pillsHTML = `
+    <button type="button" class="fe-mes-pill ${mesStr === '' ? 'active' : ''}" onclick="feSeleccionarMes('')">
+      🗓️ Todo el Año
+    </button>
+  `;
+  FE_MESES_LISTA.forEach(m => {
+    const isActive = (mesStr === m.nom);
+    pillsHTML += `
+      <button type="button" class="fe-mes-pill ${isActive ? 'active' : ''}" onclick="feSeleccionarMes('${m.nom}')">
+        ${m.abrv}
+      </button>
+    `;
+  });
+
+  el.innerHTML = `
+    <div style="max-width:1080px; margin:0 auto; padding-bottom:40px;">
+      <!-- 1. Barra de Control Ejecutivo y Acciones -->
+      <div style="background:linear-gradient(135deg, #0f2744 0%, #1e3a5f 100%); border-radius:12px; padding:20px 26px; color:#fff; margin-bottom:16px; box-shadow:0 4px 20px rgba(0,0,0,0.1); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
+        <div>
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+            <span style="font-size:10px; font-weight:700; background:rgba(255,255,255,0.15); padding:3px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.08em;">ESTADO FINANCIERO · NIC 7 / NIIF</span>
+            <span id="fe_status_pill" style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; border:1px solid ${auto.estaConciliado ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)'}; background:${auto.estaConciliado ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}; color:${auto.estaConciliado ? '#6ee7b7' : '#fca5a5'};">
+              ${auto.estaConciliado ? '✔️ Flujo Conciliado con Caja y Bancos' : '⚠️ Descalce de Conciliación'}
+            </span>
+          </div>
+          <h2 style="margin:0; font-size:20px; font-weight:800; letter-spacing:-0.02em;">Estado de Flujos de Efectivo · Método Indirecto</h2>
+          <div style="font-size:12px; opacity:0.85; margin-top:3px;">Visualización y conciliación mensual de tesorería y liquidez · <span style="font-weight:700; color:#93c5fd;">${periodoTxt}</span></div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm" onclick="fmAutoConciliarFlujoEfectivo()" style="background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.25); font-weight:700; border-radius:8px; padding:7px 13px; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+            ⚡ Auto-Conciliar con Balance
+          </button>
+          <button type="button" onclick="feCalc()" class="btn btn-sm" style="background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.25); font-weight:700; border-radius:8px; padding:7px 13px; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+            🔄 Recalcular
+          </button>
+          <button type="button" onclick="fmAbrirReporteFinanciero('efectivo')" class="btn btn-blue btn-sm" style="background:#2563eb; color:#fff; font-weight:700; border-radius:8px; padding:7px 16px; font-size:12px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 14px rgba(37,99,235,0.35);">
+            🖨️ Imprimir Reporte Oficial (PDF)
+          </button>
+        </div>
+      </div>
+
+      <!-- Barra de Navegación Rápida por Meses (Pills) -->
+      <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:16px; background:#fff; padding:10px 16px; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 1px 4px rgba(0,0,0,0.03);" class="dr-card">
+        <span style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; margin-right:4px;">Periodo / Mes:</span>
+        ${pillsHTML}
+      </div>
+
+      <!-- Tabs Bar de Flujo de Efectivo (Idéntico al Estado de Cambios de Patrimonio) -->
+      <div style="background:#fff; border:1px solid #e2e8f0; border-bottom:none; border-radius:10px 10px 0 0; padding:0 18px; display:flex; gap:12px; box-shadow:0 1px 3px rgba(0,0,0,0.02);" class="dr-card">
+        <button type="button" class="fe-tab-btn ${feTabActiva === 'reporte' ? 'active' : ''}" id="fe_tab_btn_reporte" onclick="feCambiarTab('reporte')">
+          📋 Estado de Flujo Mensual (NIC 7)
+        </button>
+        <button type="button" class="fe-tab-btn ${feTabActiva === 'matriz' ? 'active' : ''}" id="fe_tab_btn_matriz" onclick="feCambiarTab('matriz')">
+          📅 Matriz Comparativa Mensual (12 Meses)
+        </button>
+        <button type="button" class="fe-tab-btn ${feTabActiva === 'evolucion' ? 'active' : ''}" id="fe_tab_btn_evolucion" onclick="feCambiarTab('evolucion')">
+          📊 Evolución Cronológica de Caja
+        </button>
+      </div>
+
+      <!-- Contenedor del contenido de la Tab activa -->
+      <div id="fe_tab_contenido"></div>
+    </div>
+  `;
+
+  feRenderTabContenido();
+}
+
+function feRenderTabContenido() {
+  const container = document.getElementById('fe_tab_contenido');
+  if (!container) return;
+
+  const anio = (document.getElementById('anioSel') && document.getElementById('anioSel').value) ? document.getElementById('anioSel').value : new Date().getFullYear().toString();
+  const mesStr = (document.getElementById('mesSel') && document.getElementById('mesSel').value) ? document.getElementById('mesSel').value : '';
+  const periodoTxt = mesStr ? `${mesStr} de ${anio}` : `Ejercicio Anual ${anio}`;
+  const cName = (typeof activeClient !== 'undefined' && activeClient && activeClient.name) ? activeClient.name : 'Empresa Principal';
+  const cId = (typeof activeClient !== 'undefined' && activeClient && activeClient.id) ? activeClient.id : '3-101-000000';
+
+  const auto = fmInferirDatosFlujoEfectivo();
+
+  if (feTabActiva === 'matriz') {
+    feRenderTabMatriz(container);
+  } else if (feTabActiva === 'evolucion') {
+    feRenderTabEvolucion(container);
+  } else {
+    feRenderTabReporte(container, auto, periodoTxt, cName, cId);
+  }
+}
+
+function feRenderTabReporte(container, auto, periodoTxt, cName, cId) {
   const fN = (n) => {
     const isNeg = n < -0.0001;
     const formatted = Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     return isNeg ? ('- ' + formatted) : formatted;
   };
 
-  // Inferencia inteligente desde los libros y esquemas contables
-  const auto = fmInferirDatosFlujoEfectivo();
-
-  // Si ya existían valores previos en el DOM ingresados por el usuario, preservarlos
   const getPrev = (id, fallback) => {
     const existing = document.getElementById('fe_' + id);
     if (existing && existing.tagName === 'INPUT' && existing.value !== '') {
@@ -11450,190 +11677,447 @@ function renderEfectivo(){
   const valDiv = getPrev('div', auto.div);
   const valIni = getPrev('ini', auto.ini);
 
-  el.innerHTML = `
-    <div style="max-width:1020px; margin:0 auto; padding-bottom:40px;">
-      <!-- 1. Barra de Control Ejecutivo y Acciones -->
-      <div style="background:linear-gradient(135deg, #0f2744 0%, #1e3a5f 100%); border-radius:12px; padding:20px 26px; color:#fff; margin-bottom:18px; box-shadow:0 4px 20px rgba(0,0,0,0.1); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
-        <div>
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
-            <span style="font-size:10px; font-weight:700; background:rgba(255,255,255,0.15); padding:3px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.08em;">ESTADO FINANCIERO · NIC 7 / NIIF</span>
-            <span id="fe_status_pill" style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; border:1px solid ${auto.estaConciliado ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)'}; background:${auto.estaConciliado ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}; color:${auto.estaConciliado ? '#6ee7b7' : '#fca5a5'};">
-              ${auto.estaConciliado ? '✔️ Flujo Conciliado con Caja y Bancos' : '⚠️ Descalce de Conciliación'}
-            </span>
-          </div>
-          <h2 style="margin:0; font-size:20px; font-weight:800; letter-spacing:-0.02em;">Estado de Flujos de Efectivo · Método Indirecto</h2>
-          <div style="font-size:12px; opacity:0.85; margin-top:3px;">Capacidad de generación de tesorería, liquidez y conciliación de caja · <span style="font-weight:700; color:#93c5fd;">${periodoTxt}</span></div>
+  container.innerHTML = `
+    <!-- 1. Tarjetas KPI Ejecutivas del Flujo de Efectivo -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-top:16px; margin-bottom:20px;">
+      <!-- KPI 1: Flujo Neto de Operación -->
+      <div class="dr-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:15px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+          <span style="font-size:10px; font-weight:700; color:#64748b; letter-spacing:0.05em; text-transform:uppercase;">Flujo Operativo (FAO)</span>
+          <span style="font-size:13px;">💼</span>
         </div>
-        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-          <button type="button" class="btn btn-sm" onclick="fmAutoConciliarFlujoEfectivo()" style="background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.25); font-weight:700; border-radius:8px; padding:7px 13px; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-            ⚡ Auto-Conciliar con Balance
-          </button>
-          <button type="button" onclick="feCalc()" class="btn btn-sm" style="background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.25); font-weight:700; border-radius:8px; padding:7px 13px; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-            🔄 Recalcular
-          </button>
-          <button type="button" onclick="fmAbrirReporteFinanciero('efectivo')" class="btn btn-blue btn-sm" style="background:#2563eb; color:#fff; font-weight:700; border-radius:8px; padding:7px 16px; font-size:12px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 14px rgba(37,99,235,0.35);">
-            🖨️ Imprimir Reporte Oficial (PDF)
-          </button>
-        </div>
+        <div id="fe_kpi_ao" style="font-family:'Roboto Mono',monospace; font-size:19px; font-weight:800; color:#0f172a;">₡${fN(auto.ao)}</div>
+        <div style="font-size:10.5px; color:#64748b; margin-top:3px;">Generación operativa neta (Utilidad + Ajustes)</div>
       </div>
 
-      <!-- 2. Tarjetas KPI Ejecutivas del Flujo de Efectivo -->
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:20px;">
-        <!-- KPI 1: Flujo Neto de Operación -->
-        <div class="dr-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:15px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-            <span style="font-size:10px; font-weight:700; color:#64748b; letter-spacing:0.05em; text-transform:uppercase;">Flujo Operativo (FAO)</span>
-            <span style="font-size:13px;">💼</span>
-          </div>
-          <div id="fe_kpi_ao" style="font-family:'Roboto Mono',monospace; font-size:19px; font-weight:800; color:#0f172a;">₡${fN(auto.ao)}</div>
-          <div style="font-size:10.5px; color:#64748b; margin-top:3px;">Generación operativa neta (Utilidad + Ajustes)</div>
+      <!-- KPI 2: Flujo Neto de Inversión -->
+      <div class="dr-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:15px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+          <span style="font-size:10px; font-weight:700; color:#64748b; letter-spacing:0.05em; text-transform:uppercase;">Flujo Inversión (FAI)</span>
+          <span style="font-size:13px;">🏗️</span>
         </div>
-
-        <!-- KPI 2: Flujo Neto de Inversión -->
-        <div class="dr-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:15px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-            <span style="font-size:10px; font-weight:700; color:#64748b; letter-spacing:0.05em; text-transform:uppercase;">Flujo Inversión (FAI)</span>
-            <span style="font-size:13px;">🏗️</span>
-          </div>
-          <div id="fe_kpi_ai" style="font-family:'Roboto Mono',monospace; font-size:19px; font-weight:800; color:#d97706;">₡${fN(auto.ai)}</div>
-          <div style="font-size:10.5px; color:#64748b; margin-top:3px;">Aplicación en activos fijos e intangibles</div>
-        </div>
-
-        <!-- KPI 3: Flujo Neto de Financiamiento -->
-        <div class="dr-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:15px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-            <span style="font-size:10px; font-weight:700; color:#64748b; letter-spacing:0.05em; text-transform:uppercase;">Flujo Financiación (FAF)</span>
-            <span style="font-size:13px;">🏛️</span>
-          </div>
-          <div id="fe_kpi_af" style="font-family:'Roboto Mono',monospace; font-size:19px; font-weight:800; color:#4f46e5;">₡${fN(auto.af_tot)}</div>
-          <div style="font-size:10.5px; color:#64748b; margin-top:3px;">Créditos bancarios, amortizaciones y socios</div>
-        </div>
-
-        <!-- KPI 4: Efectivo y Equivalentes Final -->
-        <div class="dr-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:15px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-            <span style="font-size:10px; font-weight:700; color:#64748b; letter-spacing:0.05em; text-transform:uppercase;">Efectivo Final</span>
-            <span id="fe_kpi_cuadre" style="font-size:9.5px; font-weight:700; background:${auto.estaConciliado ? '#dcfce7' : '#fee2e2'}; color:${auto.estaConciliado ? '#15803d' : '#b91c1c'}; padding:2px 6px; border-radius:4px;">
-              ${auto.estaConciliado ? 'CONCILIADO (100%)' : 'DESCALCE'}
-            </span>
-          </div>
-          <div id="fe_kpi_fin" style="font-family:'Roboto Mono',monospace; font-size:19px; font-weight:800; color:#059669;">₡${fN(auto.fin)}</div>
-          <div style="font-size:10.5px; color:#64748b; margin-top:3px;">Saldo al cierre conciliado con Balance General</div>
-        </div>
+        <div id="fe_kpi_ai" style="font-family:'Roboto Mono',monospace; font-size:19px; font-weight:800; color:#d97706;">₡${fN(auto.ai)}</div>
+        <div style="font-size:10.5px; color:#64748b; margin-top:3px;">Aplicación en activos fijos e intangibles</div>
       </div>
 
-      <!-- 3. Documento Ejecutivo: Hoja de Flujo de Efectivo NIIF / NIC 7 -->
-      <div class="fm-screen-sheet" style="max-width:1020px; padding:38px 44px 34px 44px;">
-        <div class="fm-screen-badge">Estado de Flujos de Efectivo · NIC 7 / NIIF</div>
-
-        <!-- Cabecera Institucional del Reporte -->
-        <div class="fm-rep-header">
-          <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
-          <div class="fm-rep-empresa">${cName}</div>
-          <div class="fm-rep-id">Cédula / Identificación: ${cId}</div>
-          <div class="fm-rep-title">ESTADO DE FLUJOS DE EFECTIVO (MÉTODO INDIRECTO)</div>
-          <div class="fm-rep-sub">Para el período terminado al ${periodoTxt}</div>
-          <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Norma Internacional NIC 7 / NIIF)</div>
+      <!-- KPI 3: Flujo Neto de Financiamiento -->
+      <div class="dr-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:15px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+          <span style="font-size:10px; font-weight:700; color:#64748b; letter-spacing:0.05em; text-transform:uppercase;">Flujo Financiación (FAF)</span>
+          <span style="font-size:13px;">🏛️</span>
         </div>
-
-        <table class="fm-rep-table" style="margin-top:14px; margin-bottom:20px;">
-          <thead>
-            <tr>
-              <th style="text-align:left;">CONCEPTO Y ACTIVIDADES DE TESORERÍA</th>
-              <th style="text-align:right; width:170px;">MONTO (₡)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <!-- 1. ACTIVIDADES DE OPERACIÓN -->
-            <tr class="fm-rep-cat"><td colspan="2">1. ACTIVIDADES DE OPERACIÓN</td></tr>
-            <tr>
-              <td class="fm-rep-item">Utilidad o Pérdida Neta del Ejercicio (según Estado de Resultados)</td>
-              <td class="fm-rep-num" style="font-weight:700;"><span id="fe_ut">${fN(auto.utilNeta)}</span></td>
-            </tr>
-            <tr>
-              <td class="fm-rep-item" style="color:#2563eb;"><span style="font-weight:700;">( + )</span> Depreciaciones y Amortizaciones del período (partida no monetaria)</td>
-              <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_dep" type="text" value="${valDep}" oninput="feCalc()" onblur="feBlur(this)" /></td>
-            </tr>
-            <tr>
-              <td class="fm-rep-item">(+/-) Variación neta en Cuentas por Cobrar comerciales</td>
-              <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_cxc" type="text" value="${valCxc}" oninput="feCalc()" onblur="feBlur(this)" /></td>
-            </tr>
-            <tr>
-              <td class="fm-rep-item">(+/-) Variación neta en Inventarios</td>
-              <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_inv" type="text" value="${valInv}" oninput="feCalc()" onblur="feBlur(this)" /></td>
-            </tr>
-            <tr>
-              <td class="fm-rep-item">(+/-) Variación neta en Cuentas por Pagar y Pasivos Operativos</td>
-              <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_cxp" type="text" value="${valCxp}" oninput="feCalc()" onblur="feBlur(this)" /></td>
-            </tr>
-            <tr class="fm-rep-subtot">
-              <td>FLUJO NETO DE ACTIVIDADES DE OPERACIÓN (FAO)</td>
-              <td class="fm-rep-num"><span id="fe_ao">${fN(auto.ao)}</span></td>
-            </tr>
-
-            <!-- 2. ACTIVIDADES DE INVERSIÓN -->
-            <tr class="fm-rep-cat"><td colspan="2">2. ACTIVIDADES DE INVERSIÓN</td></tr>
-            <tr>
-              <td class="fm-rep-item"><span style="font-weight:700;">( - )</span> Adquisición de Propiedad, Planta y Equipo / Activos Fijos</td>
-              <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_af" type="text" value="${valAf}" oninput="feCalc()" onblur="feBlur(this)" /></td>
-            </tr>
-            <tr>
-              <td class="fm-rep-item"><span style="font-weight:700;">( - )</span> Inversiones de Capital y Activos Intangibles</td>
-              <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_oi" type="text" value="${valOi}" oninput="feCalc()" onblur="feBlur(this)" /></td>
-            </tr>
-            <tr class="fm-rep-subtot">
-              <td>FLUJO NETO DE ACTIVIDADES DE INVERSIÓN (FAI)</td>
-              <td class="fm-rep-num"><span id="fe_ai">${fN(auto.ai)}</span></td>
-            </tr>
-
-            <!-- 3. ACTIVIDADES DE FINANCIAMIENTO -->
-            <tr class="fm-rep-cat"><td colspan="2">3. ACTIVIDADES DE FINANCIAMIENTO</td></tr>
-            <tr>
-              <td class="fm-rep-item">(+/-) Contratación o amortización de Préstamos y Pasivos Financieros</td>
-              <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_pres" type="text" value="${valPres}" oninput="feCalc()" onblur="feBlur(this)" /></td>
-            </tr>
-            <tr>
-              <td class="fm-rep-item"><span style="font-weight:700;">( + )</span> Aportes nuevos de capital de socios / inversionistas</td>
-              <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_cap" type="text" value="${valCap}" oninput="feCalc()" onblur="feBlur(this)" /></td>
-            </tr>
-            <tr>
-              <td class="fm-rep-item" style="color:#dc2626;"><span style="font-weight:700;">( - )</span> Pago de Dividendos / Retiros de capital a socios</td>
-              <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_div" type="text" value="${valDiv}" oninput="feCalc()" onblur="feBlur(this)" /></td>
-            </tr>
-            <tr class="fm-rep-subtot">
-              <td>FLUJO NETO DE ACTIVIDADES DE FINANCIAMIENTO (FAF)</td>
-              <td class="fm-rep-num"><span id="fe_af_tot">${fN(auto.af_tot)}</span></td>
-            </tr>
-
-            <!-- 4. RESUMEN Y CONCILIACIÓN DE EFECTIVO Y EQUIVALENTES -->
-            <tr class="fm-rep-cat"><td colspan="2">4. RESUMEN Y CONCILIACIÓN DE EFECTIVO Y EQUIVALENTES</td></tr>
-            <tr class="fm-rep-subtot" style="background:#f8fafc; font-weight:800;">
-              <td>INCREMENTO / (DISMINUCIÓN) NETO DE EFECTIVO Y EQUIVALENTES</td>
-              <td class="fm-rep-num"><span id="fe_inc">${fN(auto.inc)}</span></td>
-            </tr>
-            <tr>
-              <td class="fm-rep-item">Efectivo y equivalentes de efectivo al inicio del período</td>
-              <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_ini" type="text" value="${valIni}" oninput="feCalc()" onblur="feBlur(this)" /></td>
-            </tr>
-            <tr class="fm-rep-grandtot" style="font-size:14px;">
-              <td style="font-weight:900;">EFECTIVO Y EQUIVALENTES DE EFECTIVO AL FINAL DEL PERÍODO</td>
-              <td class="fm-rep-num" style="font-size:14px; font-weight:900;"><span id="fe_fin">${fN(auto.fin)}</span></td>
-            </tr>
-            <tr style="font-size:11px; color:#64748b;">
-              <td class="fm-rep-item" style="padding-left:14px; font-style:italic;">Saldo de Referencia en Balance General (Efectivo, Caja y Bancos)</td>
-              <td class="fm-rep-num" style="font-style:italic;"><span id="fe_bg_ref">${fN(auto.efectivoBG)}</span></td>
-            </tr>
-          </tbody>
-        </table>
-
-        <!-- Diagnóstico y Alerta de Conciliación -->
-        <div id="fe_cuadre" style="margin-top:20px;"></div>
+        <div id="fe_kpi_af" style="font-family:'Roboto Mono',monospace; font-size:19px; font-weight:800; color:#4f46e5;">₡${fN(auto.af_tot)}</div>
+        <div style="font-size:10.5px; color:#64748b; margin-top:3px;">Créditos bancarios, amortizaciones y socios</div>
       </div>
+
+      <!-- KPI 4: Efectivo y Equivalentes Final -->
+      <div class="dr-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:15px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+          <span style="font-size:10px; font-weight:700; color:#64748b; letter-spacing:0.05em; text-transform:uppercase;">Efectivo Final</span>
+          <span id="fe_kpi_cuadre" style="font-size:9.5px; font-weight:700; background:${auto.estaConciliado ? '#dcfce7' : '#fee2e2'}; color:${auto.estaConciliado ? '#15803d' : '#b91c1c'}; padding:2px 6px; border-radius:4px;">
+            ${auto.estaConciliado ? 'CONCILIADO (100%)' : 'DESCALCE'}
+          </span>
+        </div>
+        <div id="fe_kpi_fin" style="font-family:'Roboto Mono',monospace; font-size:19px; font-weight:800; color:#059669;">₡${fN(auto.fin)}</div>
+        <div style="font-size:10.5px; color:#64748b; margin-top:3px;">Saldo al cierre conciliado con Balance General</div>
+      </div>
+    </div>
+
+    <!-- 2. Hoja Ejecutiva de Flujo de Efectivo NIIF / NIC 7 -->
+    <div class="fm-screen-sheet" style="max-width:1080px; padding:38px 44px 34px 44px;">
+      <div class="fm-screen-badge">Estado de Flujos de Efectivo · NIC 7 / NIIF</div>
+
+      <!-- Cabecera Institucional del Reporte -->
+      <div class="fm-rep-header">
+        <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
+        <div class="fm-rep-empresa">${cName}</div>
+        <div class="fm-rep-id">Cédula / Identificación: ${cId}</div>
+        <div class="fm-rep-title">ESTADO DE FLUJOS DE EFECTIVO (MÉTODO INDIRECTO)</div>
+        <div class="fm-rep-sub">Para el período terminado al ${periodoTxt}</div>
+        <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Norma Internacional NIC 7 / NIIF)</div>
+      </div>
+
+      <table class="fm-rep-table" style="margin-top:14px; margin-bottom:20px;">
+        <thead>
+          <tr>
+            <th style="text-align:left;">CONCEPTO Y ACTIVIDADES DE TESORERÍA</th>
+            <th style="text-align:right; width:170px;">MONTO (₡)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 1. ACTIVIDADES DE OPERACIÓN -->
+          <tr class="fm-rep-cat"><td colspan="2">1. ACTIVIDADES DE OPERACIÓN</td></tr>
+          <tr>
+            <td class="fm-rep-item">Utilidad o Pérdida Neta del Ejercicio (según Estado de Resultados)</td>
+            <td class="fm-rep-num" style="font-weight:700;"><span id="fe_ut">${fN(auto.utilNeta)}</span></td>
+          </tr>
+          <tr>
+            <td class="fm-rep-item" style="color:#2563eb;"><span style="font-weight:700;">( + )</span> Depreciaciones y Amortizaciones del período (partida no monetaria)</td>
+            <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_dep" type="text" value="${valDep}" oninput="feCalc()" onblur="feBlur(this)" /></td>
+          </tr>
+          <tr>
+            <td class="fm-rep-item">(+/-) Variación neta en Cuentas por Cobrar comerciales</td>
+            <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_cxc" type="text" value="${valCxc}" oninput="feCalc()" onblur="feBlur(this)" /></td>
+          </tr>
+          <tr>
+            <td class="fm-rep-item">(+/-) Variación neta en Inventarios</td>
+            <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_inv" type="text" value="${valInv}" oninput="feCalc()" onblur="feBlur(this)" /></td>
+          </tr>
+          <tr>
+            <td class="fm-rep-item">(+/-) Variación neta en Cuentas por Pagar y Pasivos Operativos</td>
+            <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_cxp" type="text" value="${valCxp}" oninput="feCalc()" onblur="feBlur(this)" /></td>
+          </tr>
+          <tr class="fm-rep-subtot">
+            <td>FLUJO NETO DE ACTIVIDADES DE OPERACIÓN (FAO)</td>
+            <td class="fm-rep-num"><span id="fe_ao">${fN(auto.ao)}</span></td>
+          </tr>
+
+          <!-- 2. ACTIVIDADES DE INVERSIÓN -->
+          <tr class="fm-rep-cat"><td colspan="2">2. ACTIVIDADES DE INVERSIÓN</td></tr>
+          <tr>
+            <td class="fm-rep-item"><span style="font-weight:700;">( - )</span> Adquisición de Propiedad, Planta y Equipo / Activos Fijos</td>
+            <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_af" type="text" value="${valAf}" oninput="feCalc()" onblur="feBlur(this)" /></td>
+          </tr>
+          <tr>
+            <td class="fm-rep-item"><span style="font-weight:700;">( - )</span> Inversiones de Capital y Activos Intangibles</td>
+            <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_oi" type="text" value="${valOi}" oninput="feCalc()" onblur="feBlur(this)" /></td>
+          </tr>
+          <tr class="fm-rep-subtot">
+            <td>FLUJO NETO DE ACTIVIDADES DE INVERSIÓN (FAI)</td>
+            <td class="fm-rep-num"><span id="fe_ai">${fN(auto.ai)}</span></td>
+          </tr>
+
+          <!-- 3. ACTIVIDADES DE FINANCIAMIENTO -->
+          <tr class="fm-rep-cat"><td colspan="2">3. ACTIVIDADES DE FINANCIAMIENTO</td></tr>
+          <tr>
+            <td class="fm-rep-item">(+/-) Contratación o amortización de Préstamos y Pasivos Financieros</td>
+            <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_pres" type="text" value="${valPres}" oninput="feCalc()" onblur="feBlur(this)" /></td>
+          </tr>
+          <tr>
+            <td class="fm-rep-item"><span style="font-weight:700;">( + )</span> Aportes nuevos de capital de socios / inversionistas</td>
+            <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_cap" type="text" value="${valCap}" oninput="feCalc()" onblur="feBlur(this)" /></td>
+          </tr>
+          <tr>
+            <td class="fm-rep-item" style="color:#dc2626;"><span style="font-weight:700;">( - )</span> Pago de Dividendos / Retiros de capital a socios</td>
+            <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_div" type="text" value="${valDiv}" oninput="feCalc()" onblur="feBlur(this)" /></td>
+          </tr>
+          <tr class="fm-rep-subtot">
+            <td>FLUJO NETO DE ACTIVIDADES DE FINANCIAMIENTO (FAF)</td>
+            <td class="fm-rep-num"><span id="fe_af_tot">${fN(auto.af_tot)}</span></td>
+          </tr>
+
+          <!-- 4. RESUMEN Y CONCILIACIÓN DE EFECTIVO Y EQUIVALENTES -->
+          <tr class="fm-rep-cat"><td colspan="2">4. RESUMEN Y CONCILIACIÓN DE EFECTIVO Y EQUIVALENTES</td></tr>
+          <tr class="fm-rep-subtot" style="background:#f8fafc; font-weight:800;">
+            <td>INCREMENTO / (DISMINUCIÓN) NETO DE EFECTIVO Y EQUIVALENTES</td>
+            <td class="fm-rep-num"><span id="fe_inc">${fN(auto.inc)}</span></td>
+          </tr>
+          <tr>
+            <td class="fm-rep-item">Efectivo y equivalentes de efectivo al inicio del período</td>
+            <td class="fm-rep-num"><input class="fm-fe-inp" id="fe_ini" type="text" value="${valIni}" oninput="feCalc()" onblur="feBlur(this)" /></td>
+          </tr>
+          <tr class="fm-rep-grandtot" style="font-size:14px;">
+            <td style="font-weight:900;">EFECTIVO Y EQUIVALENTES DE EFECTIVO AL FINAL DEL PERÍODO</td>
+            <td class="fm-rep-num" style="font-size:14px; font-weight:900;"><span id="fe_fin">${fN(auto.fin)}</span></td>
+          </tr>
+          <tr style="font-size:11px; color:#64748b;">
+            <td class="fm-rep-item" style="padding-left:14px; font-style:italic;">Saldo de Referencia en Balance General (Efectivo, Caja y Bancos)</td>
+            <td class="fm-rep-num" style="font-style:italic;"><span id="fe_bg_ref">${fN(auto.efectivoBG)}</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Diagnóstico y Alerta de Conciliación -->
+      <div id="fe_cuadre" style="margin-top:20px;"></div>
     </div>
   `;
   feCalc();
 }
 
+function feRenderTabMatriz(container) {
+  const anio = (document.getElementById('anioSel') && document.getElementById('anioSel').value) ? document.getElementById('anioSel').value : new Date().getFullYear().toString();
+  const mesSelVal = (document.getElementById('mesSel') && document.getElementById('mesSel').value) ? document.getElementById('mesSel').value : '';
+
+  const fN = (n) => {
+    if (n === 0) return '—';
+    const isNeg = n < -0.0001;
+    const formatted = Math.abs(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return isNeg ? ('- ' + formatted) : formatted;
+  };
+
+  // Calcular flujo para cada uno de los 12 meses y total anual
+  const datosMeses = FE_MESES_LISTA.map(m => {
+    return { ...m, ...fmInferirDatosFlujoEfectivo(m.nom) };
+  });
+  const totalAnual = fmInferirDatosFlujoEfectivo('');
+
+  let tableHeaderCols = '<th style="padding:10px 12px; text-align:left; font-size:11px; font-weight:700; color:#475569; position:sticky; left:0; background:#f8fafc; z-index:2; min-width:240px;">Concepto Flujo NIC 7</th>';
+  datosMeses.forEach(m => {
+    const isCurrent = (mesSelVal === m.nom);
+    tableHeaderCols += `
+      <th style="padding:10px 8px; text-align:right; font-size:10px; font-weight:700; color:${isCurrent ? '#1e3a5f' : '#64748b'}; min-width:95px; background:${isCurrent ? '#eff6ff' : '#f8fafc'}; cursor:pointer;" onclick="feSeleccionarMes('${m.nom}')" title="Clic para ver detalle de ${m.nom}">
+        ${m.abrv} ${isCurrent ? '📌' : ''}
+      </th>
+    `;
+  });
+  tableHeaderCols += '<th style="padding:10px 10px; text-align:right; font-size:11px; font-weight:800; color:#0f172a; min-width:110px; background:#f1f5f9;">Total ' + anio + '</th>';
+
+  const makeRow = (label, key, isSubtot = false, isGrand = false, isHeader = false) => {
+    if (isHeader) {
+      return `<tr style="background:#f1f5f9; font-weight:800; font-size:11px;"><td colspan="${datosMeses.length + 2}" style="padding:8px 12px; color:#1e3a5f;">${label}</td></tr>`;
+    }
+    let r = `<tr style="border-bottom:1px solid #e2e8f0; ${isGrand ? 'background:#ecfdf5; font-weight:900;' : (isSubtot ? 'background:#f8fafc; font-weight:700;' : '')}">`;
+    r += `<td style="padding:7px 12px; font-size:11px; color:#1e293b; position:sticky; left:0; background:${isGrand ? '#ecfdf5' : (isSubtot ? '#f8fafc' : '#fff')}; z-index:1;">${label}</td>`;
+    datosMeses.forEach(m => {
+      const isCurrent = (mesSelVal === m.nom);
+      const val = m[key] || 0;
+      r += `<td style="padding:7px 8px; text-align:right; font-family:'Roboto Mono',monospace; font-size:11px; background:${isCurrent ? '#eff6ff' : 'transparent'}; color:${val < 0 ? '#dc2626' : (isGrand ? '#065f46' : '#0f172a')}">${fN(val)}</td>`;
+    });
+    const totVal = totalAnual[key] || 0;
+    r += `<td style="padding:7px 10px; text-align:right; font-family:'Roboto Mono',monospace; font-size:11.5px; font-weight:800; color:${totVal < 0 ? '#dc2626' : (isGrand ? '#065f46' : '#0f172a')}; background:#f8fafc;">${fN(totVal)}</td>`;
+    r += `</tr>`;
+    return r;
+  };
+
+  container.innerHTML = `
+    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:0 0 10px 10px; padding:24px 20px; box-shadow:0 4px 16px rgba(0,0,0,0.04);" class="dr-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+        <div>
+          <h3 style="margin:0; font-size:16px; font-weight:800; color:#0f172a;">Matriz Comparativa de Flujos de Efectivo · 12 Meses (${anio})</h3>
+          <div style="font-size:11.5px; color:#64748b; margin-top:2px;">Evolución intermensual del flujo operativo, inversor, financiero y liquidez neta (Valores expresados en ₡)</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" onclick="fmAbrirReporteFinanciero('efectivo')" class="btn btn-sm btn-blue" style="font-size:11px; font-weight:700; padding:6px 12px; border-radius:6px; cursor:pointer;">
+            🖨️ Imprimir Reporte
+          </button>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto; border:1px solid #cbd5e1; border-radius:8px;">
+        <table style="width:100%; border-collapse:collapse; min-width:980px;">
+          <thead>
+            <tr style="border-bottom:2px solid #cbd5e1;">${tableHeaderCols}</tr>
+          </thead>
+          <tbody>
+            ${makeRow('1. ACTIVIDADES DE OPERACIÓN', '', false, false, true)}
+            ${makeRow('Utilidad o Pérdida Neta', 'utilNeta')}
+            ${makeRow('(+) Depreciación y Amortización', 'dep')}
+            ${makeRow('(+/-) Cuentas por Cobrar comerciales', 'cxc')}
+            ${makeRow('(+/-) Variación en Inventarios', 'inv')}
+            ${makeRow('(+/-) Cuentas por Pagar y Pasivos Operativos', 'cxp')}
+            ${makeRow('FLUJO NETO DE OPERACIÓN (FAO)', 'ao', true)}
+
+            ${makeRow('2. ACTIVIDADES DE INVERSIÓN', '', false, false, true)}
+            ${makeRow('(-) Adquisición Propiedad, Planta y Eq.', 'af')}
+            ${makeRow('(-) Inversiones Intangibles y Otros', 'oi')}
+            ${makeRow('FLUJO NETO DE INVERSIÓN (FAI)', 'ai', true)}
+
+            ${makeRow('3. ACTIVIDADES DE FINANCIAMIENTO', '', false, false, true)}
+            ${makeRow('(+/-) Créditos y Pasivos Financieros', 'pres')}
+            ${makeRow('(+) Aportes de Capital Socios', 'cap')}
+            ${makeRow('(-) Pago de Dividendos / Retiros', 'div')}
+            ${makeRow('FLUJO NETO DE FINANCIACIÓN (FAF)', 'af_tot', true)}
+
+            ${makeRow('4. RESUMEN Y CONCILIACIÓN DE TESORERÍA', '', false, false, true)}
+            ${makeRow('VARIACIÓN NETA DE EFECTIVO (ΔE)', 'inc', true)}
+            ${makeRow('Efectivo al Inicio del Mes / Período', 'ini')}
+            ${makeRow('EFECTIVO AL FINAL DEL PERÍODO', 'fin', false, true)}
+            ${makeRow('Efectivo en Balance General (Referencia)', 'efectivoBG')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function feRenderTabEvolucion(container) {
+  const anio = (document.getElementById('anioSel') && document.getElementById('anioSel').value) ? document.getElementById('anioSel').value : new Date().getFullYear().toString();
+  const mesStr = (document.getElementById('mesSel') && document.getElementById('mesSel').value) ? document.getElementById('mesSel').value : '';
+  const M_MAP = { "Enero":"01","Febrero":"02","Marzo":"03","Abril":"04","Mayo":"05","Junio":"06","Julio":"07","Agosto":"08","Septiembre":"09","Octubre":"10","Noviembre":"11","Diciembre":"12" };
+  const curMes = M_MAP[mesStr] || '';
+
+  // Recolectar movimientos cronológicos de tesorería y caja
+  const movsList = [];
+
+  // 1. Efectivo y bancos
+  if (typeof MODS !== 'undefined' && MODS.activos && MODS.activos.cor) {
+    const cData = MODS.activos.cor['EFECTIVO Y EQUIVALENTE DE EFECTIVO'];
+    if (cData && Array.isArray(cData.movs)) {
+      cData.movs.forEach(m => {
+        if (m.fecha && m.fecha.startsWith(anio) && (!curMes || m.fecha.split('-')[1] === curMes)) {
+          const rawM = parseFloat(m.monto) || 0;
+          movsList.push({
+            fecha: m.fecha,
+            concepto: m.det || 'Movimiento de Caja / Bancos',
+            actividad: 'Operación',
+            tipo: rawM >= 0 ? 'Entrada' : 'Salida',
+            monto: Math.abs(rawM)
+          });
+        }
+      });
+    }
+  }
+
+  // 2. Compras de Activos Fijos (Inversión)
+  if (typeof MODS !== 'undefined' && MODS.activos && typeof ACTIVOS_SCHEMA !== 'undefined' && ACTIVOS_SCHEMA.no_cor) {
+    ACTIVOS_SCHEMA.no_cor.items.forEach(acct => {
+      const c = MODS.activos.no_cor[acct];
+      if (c && Array.isArray(c.movs)) {
+        c.movs.forEach(m => {
+          if (m.fecha && m.fecha.startsWith(anio) && (!curMes || m.fecha.split('-')[1] === curMes)) {
+            const rawM = parseFloat(m.monto) || 0;
+            movsList.push({
+              fecha: m.fecha,
+              concepto: m.det || ('Adquisición de ' + acct),
+              actividad: 'Inversión',
+              tipo: 'Salida',
+              monto: Math.abs(rawM)
+            });
+          }
+        });
+      }
+    });
+  }
+
+  // 3. Pasivos Financieros (Financiamiento)
+  if (typeof MODS !== 'undefined' && MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) {
+    MODS.pasivos.financieros.forEach(p => {
+      if (p.fecha && p.fecha.startsWith(anio) && (!curMes || p.fecha.split('-')[1] === curMes)) {
+        movsList.push({
+          fecha: p.fecha,
+          concepto: 'Desembolso Préstamo: ' + (p.acreedor || p.descripcion || 'Entidad Financiera'),
+          actividad: 'Financiamiento',
+          tipo: 'Entrada',
+          monto: parseFloat(p.monto_principal) || 0
+        });
+      }
+      if (Array.isArray(p.pagos)) {
+        p.pagos.forEach(pg => {
+          if (pg.fecha && pg.fecha.startsWith(anio) && (!curMes || pg.fecha.split('-')[1] === curMes)) {
+            movsList.push({
+              fecha: pg.fecha,
+              concepto: 'Amortización Deuda: ' + (p.acreedor || 'Crédito'),
+              actividad: 'Financiamiento',
+              tipo: 'Salida',
+              monto: parseFloat(pg.amortizacion) || 0
+            });
+          }
+        });
+      }
+    });
+  }
+
+  // 4. Patrimonio (Aportes y Dividendos)
+  if (typeof MODS !== 'undefined' && MODS.patrimonio && Array.isArray(MODS.patrimonio.movimientos)) {
+    MODS.patrimonio.movimientos.forEach(m => {
+      if (m.fecha && m.fecha.startsWith(anio) && (!curMes || m.fecha.split('-')[1] === curMes)) {
+        const t = (m.tipo || '').toUpperCase();
+        const monto = Math.abs(parseFloat(m.monto) || 0);
+        const isAporte = t.includes('APORTE') || t === 'AUMENTO';
+        movsList.push({
+          fecha: m.fecha,
+          concepto: m.det || (isAporte ? 'Aporte de Capital Socios' : 'Retiro de Dividendos'),
+          actividad: 'Financiamiento',
+          tipo: isAporte ? 'Entrada' : 'Salida',
+          monto: monto
+        });
+      }
+    });
+  }
+
+  // Ordenar cronológico ascendente
+  movsList.sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+
+  const auto = fmInferirDatosFlujoEfectivo();
+  let runningBal = auto.ini;
+
+  let totalEntradas = 0;
+  let totalSalidas = 0;
+
+  let rowsHTML = '';
+  if (movsList.length === 0) {
+    rowsHTML = `
+      <tr>
+        <td colspan="7" style="padding:24px; text-align:center; color:#94a3b8; font-style:italic;">
+          Sin transacciones individuales de caja registradas en el período seleccionado.
+        </td>
+      </tr>
+    `;
+  } else {
+    movsList.forEach(m => {
+      const isEntrada = (m.tipo === 'Entrada');
+      if (isEntrada) totalEntradas += m.monto;
+      else totalSalidas += m.monto;
+      runningBal += (isEntrada ? m.monto : -m.monto);
+
+      rowsHTML += `
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:8px 10px; font-family:'Roboto Mono',monospace; color:#475569; font-size:11px;">${m.fecha}</td>
+          <td style="padding:8px 10px; font-weight:700; color:#1e293b; font-size:11.5px;">${m.concepto}</td>
+          <td style="padding:8px 10px; font-size:11px; color:#0e7490; font-weight:600;">${m.actividad}</td>
+          <td style="padding:8px 10px; text-align:center;">
+            <span style="font-size:10px; font-weight:800; padding:2px 8px; border-radius:12px; background:${isEntrada ? '#ecfdf5' : '#fef2f2'}; color:${isEntrada ? '#059669' : '#dc2626'};">
+              ${isEntrada ? '+ Entrada' : '- Salida'}
+            </span>
+          </td>
+          <td style="padding:8px 10px; text-align:right; font-family:'Roboto Mono',monospace; font-weight:700; color:${isEntrada ? '#059669' : '#dc2626'}; font-size:11.5px;">
+            ${isEntrada ? '+' : '-'} ₡${m.monto.toLocaleString('es-CR', {minimumFractionDigits:2, maximumFractionDigits:2})}
+          </td>
+          <td style="padding:8px 10px; text-align:right; font-family:'Roboto Mono',monospace; font-weight:800; color:#0f172a; font-size:11.5px;">
+            ₡${runningBal.toLocaleString('es-CR', {minimumFractionDigits:2, maximumFractionDigits:2})}
+          </td>
+        </tr>
+      `;
+    });
+  }
+
+  container.innerHTML = `
+    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:0 0 10px 10px; padding:24px 20px; box-shadow:0 4px 16px rgba(0,0,0,0.04);" class="dr-card">
+      <div style="margin-bottom:16px;">
+        <h3 style="margin:0; font-size:16px; font-weight:800; color:#0f172a;">Evolución Cronológica y Libro de Tesorería · ${mesStr ? mesStr + ' ' + anio : 'Año ' + anio}</h3>
+        <div style="font-size:11.5px; color:#64748b; margin-top:2px;">Trazabilidad de cobros, desembolsos, pagos operativos y saldo progresivo de efectivo</div>
+      </div>
+
+      <!-- Resumen Métrico de Evolución -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-bottom:18px;">
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px;">
+          <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Saldo Inicial</div>
+          <div style="font-size:14px; font-weight:800; color:#334155; font-family:'Roboto Mono',monospace;">₡${auto.ini.toLocaleString('es-CR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+        </div>
+        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:10px 14px;">
+          <div style="font-size:10px; font-weight:700; color:#065f46; text-transform:uppercase;">(+) Entradas Efectivo</div>
+          <div style="font-size:14px; font-weight:800; color:#059669; font-family:'Roboto Mono',monospace;">₡${totalEntradas.toLocaleString('es-CR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+        </div>
+        <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:10px 14px;">
+          <div style="font-size:10px; font-weight:700; color:#991b1b; text-transform:uppercase;">(-) Salidas Efectivo</div>
+          <div style="font-size:14px; font-weight:800; color:#dc2626; font-family:'Roboto Mono',monospace;">₡${totalSalidas.toLocaleString('es-CR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+        </div>
+        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px;">
+          <div style="font-size:10px; font-weight:700; color:#1e40af; text-transform:uppercase;">(=) Saldo Final Caja</div>
+          <div style="font-size:14px; font-weight:800; color:#1d4ed8; font-family:'Roboto Mono',monospace;">₡${(movsList.length > 0 ? runningBal : auto.fin).toLocaleString('es-CR', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto; border:1px solid #e2e8f0; border-radius:8px;">
+        <table style="width:100%; border-collapse:collapse; font-size:11.5px;">
+          <thead>
+            <tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0;">
+              <th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Fecha</th>
+              <th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Concepto de Transacción</th>
+              <th style="padding:8px 10px; text-align:left; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Actividad NIIF</th>
+              <th style="padding:8px 10px; text-align:center; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Efecto</th>
+              <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Monto (₡)</th>
+              <th style="padding:8px 10px; text-align:right; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Saldo Progresivo (₡)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHTML}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
 // ── ESTADO DE CAMBIOS EN EL PATRIMONIO ────────────────────────────
 function cpBlur(el){let v=parseFloat(el.value.replace(/,/g,''))||0;el.value=v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');cpCalc();}
 function cpCalc(){
