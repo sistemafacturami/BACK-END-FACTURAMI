@@ -110,6 +110,7 @@
 }
 [data-theme="dark"] #pasivoAmortModal .dr-card,
 [data-theme="dark"] #pg-pasivos .dr-card,
+[data-theme="dark"] #pg-activos .dr-card,
 [data-theme="dark"] #pg-estres .dr-card,
 [data-theme="dark"] #pg-balgeneral .dr-card,
 [data-theme="dark"] #pg-efectivo .dr-card,
@@ -2088,6 +2089,294 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
   .g3{grid-template-columns:1fr 1fr}
 }
 
+/* ══ MOBILE AMOUNT VISUALIZATION & RESPONSIVE MARGINS (INGRESOS, COMPRAS, GASTOS, ACTIVOS, PASIVOS) ═════════ */
+.fm-mod-kpis-breakdown {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.af-kpis-grid, #af_kpis_grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+.pf-kpi-grid, #pf_kpis_grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1024px) {
+  .af-kpis-grid, #af_kpis_grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+  .pf-kpi-grid, #pf_kpis_grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .fm-mod-kpis-breakdown {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Contenedores y Márgenes en Móvil */
+  .page {
+    padding: 14px 10px 40px !important;
+  }
+  .top {
+    padding: 10px 12px !important;
+  }
+  .top-l h1 {
+    font-size: 17px !important;
+  }
+  .top-l p {
+    font-size: 11px !important;
+  }
+  .card {
+    padding: 14px 12px !important;
+    border-radius: 10px !important;
+  }
+
+  /* Prevenir saltos de línea antiestéticos en montos */
+  .kpi-num, 
+  .iva-table td, 
+  #af_kpis_grid div[id^="af_kpi_"], 
+  #pf_kpis_grid div[id^="pf_kpi_"], 
+  .pf-saldo-col,
+  .af-kpis-grid div[id^="af_kpi_"],
+  .pf-kpi-grid div[id^="pf_kpi_"] {
+    white-space: nowrap !important;
+  }
+
+  /* 1, 2, 3: Ingresos, Compras y Gastos en Móvil */
+  .fm-mod-summary-kpis {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
+  }
+  .fm-mod-summary-kpis .kpi {
+    padding: 12px 14px !important;
+    border-radius: 10px !important;
+  }
+  .fm-mod-summary-kpis .kpi-lbl {
+    font-size: 11px !important;
+    margin-bottom: 4px !important;
+  }
+  .fm-mod-summary-kpis .kpi-num {
+    font-size: 21px !important;
+    line-height: 1.2 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .fm-mod-kpis-breakdown {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    margin-bottom: 14px !important;
+  }
+  .fm-mod-kpis-breakdown .kpi {
+    padding: 9px 10px !important;
+    border-radius: 8px !important;
+    min-width: 0 !important;
+  }
+  .fm-mod-kpis-breakdown .kpi-lbl {
+    font-size: 10px !important;
+    margin-bottom: 3px !important;
+  }
+  .fm-mod-kpis-breakdown .kpi-num {
+    font-size: 13.5px !important;
+    line-height: 1.2 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .iva-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    margin: 0 -4px !important;
+    padding-bottom: 6px !important;
+  }
+  .iva-table th, .iva-table td {
+    padding: 8px 6px !important;
+    font-size: 11px !important;
+  }
+  .iva-table tfoot td {
+    padding: 8px 6px !important;
+    font-size: 11px !important;
+  }
+
+  /* 4: Activos en Móvil */
+  .af-header-card {
+    padding: 12px 14px !important;
+    border-radius: 10px !important;
+    margin-bottom: 12px !important;
+  }
+  .af-kpis-grid, #af_kpis_grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-bottom: 14px !important;
+  }
+  .af-kpis-grid > div, #af_kpis_grid > div,
+  .af-kpis-grid .dr-card, #af_kpis_grid .dr-card {
+    padding: 10px 12px !important;
+    border-radius: 8px !important;
+    min-width: 0 !important;
+  }
+  #af_kpi_total_monto,
+  #af_kpi_dep_mensual,
+  #af_kpi_dep_acumulada,
+  #af_kpi_vida_residual,
+  #af_kpi_monto_amortizado,
+  #af_kpi_valor_libros {
+    font-size: 15px !important;
+    line-height: 1.25 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  #af_categoria_chips {
+    gap: 4px !important;
+  }
+  .af-chip-btn {
+    padding: 4px 8px !important;
+    font-size: 10.5px !important;
+  }
+  #activos-dynamic .dr-card {
+    border-radius: 10px !important;
+    margin: 0 -2px !important;
+  }
+  #activos-dynamic table th, #activos-dynamic table td {
+    padding: 8px 6px !important;
+    font-size: 11px !important;
+  }
+
+  /* 5: Pasivos en Móvil */
+  .pf-header-card {
+    padding: 12px 14px !important;
+    border-radius: 10px !important;
+    margin-bottom: 12px !important;
+  }
+  .pf-kpi-grid, #pf_kpis_grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-bottom: 14px !important;
+  }
+  .pf-kpi-grid > div, #pf_kpis_grid > div,
+  .pf-kpi-grid .dr-card, #pf_kpis_grid .dr-card {
+    padding: 10px 12px !important;
+    border-radius: 8px !important;
+    min-width: 0 !important;
+  }
+  #pf_kpi_total_pagado,
+  #pf_kpi_total_intereses,
+  #pf_kpi_total_amortizado,
+  #pf_kpi_saldo_deuda,
+  #pf_kpi_deuda_inicial {
+    font-size: 15px !important;
+    line-height: 1.25 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  #pf_chips {
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+  }
+  .pf-filter-btn {
+    padding: 4px 8px !important;
+    font-size: 10.5px !important;
+  }
+  #cxp-dynamic .dr-card {
+    border-radius: 10px !important;
+    margin: 0 -2px !important;
+  }
+  #cxp-dynamic table th, #cxp-dynamic table td {
+    padding: 8px 6px !important;
+    font-size: 11px !important;
+  }
+  .pf-saldo-col {
+    font-size: 12px !important;
+  }
+  #pf_detalle_drawer .pf-tabs-bar {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  #pftab_cont_plan, #pftab_cont_hist, #pftab_cont_asientos {
+    padding: 12px 8px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 10px 6px 36px !important;
+  }
+  .top {
+    padding: 8px 8px !important;
+  }
+  .modal {
+    padding: 16px 12px !important;
+    max-width: 96vw !important;
+  }
+
+  /* Grillas de 1 columna en pantallas ultra compactas para máxima legibilidad de cifras */
+  .af-kpis-grid, #af_kpis_grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  .af-kpis-grid > div, #af_kpis_grid > div {
+    padding: 12px 14px !important;
+  }
+  #af_kpi_total_monto,
+  #af_kpi_dep_mensual,
+  #af_kpi_dep_acumulada,
+  #af_kpi_vida_residual,
+  #af_kpi_monto_amortizado,
+  #af_kpi_valor_libros {
+    font-size: 17px !important;
+  }
+
+  .pf-kpi-grid, #pf_kpis_grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  .pf-kpi-grid > div, #pf_kpis_grid > div {
+    padding: 12px 14px !important;
+  }
+  #pf_kpi_total_pagado,
+  #pf_kpi_total_intereses,
+  #pf_kpi_total_amortizado,
+  #pf_kpi_saldo_deuda,
+  #pf_kpi_deuda_inicial {
+    font-size: 17px !important;
+  }
+
+  .fm-mod-summary-kpis .kpi-num {
+    font-size: 19px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .fm-mod-kpis-breakdown {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+  }
+  .fm-mod-kpis-breakdown .kpi {
+    padding: 7px 8px !important;
+  }
+  .fm-mod-kpis-breakdown .kpi-lbl {
+    font-size: 9px !important;
+  }
+  .fm-mod-kpis-breakdown .kpi-num {
+    font-size: 12px !important;
+  }
+}
+
 /* ══ DECLARACIÓN D-104 ═══════════════════════════════════════ */
 .fd104{max-width:920px;margin:0 auto}
 .fd104-sec{background:#fff;border:1px solid var(--cream3);border-radius:var(--r2);margin-bottom:16px;overflow:hidden}
@@ -3459,7 +3748,7 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
     <div class="page" id="pg-activos">
     <div id="activos-dynamic">
       <!-- Encabezado de Activos / Control Patrimonial -->
-      <div style="background:#1c3557; color:#fff; padding:14px 24px; display:flex; justify-content:space-between; align-items:center; border-radius:12px; margin-bottom:18px; box-shadow:0 4px 14px rgba(0,0,0,0.15); flex-wrap:wrap; gap:10px;">
+      <div class="af-header-card" style="background:#1c3557; color:#fff; padding:14px 24px; display:flex; justify-content:space-between; align-items:center; border-radius:12px; margin-bottom:18px; box-shadow:0 4px 14px rgba(0,0,0,0.15); flex-wrap:wrap; gap:10px;">
         <div style="display:flex; align-items:center; gap:12px;">
           <span style="font-size:22px;">💼</span>
           <div>
@@ -3482,7 +3771,7 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
       <div style="max-width:1380px; margin:0 auto; padding:0 0 50px; display:flex; flex-direction:column; gap:20px;">
 
         <!-- Fila de 6 KPIs Requeridos -->
-        <div style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:12px;" id="af_kpis_grid">
+        <div class="af-kpis-grid" style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:12px;" id="af_kpis_grid">
           
           <!-- KPI 1: Activo y su monto -->
           <div style="background:#1c3557; border-radius:10px; padding:14px 16px; color:#fff; box-shadow:0 4px 12px rgba(28,53,87,0.2);">
@@ -3623,7 +3912,7 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
       <!-- Sección: Pasivos Financieros / Plan de Pagos / Tabla de Amortización -->
       <div id="cxp_sec_financieros">
     <!-- Encabezado de Cuentas por Pagar / Plan de Pagos -->
-    <div style="background:#1c3557; color:#fff; padding:14px 24px; display:flex; justify-content:space-between; align-items:center; border-radius:12px; margin-bottom:18px; box-shadow:0 4px 14px rgba(0,0,0,0.15); flex-wrap:wrap; gap:10px;">
+    <div class="pf-header-card" style="background:#1c3557; color:#fff; padding:14px 24px; display:flex; justify-content:space-between; align-items:center; border-radius:12px; margin-bottom:18px; box-shadow:0 4px 14px rgba(0,0,0,0.15); flex-wrap:wrap; gap:10px;">
       <div style="display:flex; align-items:center; gap:12px;">
         <span style="font-size:22px;">🏛️</span>
         <div>
@@ -3646,7 +3935,7 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
     <div style="max-width:1280px; margin:0 auto; padding:0 0 50px; display:flex; flex-direction:column; gap:20px;">
 
       <!-- Fila de KPIs -->
-      <div style="display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px;">
+      <div class="pf-kpi-grid" id="pf_kpis_grid" style="display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px;">
         <div style="background:#1c3557; border-radius:10px; padding:14px 16px; color:#fff; box-shadow:0 4px 12px rgba(28,53,87,0.2);">
           <div style="font-size:10px; font-weight:700; color:rgba(255,255,255,0.7); letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px;">Total Pagado</div>
           <div id="pf_kpi_total_pagado" style="font-size:18px; font-weight:800; color:#fff;">₡0,00</div>
@@ -4693,11 +4982,11 @@ function renderMod(key){
   const gt = filtered.reduce((acc, r) => acc + rt(r), 0);
   const ivaT = Math.round(tots.c05 + tots.c1 + tots.c2 + tots.c4 + tots.c8 + tots.c13);
   el.innerHTML=`
-    <div class="g4" style="margin-bottom:10px">
+    <div class="g4 fm-mod-summary-kpis" style="margin-bottom:10px">
       <div class="kpi"><div class="kpi-accent" style="background:${m.color}"></div><div class="kpi-lbl">Total ${m.title}</div><div class="kpi-num">₡${gt.toLocaleString('es-CR')}</div></div>
       <div class="kpi"><div class="kpi-lbl">Total IVA</div><div class="kpi-num" style="font-size:20px;color:var(--blue)">₡${ivaT.toLocaleString('es-CR')}</div></div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:18px">
+    <div class="fm-mod-kpis-breakdown" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:18px">
       <div class="kpi" style="padding:12px 14px"><div class="kpi-lbl" style="font-size:9px">No Sujetas</div><div class="kpi-num" style="font-size:16px">₡${tots.ns.toLocaleString('es-CR')}</div></div>
       <div class="kpi" style="padding:12px 14px"><div class="kpi-lbl" style="font-size:9px">Exentas</div><div class="kpi-num" style="font-size:16px">₡${tots.ex.toLocaleString('es-CR')}</div></div>
       <div class="kpi" style="padding:12px 14px"><div class="kpi-lbl" style="font-size:9px">0.5%</div><div class="kpi-num" style="font-size:16px">₡${tots.c05.toLocaleString('es-CR')}</div></div>
@@ -4707,7 +4996,7 @@ function renderMod(key){
       <div class="kpi" style="padding:12px 14px"><div class="kpi-lbl" style="font-size:9px">8%</div><div class="kpi-num" style="font-size:16px">₡${tots.c8.toLocaleString('es-CR')}</div></div>
       <div class="kpi" style="padding:12px 14px"><div class="kpi-lbl" style="font-size:9px">13%</div><div class="kpi-num" style="font-size:16px;color:var(--blue)">₡${tots.c13.toLocaleString('es-CR')}</div></div>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+    <div class="fm-mod-actions" style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-dark btn-sm" onclick="openAddModal('${key}')">＋ Nuevo registro</button>
       <button class="btn btn-out btn-sm" onclick="exportModuleCSV('${key}')">⬇ Exportar CSV</button>
       <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('${key}')">🖨 Imprimir Reporte</button>
