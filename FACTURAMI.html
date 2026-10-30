@@ -138,6 +138,318 @@
 [data-theme="dark"] #pg-cxp th {
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
+
+/* ── REFINAMIENTO MODO OSCURO PARA MÓDULO DE PASIVOS ── */
+[data-theme="dark"] #pg-pasivos .dr-card {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+[data-theme="dark"] #pg-pasivos #pf_kpi_saldo_deuda {
+  color: #60a5fa !important;
+}
+[data-theme="dark"] #pg-pasivos #pf_kpi_deuda_inicial {
+  color: #f8fafc !important;
+}
+[data-theme="dark"] #pg-pasivos #pf_kpi_cnt {
+  color: #93c5fd !important;
+}
+[data-theme="dark"] #pg-pasivos #pf_tabla_cnt {
+  background: rgba(59, 130, 246, 0.2) !important;
+  color: #93c5fd !important;
+}
+[data-theme="dark"] #pg-pasivos th {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+[data-theme="dark"] #pf_acreedor_filter {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+/* Clases de filtro de pasivos */
+.pf-filter-btn {
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+  color: #6b7280;
+  background: transparent;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+.pf-filter-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+.pf-filter-btn.active {
+  background: #1c3557;
+  color: #ffffff;
+  border-color: #1c3557;
+}
+[data-theme="dark"] .pf-filter-btn {
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+  background: transparent !important;
+}
+[data-theme="dark"] .pf-filter-btn:hover {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+}
+[data-theme="dark"] .pf-filter-btn.active {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+/* Filas, badges y acciones de tabla pasivos */
+.pf-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.pf-row:hover {
+  background: #f0f7ff;
+}
+.pf-row.pf-row-selected {
+  background: #dbeafe !important;
+}
+[data-theme="dark"] .pf-row:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+[data-theme="dark"] .pf-row.pf-row-selected {
+  background: rgba(37, 99, 235, 0.25) !important;
+}
+
+.pf-tipo-corriente {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1d4ed8;
+}
+.pf-tipo-nocorriente {
+  font-size: 11px;
+  font-weight: 600;
+  color: #b45309;
+}
+[data-theme="dark"] .pf-tipo-corriente {
+  color: #60a5fa !important;
+}
+[data-theme="dark"] .pf-tipo-nocorriente {
+  color: #fbbf24 !important;
+}
+
+.pf-badge {
+  padding: 2px 8px;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-block;
+}
+.pf-badge-aldia {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+.pf-badge-cancelado {
+  background: #f3f4f6;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
+}
+.pf-badge-enmora {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+[data-theme="dark"] .pf-badge-aldia {
+  background: rgba(16, 185, 129, 0.18) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+[data-theme="dark"] .pf-badge-cancelado {
+  background: rgba(148, 163, 184, 0.18) !important;
+  color: #94a3b8 !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+}
+[data-theme="dark"] .pf-badge-enmora {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #f87171 !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+.pf-btn-edit {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pf-btn-del {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+[data-theme="dark"] .pf-btn-edit {
+  background: rgba(245, 158, 11, 0.18) !important;
+  color: #fbbf24 !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+[data-theme="dark"] .pf-btn-edit:hover {
+  background: rgba(245, 158, 11, 0.3) !important;
+}
+[data-theme="dark"] .pf-btn-del {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #f87171 !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+[data-theme="dark"] .pf-btn-del:hover {
+  background: rgba(239, 68, 68, 0.3) !important;
+}
+
+[data-theme="dark"] #pg-pasivos .pf-doc-respaldo {
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] #pg-pasivos .pf-saldo-col {
+  color: #60a5fa !important;
+}
+[data-theme="dark"] #pg-pasivos .pf-progress-bar-bg {
+  background: #334155 !important;
+}
+
+/* Drawer y Tabs en Modo Oscuro */
+[data-theme="dark"] #pf_detalle_drawer {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+[data-theme="dark"] #pf_detalle_drawer .pf-tabs-bar {
+  background: #1e293b !important;
+  border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+}
+[data-theme="dark"] #pf_version_sel {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+[data-theme="dark"] #pf_version_info {
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] #pf_amort_tbody td,
+[data-theme="dark"] #pf_hist_tbody td {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  color: var(--ink) !important;
+}
+[data-theme="dark"] #pf_amort_tbody td[style*="1e40af"],
+[data-theme="dark"] #pf_amort_tfoot td[style*="1e40af"],
+[data-theme="dark"] #pf_hist_tbody td[style*="1e40af"] {
+  color: #60a5fa !important;
+}
+[data-theme="dark"] #pf_amort_tfoot {
+  background: #1e293b !important;
+  border-top-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+}
+[data-theme="dark"] #pf_amort_tbody span[style*="dcfce7"] {
+  background: rgba(16, 185, 129, 0.18) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+[data-theme="dark"] #pf_amort_tbody span[style*="fee2e2"] {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #f87171 !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+[data-theme="dark"] #pf_amort_tbody span[style*="fef3c7"] {
+  background: rgba(245, 158, 11, 0.18) !important;
+  color: #fbbf24 !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+[data-theme="dark"] #pf_amort_tbody button[style*="f3f4f6"] {
+  background: #1e293b !important;
+  color: #cbd5e1 !important;
+  border-color: #475569 !important;
+}
+[data-theme="dark"] #pf_hist_tbody span[style*="fee2e2"] {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #f87171 !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+[data-theme="dark"] #pf_hist_tbody span[style*="dcfce7"] {
+  background: rgba(16, 185, 129, 0.18) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+[data-theme="dark"] #pf_hist_tbody button[style*="fee2e2"] {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #f87171 !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+[data-theme="dark"] #pf_asientos_list .entity-subcard {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+[data-theme="dark"] #pf_asientos_list div[style*="1d4ed8"] {
+  color: #60a5fa !important;
+}
+[data-theme="dark"] #pf_asientos_list span[style*="e0e7ff"] {
+  background: rgba(59, 130, 246, 0.2) !important;
+  color: #93c5fd !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Modales de Pasivos en Modo Oscuro */
+[data-theme="dark"] #nuevoPasivoModalBox label,
+[data-theme="dark"] #pagoPasivoModalBox label {
+  color: #cbd5e1 !important;
+}
+[data-theme="dark"] #nuevoPasivoModalBox .fd-inp,
+[data-theme="dark"] #pagoPasivoModalBox .fd-inp {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+[data-theme="dark"] #nuevoPasivoModalBox .fd-inp:focus,
+[data-theme="dark"] #pagoPasivoModalBox .fd-inp:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+}
+[data-theme="dark"] #npf_monto,
+[data-theme="dark"] #rpp_monto {
+  color: #60a5fa !important;
+}
+[data-theme="dark"] #npf_preview_box {
+  background: #1e293b !important;
+  border-color: rgba(59, 130, 246, 0.35) !important;
+}
+[data-theme="dark"] #npf_preview_box div[style*="1e40af"] {
+  color: #93c5fd !important;
+}
+[data-theme="dark"] #npf_prev_cuota {
+  color: #60a5fa !important;
+}
+[data-theme="dark"] #npf_prev_interes {
+  color: #f87171 !important;
+}
+[data-theme="dark"] #rpp_simulacion_box {
+  background: #1e293b !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+[data-theme="dark"] #rpp_simulacion_box div[style*="166534"] {
+  color: #34d399 !important;
+}
+[data-theme="dark"] #rpp_simulacion_txt {
+  color: #6ee7b7 !important;
+}
 [data-theme="dark"] #nuevoActivoModalBox,
 [data-theme="dark"] #nuevoActivoModalBox,
 [data-theme="dark"] #nuevoActivoModalBox,
@@ -3374,10 +3686,10 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
               <option value="TODOS">Todos los acreedores</option>
             </select>
             <div style="width:1px; height:18px; background:#e5e7eb;"></div>
-            <button type="button" onclick="pfFiltrar(this,'TODOS')" style="padding:3px 10px; border-radius:8px; font-size:11px; border:1px solid #1c3557; cursor:pointer; color:#fff; background:#1c3557; font-weight:600;">Todos</button>
-            <button type="button" onclick="pfFiltrar(this,'ACTIVOS')" style="padding:3px 10px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#6b7280; background:transparent; font-weight:600;">Activos</button>
-            <button type="button" onclick="pfFiltrar(this,'EN_MORA')" style="padding:3px 10px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#6b7280; background:transparent; font-weight:600;">En Mora</button>
-            <button type="button" onclick="pfFiltrar(this,'CANCELADOS')" style="padding:3px 10px; border-radius:8px; font-size:11px; border:1px solid #d1d5db; cursor:pointer; color:#6b7280; background:transparent; font-weight:600;">Cancelados</button>
+            <button type="button" onclick="pfFiltrar(this,'TODOS')" class="pf-filter-btn active">Todos</button>
+            <button type="button" onclick="pfFiltrar(this,'ACTIVOS')" class="pf-filter-btn">Activos</button>
+            <button type="button" onclick="pfFiltrar(this,'EN_MORA')" class="pf-filter-btn">En Mora</button>
+            <button type="button" onclick="pfFiltrar(this,'CANCELADOS')" class="pf-filter-btn">Cancelados</button>
           </div>
         </div>
 
@@ -3431,7 +3743,7 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
         </div>
 
         <!-- Tabs Bar -->
-        <div style="display:flex; border-bottom:1px solid #e5e7eb; background:#f9fafb; padding:0 16px;">
+        <div class="pf-tabs-bar" style="display:flex; border-bottom:1px solid #e5e7eb; background:#f9fafb; padding:0 16px;">
           <button type="button" class="pf-tab-btn active" id="pftab_btn_plan" onclick="pfCambiarTab('plan')">Plan de Pagos / Tabla de Amortización</button>
           <button type="button" class="pf-tab-btn" id="pftab_btn_hist" onclick="pfCambiarTab('hist')">Historial de Pagos y Abonos</button>
           <button type="button" class="pf-tab-btn" id="pftab_btn_asientos" onclick="pfCambiarTab('asientos')">Asientos Contables Vinculados</button>
@@ -6001,13 +6313,12 @@ function pfFiltrar(btn, filtro) {
   const chips = document.getElementById('pf_chips');
   if (chips) {
     chips.querySelectorAll('button').forEach(b => {
-      b.style.background = 'transparent';
-      b.style.color = '#6b7280';
-      b.style.borderColor = '#d1d5db';
+      b.classList.remove('active');
+      b.style.background = '';
+      b.style.color = '';
+      b.style.borderColor = '';
     });
-    btn.style.background = '#1c3557';
-    btn.style.color = '#fff';
-    btn.style.borderColor = '#1c3557';
+    btn.classList.add('active');
   }
   pfRenderTabla();
 }
@@ -6129,48 +6440,49 @@ function pfRenderTabla() {
     const amortizado = Math.max(0, principal - saldo);
     const pct = principal > 0 ? (amortizado / principal) * 100 : 0;
 
-    let badge = '<span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:9px; font-size:10px; font-weight:700;">Al día</span>';
+    let badge = '<span class="pf-badge pf-badge-aldia">Al día</span>';
     if (p.estado === 'cancelado') {
-      badge = '<span style="background:#f3f4f6; color:#4b5563; padding:2px 8px; border-radius:9px; font-size:10px; font-weight:700;">Cancelado</span>';
+      badge = '<span class="pf-badge pf-badge-cancelado">Cancelado</span>';
     } else if (p.estado === 'en_mora') {
-      badge = '<span style="background:#fee2e2; color:#b91c1c; padding:2px 8px; border-radius:9px; font-size:10px; font-weight:700;">En Mora</span>';
+      badge = '<span class="pf-badge pf-badge-enmora">En Mora</span>';
     }
 
     const isSel = (pfSelIdx === idxReal);
     const tr = document.createElement('tr');
-    tr.style.cursor = 'pointer';
-    tr.style.background = isSel ? '#dbeafe' : '';
+    tr.className = 'pf-row' + (isSel ? ' pf-row-selected' : '');
     tr.title = 'Clic para ver plan de pagos | Doble clic para editar';
-    tr.onmouseover = () => { if (pfSelIdx !== idxReal) tr.style.background = '#f0f7ff'; };
-    tr.onmouseout = () => { tr.style.background = (pfSelIdx === idxReal) ? '#dbeafe' : ''; };
     tr.onclick = () => { pfSeleccionar(idxReal); };
     tr.ondblclick = (ev) => { ev.stopPropagation(); pfEditarPasivo(idxReal); };
+
+    const esNoCorriente = (p.tipo === 'pasivo_no_corriente' || p.tipo === 'no_corriente');
+    const tipoClass = esNoCorriente ? 'pf-tipo-nocorriente' : 'pf-tipo-corriente';
+    const tipoText = esNoCorriente ? 'Pasivo No Corriente' : 'Pasivo Corriente';
 
     tr.innerHTML = `
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6;">
         <div style="font-weight:700; color:var(--ink);">${p.descripcion || 'Sin descripción'}</div>
-        <div style="font-size:10px; color:#6b7280; font-family:monospace;">${p.doc_respaldo || 'Sin doc.'}</div>
+        <div class="pf-doc-respaldo" style="font-size:10px; color:#6b7280; font-family:monospace;">${p.doc_respaldo || 'Sin doc.'}</div>
       </td>
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; font-weight:600;">${p.acreedor || '--'}</td>
-      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; font-size:11px; font-weight:600; color:${(p.tipo === 'pasivo_no_corriente' || p.tipo === 'no_corriente') ? '#b45309' : '#1d4ed8'};">
-        ${(p.tipo === 'pasivo_no_corriente' || p.tipo === 'no_corriente') ? 'Pasivo No Corriente' : 'Pasivo Corriente'}
+      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6;">
+        <span class="${tipoClass}">${tipoText}</span>
       </td>
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:center; font-family:monospace;">${p.fecha_inicio || '--'}</td>
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:center; font-weight:600;">${p.plazo_meses || 12}m</td>
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:right; font-weight:700; color:#dc2626;">${parseFloat(p.tasa_anual || 0).toFixed(2)}%</td>
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:right; font-weight:700;">₡${fmtCRC(principal)}</td>
-      <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:right; font-weight:800; color:#1e40af;">₡${fmtCRC(saldo)}</td>
+      <td class="pf-saldo-col" style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:right; font-weight:800; color:#1e40af;">₡${fmtCRC(saldo)}</td>
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:center;">
         <div style="font-size:10px; font-weight:700; color:#059669; margin-bottom:2px;">${pct.toFixed(1)}%</div>
-        <div style="height:5px; background:#e5e7eb; border-radius:3px; min-width:60px; overflow:hidden;">
+        <div class="pf-progress-bar-bg" style="height:5px; background:#e5e7eb; border-radius:3px; min-width:60px; overflow:hidden;">
           <div style="height:100%; background:#10b981; border-radius:3px; width:${Math.min(pct, 100)}%;"></div>
         </div>
       </td>
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:center; font-family:monospace; font-weight:600;">${p.fecha_vencimiento || '--'}</td>
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:center;">${badge}</td>
       <td style="padding:10px 12px; border-bottom:1px solid #f3f4f6; text-align:center; white-space:nowrap;">
-        <button type="button" class="btn btn-sm" onclick="event.stopPropagation(); pfEditarPasivo(${idxReal})" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700; margin-right:4px;" title="Editar pasivo (o doble clic)">✏️ Editar</button>
-        <button type="button" class="btn btn-sm" onclick="event.stopPropagation(); pfEliminarPasivo(${idxReal})" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700;" title="Eliminar pasivo">🗑️</button>
+        <button type="button" class="btn btn-sm pf-btn-edit" onclick="event.stopPropagation(); pfEditarPasivo(${idxReal})" title="Editar pasivo (o doble clic)">✏️ Editar</button>
+        <button type="button" class="btn btn-sm pf-btn-del" onclick="event.stopPropagation(); pfEliminarPasivo(${idxReal})" title="Eliminar pasivo">🗑️</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -14010,6 +14322,105 @@ function runTributinAudit(){
   padding:14px 18px;display:flex;justify-content:space-between;align-items:center;
   margin-top:auto;
 }
+
+/* ── Modal Previsualización de Factura (Dark Mode) ── */
+[data-theme="dark"] #fm-preview-modal .fm-preview-card {
+  background: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8) !important;
+}
+[data-theme="dark"] #fm-preview-modal .fm-preview-right-pane {
+  background: #0f172a !important;
+}
+[data-theme="dark"] #fm-preview-modal .fm-preview-left {
+  background: #1e293b !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+[data-theme="dark"] #fm-preview-modal .fm-preview-right {
+  background: #0f172a !important;
+}
+[data-theme="dark"] #fm-preview-modal .fm-field-lbl {
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] #fm-preview-modal .fm-iva-pill {
+  background: #1e293b !important;
+}
+[data-theme="dark"] #fm-preview-modal .fm-iva-pill .rate {
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] #fm-preview-modal .fm-iva-pill .val {
+  color: #f8fafc !important;
+}
+[data-theme="dark"] #fm-preview-modal .fm-tipo-btn {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+[data-theme="dark"] #fm-preview-modal .fm-tipo-btn:hover {
+  background: #334155 !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+[data-theme="dark"] #fm-preview-modal .fm-tipo-btn .fm-tipo-lbl {
+  color: #cbd5e1 !important;
+}
+[data-theme="dark"] #fm-preview-modal .fm-tipo-btn.selected-compra {
+  border-color: #3b82f6 !important;
+  background: rgba(37, 99, 235, 0.25) !important;
+}
+[data-theme="dark"] #fm-preview-modal .fm-tipo-btn.selected-compra .fm-tipo-lbl {
+  color: #60a5fa !important;
+}
+[data-theme="dark"] #fm-preview-modal .fm-tipo-btn.selected-gasto {
+  border-color: #f59e0b !important;
+  background: rgba(245, 158, 11, 0.25) !important;
+}
+[data-theme="dark"] #fm-preview-modal .fm-tipo-btn.selected-gasto .fm-tipo-lbl {
+  color: #fbbf24 !important;
+}
+[data-theme="dark"] #fm-preview-modal #fmp-desc {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+[data-theme="dark"] #fm-preview-modal .fm-total-banner {
+  background: #1e293b !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ── Botón Registrar en Modal Previsualización ── */
+.fmp-btn-registrar {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 10px 22px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: not-allowed;
+  font-family: var(--ff);
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.5);
+  transition: all .2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.fmp-btn-registrar:disabled {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  cursor: not-allowed !important;
+  opacity: .5 !important;
+  box-shadow: none !important;
+}
+.fmp-btn-registrar:not(:disabled) {
+  cursor: pointer !important;
+  opacity: 1 !important;
+  color: #ffffff !important;
+}
+.fmp-btn-registrar:not(:disabled):hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
 </style>
 
 <!-- MODAL PREVISUALIZACIÓN DE FACTURA (VISOR INTEGRADO) -->
@@ -14141,8 +14552,7 @@ function runTributinAudit(){
             </div>
             <div style="text-align:right">
               <div style="font-size:10px;opacity:.7;margin-bottom:4px" id="fmp-tipo-lbl">Selecciona un tipo</div>
-              <button id="fmp-registrar-btn" onclick="fmpRegistrar()" disabled
-                style="background:#fff;color:var(--ink);border:none;border-radius:10px;padding:10px 22px;font-size:13px;font-weight:700;cursor:not-allowed;opacity:.4;transition:all .2s;font-family:var(--ff)">
+              <button id="fmp-registrar-btn" onclick="fmpRegistrar()" disabled class="fmp-btn-registrar">
                 Registrar →
               </button>
             </div>
@@ -14598,8 +15008,12 @@ function fmpAbrirPreview(fila) {
   document.getElementById('fmp-tipo-lbl').textContent = 'Selecciona un tipo';
   const regBtn = document.getElementById('fmp-registrar-btn');
   regBtn.disabled = true;
-  regBtn.style.opacity = '.4';
-  regBtn.style.cursor  = 'not-allowed';
+  regBtn.className = 'fmp-btn-registrar';
+  regBtn.style.background = '';
+  regBtn.style.color = '';
+  regBtn.style.border = '';
+  regBtn.style.boxShadow = '';
+  regBtn.innerHTML = 'Registrar →';
 
   document.getElementById('fm-preview-modal').style.display = 'flex';
 }
@@ -14611,8 +15025,19 @@ function fmpSelTipo(tipo) {
   document.getElementById('fmp-tipo-lbl').textContent  = tipo === 'compras' ? '🛒 Se registrará como Compra' : '💸 Se registrará como Gasto';
   const regBtn = document.getElementById('fmp-registrar-btn');
   regBtn.disabled = false;
-  regBtn.style.opacity = '1';
-  regBtn.style.cursor  = 'pointer';
+  if (tipo === 'compras') {
+    regBtn.style.background = '#2563eb';
+    regBtn.style.color = '#ffffff';
+    regBtn.style.border = '1px solid #3b82f6';
+    regBtn.style.boxShadow = '0 4px 14px rgba(37,99,235,0.45)';
+    regBtn.innerHTML = '🛒 Registrar Compra →';
+  } else {
+    regBtn.style.background = '#059669';
+    regBtn.style.color = '#ffffff';
+    regBtn.style.border = '1px solid #10b981';
+    regBtn.style.boxShadow = '0 4px 14px rgba(5,150,105,0.45)';
+    regBtn.innerHTML = '💸 Registrar Gasto →';
+  }
 }
 
 function fmCerrarPreview() {
