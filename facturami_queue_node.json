@@ -1,0 +1,39 @@
+{
+  "name": "Enviar a FACTURAMI Queue",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5001/api/facturas/queue",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"FECHA\": \"{{ $json.JsonString[0].FECHAFACTURA }}\",\n  \"FACTURA\": \"{{ $json.JsonString[0].NUMEROFACTURA }}\",\n  \"Categoria\": \"{{ $json.JsonString[0].Categoria }}\",\n  \"PROVEEDOR\": \"{{ $json.JsonString[0].PROVEEDOR }}\",\n  \"SUB TOTAL\": \"{{ $json.JsonString[0]['SUB TOTAL'] }}\",\n  \"IVA 1%\": \"{{ $json.JsonString[0]['IVA 1%'] }}\",\n  \"IVA 2%\": \"{{ $json.JsonString[0]['IVA 2%'] }}\",\n  \"IVA 4%\": \"{{ $json.JsonString[0]['IVA otros'] }}\",\n  \"IVA 13%\": \"{{ $json.JsonString[0]['IVA 13%'] }}\",\n  \"TOTAL\": \"{{ $json.JsonString[0].TOTAL }}\",\n  \"Notas\": \"{{ $json.JsonString[0].Notas }}\",\n  \"DRIVE_ID\": \"={{ $('Download file1').item.json.id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1024, -128],
+      "id": "facturami-queue-node",
+      "name": "Enviar a FACTURAMI"
+    }
+  ],
+  "_instrucciones": [
+    "PASO 1: En n8n, abre el workflow de Gmail → Drive → Gemini.",
+    "PASO 2: Localiza el nodo 'String to Json1' (que produce el objeto JsonString).",
+    "PASO 3: Importa este nodo (Ctrl+V en el canvas de n8n con el JSON copiado).",
+    "PASO 4: Conecta la salida de 'String to Json1' a la entrada de 'Enviar a FACTURAMI'.",
+    "PASO 5: El nodo 'facturas autonomo1' (Sheets) puede quedar en paralelo como respaldo,",
+    "         o desconectarse si ya no quieres registrar en Sheets.",
+    "PASO 6: Asegúrate de que app.py esté corriendo: ejecuta 'python app.py' en el directorio del proyecto.",
+    "PASO 7: Activa el workflow. Cada correo con PDF dispará el flujo completo."
+  ]
+}

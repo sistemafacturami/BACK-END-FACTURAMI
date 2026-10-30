@@ -1,0 +1,17 @@
+.git
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.vscode
+scratch
+python/
+logs/*.log
+*.docx
+*.lnk
+*.bat
+*.vbs
+*.ps1
+test*
+*.tmp

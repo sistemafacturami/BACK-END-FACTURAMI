@@ -1,0 +1,34 @@
+{
+  "name": "Enviar a FACTURAMI Queue",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5001/api/facturas/queue",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"FECHA\": $json.JsonString[0].FECHAFACTURA, \"FACTURA\": $json.JsonString[0].NUMEROFACTURA, \"Categoria\": $json.JsonString[0].Categoria, \"PROVEEDOR\": $json.JsonString[0].PROVEEDOR, \"SUB TOTAL\": $json.JsonString[0][\"SUB TOTAL\"], \"IVA 1%\": $json.JsonString[0][\"IVA 1%\"], \"IVA 2%\": $json.JsonString[0][\"IVA 2%\"], \"IVA 4%\": $json.JsonString[0][\"IVA otros\"], \"IVA 13%\": $json.JsonString[0][\"IVA 13%\"], \"TOTAL\": $json.JsonString[0].TOTAL, \"Notas\": $json.JsonString[0].Notas, \"DRIVE_ID\": $('Download file1').item.json.id }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1024, -128],
+      "id": "facturami-queue-node",
+      "name": "Enviar a FACTURAMI"
+    }
+  ],
+  "_instrucciones": [
+    "FIX APLICADO: Se usa JSON.stringify() para evitar que caracteres especiales",
+    "como comillas dobles dentro de los valores (ej: HUNTER HEP400 13\") rompan el JSON.",
+    "El nodo ya fue actualizado directamente en n8n."
+  ]
+}

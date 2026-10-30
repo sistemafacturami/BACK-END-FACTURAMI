@@ -1,0 +1,163 @@
+{
+  "name": "Back End Facturami",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mcp-control",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "id": "webhook-mcp"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.params.name }}",
+                    "rightValue": "list_workflows",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.params.name }}",
+                    "rightValue": "get_workflow",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [200, 0],
+      "id": "switch_node",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "requestMethod": "GET",
+        "url": "http://localhost:5678/api/v1/workflows",
+        "jsonParameters": true,
+        "headerParametersJson": "{\n  \"X-N8N-API-KEY\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhOTU3MGI5MC1mMzdhLTQxNTAtYTQwYS1jZTM4MGYyYzg3OGEiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzc1MTcyMDQ1fQ.SBqgRZ1jVTEP8WtzRyXPJo36csrrl5azWym3QAc6xPw\"\n}"
+      },
+      "id": "http_list",
+      "name": "HTTP List",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [500, -100]
+    },
+    {
+      "parameters": {
+        "requestMethod": "GET",
+        "url": "={{ 'http://localhost:5678/api/v1/workflows/' + $('Webhook').item.json.body.params.arguments.workflowId }}",
+        "jsonParameters": true,
+        "headerParametersJson": "{\n  \"X-N8N-API-KEY\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhOTU3MGI5MC1mMzdhLTQxNTAtYTQwYS1jZTM4MGYyYzg3OGEiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzc1MTcyMDQ1fQ.SBqgRZ1jVTEP8WtzRyXPJo36csrrl5azWym3QAc6xPw\"\n}"
+      },
+      "id": "http_get",
+      "name": "HTTP Get",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [500, 100]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond_node",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [800, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "HTTP List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Get",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP List": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Get": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}

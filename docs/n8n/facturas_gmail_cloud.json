@@ -1,0 +1,470 @@
+{
+  "name": "Facturas gmail",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {},
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        16
+      ],
+      "id": "4a5ab99b-a8dd-4a79-8bee-a5b119e2f84e",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Ys8Jn68GPXZNE1bW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "=$binary",
+        "include": "allOtherFields",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        208,
+        16
+      ],
+      "id": "f72084b6-1a83-4089-b5f7-b34993c2275a",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "={{ $binary.keys()[0] }}",
+        "name": "={{ $binary.values()[0].fileName }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1pGhmiNt6fAchr0ACk0dhWyIlLRVyZdK5",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        416,
+        16
+      ],
+      "id": "9085c593-248a-420a-9510-7842bf8850f4",
+      "name": "Upload file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "7rAQtcuIOwf3ktu2",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "labelIds": [
+          "Label_5666398359259628631"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        576,
+        -160
+      ],
+      "id": "94f08315-f0a8-4523-a8a2-12a8d3556ef4",
+      "name": "Add label to message",
+      "webhookId": "c01fca3b-879f-4316-9144-f193b0f574ab",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Ys8Jn68GPXZNE1bW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        -160
+      ],
+      "id": "460d187c-3f5a-4971-9eb7-1c4ae3a6326c",
+      "name": "Mark a message as read",
+      "webhookId": "268b378d-bf1d-4321-bf7a-88bb67ca6594",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Ys8Jn68GPXZNE1bW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "removeLabels",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "labelIds": [
+          "INBOX"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        736,
+        -160
+      ],
+      "id": "3d4d163d-c06d-42fc-b4ee-7ca101e0e53b",
+      "name": "Remove label from message",
+      "webhookId": "92e662fe-d51e-4669-85bb-e2eacf8e4dde",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Ys8Jn68GPXZNE1bW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Download file1').item.json.id }}",
+          "mode": "id"
+        },
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "19OBoRIXSdthtmuVMShgg8HuNwg4EWPV1",
+          "mode": "id"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1712,
+        32
+      ],
+      "id": "c5143ec6-af37-4c15-ac27-7472e73d315b",
+      "name": "Move file1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "7rAQtcuIOwf3ktu2",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        608,
+        16
+      ],
+      "id": "4e0dd3ed-488b-403d-ac89-15a6c020df21",
+      "name": "Bucle1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fe29fadf-1d53-4be3-885f-4f03967fd23b",
+              "name": "JsonString",
+              "value": "={{ Array.isArray(JSON.parse($json.candidates[0].content.parts[0].text)) ? JSON.parse($json.candidates[0].content.parts[0].text) : [JSON.parse($json.candidates[0].content.parts[0].text)] }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1296,
+        32
+      ],
+      "id": "e414cc39-e857-4f78-8b23-219ee335b4a7",
+      "name": "String to Json1"
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "destinationKey": "base64",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        32
+      ],
+      "id": "5659ad7f-55fb-4fa5-8a26-489d1c0a4838",
+      "name": "Extract from File1"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{$json.id}}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        832,
+        32
+      ],
+      "id": "d303996e-c851-4389-969d-93b7ae02c62f",
+      "name": "Download file1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "7rAQtcuIOwf3ktu2",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "=key",
+              "value": "={{ $env.GEMINI_API_KEY || 'TU_GEMINI_API_KEY' }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "=Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"role\": \"user\",\n      \"parts\": [\n        {\n          \"inlineData\": {\n            \"mimeType\": \"{{ $('Download file1').item.binary.data.mimeType }}\",\n            \"data\": \"{{ $('Extract from File1').item.json.base64 }}\"\n          }\n        },\n        {\n          \"text\": \"Mi empresa es Contabilidad LVM, que es el receptor de la factura.\\n\\n**INSTRUCCIÓN CRÍTICA:** Debes devolver estrictamente un **array JSON** que contenga **un solo objeto** con toda la información extraída. Ejemplo de formato esperado: **[ { ...objeto con datos... } ]**\\n\\nA partir del documento de factura proporcionado, extrae los siguientes campos y devuelve el objeto JSON con los campos en el orden exacto listado a continuación. Los nombres de las claves deben coincidir exactamente con los solicitados, incluyendo espacios y caracteres especiales:\\n\\n⸻\\n\\n• FECHAFACTURA: La fecha en que se emitió la factura. Formato estrictamente así: DD/MM/AAAA (p. ej. 15/11/2025).\\n• Categoria: Clasifica el gasto en una de las siguientes categorías predefinidas:\\n    • Servicios Profesionales y Legales (Abogados, Notarios, Contadores, Consultoría especializada)\\n    • Costes de IT y Software (Licencias, Hosting, Servidores, Desarrollo web, Mantenimiento informático)\\n    • Telefonía y Comunicaciones (Internet, Líneas móviles, Teléfono fijo, Plataformas de comunicación)\\n    • Material de Oficina y Consumibles (Papelería, Tóner/Tinta, Suministros básicos de oficina)\\n    • Viajes, Alojamiento y Dietas (Billetes de avión/tren, Hoteles, Comidas de negocios, Taxis/Ubers)\\n    • Marketing y Publicidad (Campañas online/offline, Diseño gráfico, Publicidad en redes, Impresión publicitaria)\\n    • Suscripciones y Membresías (Cuotas de asociaciones, Revistas especializadas, Servicios de streaming)\\n    • Formación y Educación (Cursos, Seminarios, Talleres, Libros técnicos, Congresos)\\n    • Alquileres y Renta (Alquiler de oficinas, Locales, Equipos o Maquinaria)\\n    • Suministros Básicos (Electricidad, Agua, Gas, Servicios de limpieza)\\n    • Gastos Financieros y Bancarios (Comisiones bancarias, Intereses, Gastos de transferencia)\\n    • Reparaciones y Mantenimiento de Activos (Vehículos, Mobiliario, Equipos, Mantenimiento general)\\n    • Seguros (Pólizas de oficina, Vehículos, Responsabilidad civil)\\n    • Impuestos, Tasas y Permisos (Pagos a entidades gubernamentales, Licencias municipales)\\n    • Nóminas y Seguridad Social (Salarios, Cargas sociales, Prestaciones)\\n    • Otros Gastos Operativos No Clasificados\\n• PROVEEDOR: El nombre de la empresa o persona que emitió la factura.\\n• NUMEROFACTURA: El número de identificación único de la factura o comprobante. Debe incluir la serie y el consecutivo (p. ej., 'F001-00000123' o '00254').\\n• SUB TOTAL: El precio neto total de la factura (suma de todas las bases imponibles). Si la factura es de formato PriceSmart, esta suma **excluye** los ítems Exentos (código 'E').\\n    • Formato con coma como separador decimal. Ejemplo: \\\"1200,00\\\".\\n• **IVA 1%**: La suma total del impuesto (IVA) aplicado a la tasa del 1%. **Si es PriceSmart, aplica el 1% sobre los ítems marcados con 'P'.** Es CRÍTICO desglosar este monto del Total IVA.\\n    • Formato con coma como separador decimal. Escribe \\\"0,00\\\" si no aplica.\\n• **IVA 2%**: La suma total del impuesto (IVA) aplicado a la tasa del 2%. **Si es PriceSmart, aplica el 2% sobre los ítems marcados con 'M'.** Es CRÍTICO desglosar este monto del Total IVA.\\n    • Formato con coma como separador decimal. Escribe \\\"0,00\\\" si no aplica.\\n• **IVA 13%**: La suma total del impuesto (IVA) aplicado a la tasa del 13%. **Si es PriceSmart, aplica el 13% sobre los ítems marcados con 'G'.** Es CRÍTICO desglosar este monto del Total IVA.\\n    • Formato con coma como separador decimal. Escribe \\\"0,00\\\" si no aplica.\\n• **IVA otros**: La suma total del impuesto (IVA) aplicado a CUALQUIER otra tasa (p. ej. 4% [Código 'S'], 19%, 21%). **Si es PriceSmart, aplica el 4% sobre los ítems marcados con 'S'.** Es CRÍTICO desglosar este monto del Total IVA.\\n    • Formato con coma como separador decimal. Escribe \\\"0,00\\\" si no aplica.\\n• TOTAL: El importe total incluido el IVA.\\n    • Formato con coma como separador decimal.\\n• Notas: Debe contener un resumen de los productos o servicios adquiridos y cualquier observación relevante, incluyendo si se aplicaron códigos de IVA (P, M, S, G, E).\\n• URL: Dado que la factura fue subida como archivo, este campo siempre debe ser \\\"N/A\\\".\\n\\n⸻\\n\\n✅ Asegúrate de:\\n• Formato consistente en todos los campos.\\n• Ningún campo vacío (usa \\\"N/A\\\" o \\\"0,00\\\" según corresponda).\\n• Cumplimiento estricto del orden y claves indicadas.\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"temperature\": 0,\n    \"topK\": 1,\n    \"topP\": 0.95,\n    \"maxOutputTokens\": 8192,\n    \"responseMimeType\": \"application/json\",\n    \"thinkingConfig\": {\n      \"thinkingBudget\": 0\n    }\n  }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1152,
+        32
+      ],
+      "id": "fb0d8b82-d3f1-45ea-91b5-de64a250b449",
+      "name": "Gemini"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://app:5001/api/facturas/queue",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-N8N-Token",
+              "value": "facturami_n8n_internal_2026_secure"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"client_id\": \"504470991\",\n  \"origen\": \"gmail\",\n  \"FECHA\": \"{{ $json.JsonString[0].FECHAFACTURA }}\",\n  \"FACTURA\": \"{{ $json.JsonString[0].NUMEROFACTURA }}\",\n  \"Categoria\": \"{{ $json.JsonString[0].Categoria }}\",\n  \"PROVEEDOR\": \"{{ $json.JsonString[0].PROVEEDOR }}\",\n  \"SUB TOTAL\": \"{{ $json.JsonString[0]['SUB TOTAL'] }}\",\n  \"IVA 1%\": \"{{ $json.JsonString[0]['IVA 1%'] }}\",\n  \"IVA 2%\": \"{{ $json.JsonString[0]['IVA 2%'] }}\",\n  \"IVA 4%\": \"{{ $json.JsonString[0]['IVA otros'] }}\",\n  \"IVA 13%\": \"{{ $json.JsonString[0]['IVA 13%'] }}\",\n  \"TOTAL\": \"{{ $json.JsonString[0].TOTAL }}\",\n  \"Notas\": \"{{ $json.JsonString[0].Notas }}\",\n  \"DRIVE_ID\": \"{{ $('Download file1').item.json.id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        32
+      ],
+      "id": "1f14185d-2a6f-4798-9d04-5158bceb994d",
+      "name": "Enviar a FACTURAMI"
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mark a message as read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file": {
+      "main": [
+        [
+          {
+            "node": "Add label to message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Bucle1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add label to message": {
+      "main": [
+        [
+          {
+            "node": "Remove label from message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move file1": {
+      "main": [
+        [
+          {
+            "node": "Bucle1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bucle1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Download file1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "String to Json1": {
+      "main": [
+        [
+          {
+            "node": "Enviar a FACTURAMI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File1": {
+      "main": [
+        [
+          {
+            "node": "Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file1": {
+      "main": [
+        [
+          {
+            "node": "Extract from File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini": {
+      "main": [
+        [
+          {
+            "node": "String to Json1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar a FACTURAMI": {
+      "main": [
+        [
+          {
+            "node": "Move file1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "450c844106f0952f6d48c557cbc7a6c3abc75dc963c060357ba3f4a0c0ba03ba"
+  }
+}

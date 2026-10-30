@@ -104,7 +104,7 @@
           "parameters": [
             {
               "name": "=key",
-              "value": "AIzaSyA5gNHyC4HupianfV9XIPeNgPE-s3Uy__k"
+              "value": "={{ $env.GEMINI_API_KEY || 'TU_GEMINI_API_KEY' }}"
             }
           ]
         },

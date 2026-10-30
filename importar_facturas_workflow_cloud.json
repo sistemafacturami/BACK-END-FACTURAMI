@@ -134,7 +134,7 @@
           "parameters": [
             {
               "name": "=key",
-              "value": "AQ.Ab8RN6KghhRlPEXfIbLLiH4Vv4F3KjGdrevo_b6YY8yjiWtGww"
+              "value": "={{ $env.GEMINI_API_KEY || 'TU_GEMINI_API_KEY' }}"
             }
           ]
         },

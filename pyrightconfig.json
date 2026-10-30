@@ -1,0 +1,8 @@
+{
+  "venvPath": "E:/FACTURAMI_PORTABLE",
+  "venv": ".venv",
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Windows",
+  "include": ["."],
+  "exclude": [".venv", "__pycache__"]
+}
