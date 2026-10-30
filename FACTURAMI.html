@@ -2936,8 +2936,7 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
     <div class="ni" id="btn-sidebar-activos" onclick="go('activos',this)"><span class="ni-ico"><i data-lucide="briefcase" stroke-width="2.5" width="16" height="16">💼</i></span><span>Activos</span></div>
     <div class="ni" id="btn-sidebar-pasivos" onclick="go('pasivos',this)"><span class="ni-ico"><i data-lucide="landmark" stroke-width="2.5" width="16" height="16"></i></span><span>Pasivo</span></div>
     <div class="ni" onclick="go('patrim',this)"><span class="ni-ico"><i data-lucide="scale" stroke-width="2.5" width="16" height="16"></i></span><span>Patrimonio</span></div>
-    <div class="ni" onclick="go('cxc',this)"><span class="ni-ico"><i data-lucide="arrow-down-to-line" stroke-width="2.5" width="16" height="16"></i></span><span>CXC</span></div>
-    <div class="ni" onclick="go('prop',this)"><span class="ni-ico"><i data-lucide="pie-chart" stroke-width="2.5" width="16" height="16"></i></span><span>Proporcionalidad</span></div>
+        <div class="ni" onclick="go('prop',this)"><span class="ni-ico"><i data-lucide="pie-chart" stroke-width="2.5" width="16" height="16"></i></span><span>Proporcionalidad</span></div>
     
     <div>
       <div class="ni" onclick="toggleN8nMenu(this)" id="btn-sidebar-n8n"><span class="ni-ico"><i data-lucide="download-cloud" stroke-width="2.5" width="16" height="16"></i></span><span>Cargar facturas</span><span id="fm-conn-dot" title="Verificando conexión..." style="width:7px;height:7px;border-radius:50%;background:#888;margin-left:6px;flex-shrink:0;transition:background 0.4s,box-shadow 0.4s"></span><span id="fm-sidebar-badge" style="display:none;margin-left:auto;background:#f59e0b;color:#fff;font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px;box-shadow:0 0 8px rgba(245,158,11,0.7);animation:pulse 2s infinite">0</span></div>
@@ -3463,10 +3462,7 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
   <div class="page" id="pg-patrim"><div id="mod-patrim"></div></div>
   <div class="page" id="pg-n8n"><div id="n8n-content"></div></div>
 
-  <!-- ════════════ CXC ═════════════════════════════════════════ -->
-  <div class="page" id="pg-cxc">
-    <div id="cxc-dynamic"><!-- Rendered by renderCXC() --></div>
-  </div>
+
 
   <!-- ════════════ CXP ═════════════════════════════════════════ -->
 
@@ -4007,7 +4003,6 @@ const TITLES={
   gastos:['Gastos','Gastos operativos y administrativos'],
   costos:['Costos','Costos directos de construcción'],
   obras:['Obras en Proceso','Proyectos activos'],
-  cxc:['Cuentas por Cobrar','Saldos pendientes de cobro'],
   cxp:['Pasivo','Plan de pagos, tabla de amortización de deuda y gestión de pasivos financieros'],
   prop:['Proporcionalidad','Factor IVA — Art. 32 Ley IVA'],
   estres:['Estado de Resultados','Pérdidas y Ganancias del Período'],
@@ -4084,7 +4079,6 @@ function go(page,el){
     if(page==='efectivo') renderEfectivo();
     if(page==='patrimonio') renderPatrimonio();
     if(page==='prop') renderProp();
-    if(page==='cxc') renderCXC();
     if(page==='cxp') renderCXP();
     if(page==='dash') runTributinAudit();
   } catch(err) {
