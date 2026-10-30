@@ -100,26 +100,34 @@
   position: fixed; inset: 0; background: #f0f4f8; z-index: 10000; overflow-y: auto; font-family: 'Segoe UI', Arial, sans-serif;
 }
 [data-theme="dark"] #pasivoAmortModal,
+[data-theme="dark"] #pg-pasivos,
 [data-theme="dark"] #pg-cxp {
   color: var(--ink) !important;
 }
 [data-theme="dark"] #pasivoAmortModal .dr-card,
+[data-theme="dark"] #pg-pasivos .dr-card,
 [data-theme="dark"] #pg-cxp .dr-card,
 [data-theme="dark"] #pasivoAmortModal div[style*="background:#fff"],
+[data-theme="dark"] #pg-pasivos div[style*="background:#fff"],
 [data-theme="dark"] #pg-cxp div[style*="background:#fff"],
 [data-theme="dark"] #pasivoAmortModal div[style*="background: #fff"],
+[data-theme="dark"] #pg-pasivos div[style*="background: #fff"],
 [data-theme="dark"] #pg-cxp div[style*="background: #fff"],
 [data-theme="dark"] #pasivoAmortModal div[style*="background:#f9fafb"],
+[data-theme="dark"] #pg-pasivos div[style*="background:#f9fafb"],
 [data-theme="dark"] #pg-cxp div[style*="background:#f9fafb"],
 [data-theme="dark"] #pasivoAmortModal div[style*="background: #f9fafb"],
+[data-theme="dark"] #pg-pasivos div[style*="background: #f9fafb"],
 [data-theme="dark"] #pg-cxp div[style*="background: #f9fafb"] {
   background: #0f172a !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
   color: var(--ink) !important;
 }
 [data-theme="dark"] #pasivoAmortModal td,
+[data-theme="dark"] #pg-pasivos td,
 [data-theme="dark"] #pg-cxp td,
 [data-theme="dark"] #pasivoAmortModal th,
+[data-theme="dark"] #pg-pasivos th,
 [data-theme="dark"] #pg-cxp th {
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
@@ -2922,10 +2930,9 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
     <div class="ni" onclick="go('gastos',this)"><span class="ni-ico"><i data-lucide="receipt" stroke-width="2.5" width="16" height="16"></i></span><span>Gastos</span></div>
     <div class="ni" onclick="go('costos',this)"><span class="ni-ico"><i data-lucide="hard-hat" stroke-width="2.5" width="16" height="16"></i></span><span>Costos</span></div>
     <div class="ni" id="btn-sidebar-activos" onclick="go('activos',this)"><span class="ni-ico"><i data-lucide="briefcase" stroke-width="2.5" width="16" height="16">💼</i></span><span>Activos</span></div>
-    <div class="ni" onclick="go('pasivos',this)"><span class="ni-ico"><i data-lucide="landmark" stroke-width="2.5" width="16" height="16"></i></span><span>Pasivos</span></div>
+    <div class="ni" id="btn-sidebar-pasivos" onclick="go('pasivos',this)"><span class="ni-ico"><i data-lucide="landmark" stroke-width="2.5" width="16" height="16"></i></span><span>Pasivo</span></div>
     <div class="ni" onclick="go('patrim',this)"><span class="ni-ico"><i data-lucide="scale" stroke-width="2.5" width="16" height="16"></i></span><span>Patrimonio</span></div>
     <div class="ni" onclick="go('cxc',this)"><span class="ni-ico"><i data-lucide="arrow-down-to-line" stroke-width="2.5" width="16" height="16"></i></span><span>CXC</span></div>
-    <div class="ni" onclick="go('cxp',this)"><span class="ni-ico"><i data-lucide="arrow-up-from-line" stroke-width="2.5" width="16" height="16"></i></span><span>CXP</span></div>
     <div class="ni" onclick="go('prop',this)"><span class="ni-ico"><i data-lucide="pie-chart" stroke-width="2.5" width="16" height="16"></i></span><span>Proporcionalidad</span></div>
     
     <div>
@@ -3091,17 +3098,7 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
   <div class="page" id="pg-costos"><div id="mod-costos"></div></div>
   <div class="page" id="pg-obras"><div id="mod-obras"></div></div>
   <div class="page" id="pg-activos"><div id="mod-activos"></div></div>
-  <div class="page" id="pg-pasivos"><div id="mod-pasivos"></div></div>
-  <div class="page" id="pg-patrim"><div id="mod-patrim"></div></div>
-  <div class="page" id="pg-n8n"><div id="n8n-content"></div></div>
-
-  <!-- ════════════ CXC ═════════════════════════════════════════ -->
-  <div class="page" id="pg-cxc">
-    <div id="cxc-dynamic"><!-- Rendered by renderCXC() --></div>
-  </div>
-
-  <!-- ════════════ CXP ═════════════════════════════════════════ -->
-  <div class="page" id="pg-cxp">
+    <div class="page" id="pg-pasivos">
     <div id="cxp-dynamic">
       <!-- Sección: Pasivos Financieros / Plan de Pagos / Tabla de Amortización -->
       <div id="cxp_sec_financieros">
@@ -3110,7 +3107,7 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
       <div style="display:flex; align-items:center; gap:12px;">
         <span style="font-size:22px;">🏛️</span>
         <div>
-          <div style="font-size:16px; font-weight:700; letter-spacing:0.02em;">Plan de Pagos / Tabla de Amortización de Deuda</div>
+          <div style="font-size:16px; font-weight:700; letter-spacing:0.02em;">Módulo de Pasivos / Tabla de Amortización y Plan de Pagos</div>
           <div style="font-size:11px; opacity:0.8;">Gestión de pasivos financieros, cuentas por pagar, cuotas niveladas y abonos extraordinarios (NIIF)</div>
         </div>
       </div>
@@ -3297,7 +3294,17 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
     </div>
     </div> <!-- cierra cxp_sec_financieros -->
     </div> <!-- cierra cxp-dynamic -->
-  </div> <!-- cierra pg-cxp -->
+  </div> <!-- cierra pg-pasivos -->
+  <div class="page" id="pg-patrim"><div id="mod-patrim"></div></div>
+  <div class="page" id="pg-n8n"><div id="n8n-content"></div></div>
+
+  <!-- ════════════ CXC ═════════════════════════════════════════ -->
+  <div class="page" id="pg-cxc">
+    <div id="cxc-dynamic"><!-- Rendered by renderCXC() --></div>
+  </div>
+
+  <!-- ════════════ CXP ═════════════════════════════════════════ -->
+
 
   <!-- ════════════ PROPORCIONALIDAD ═══════════════════════════ -->
   <div class="page" id="pg-prop">
@@ -3836,7 +3843,7 @@ const TITLES={
   costos:['Costos','Costos directos de construcción'],
   obras:['Obras en Proceso','Proyectos activos'],
   cxc:['Cuentas por Cobrar','Saldos pendientes de cobro'],
-  cxp:['Cuentas por Pagar','Plan de pagos, tabla de amortización de deuda y gestión de pasivos financieros'],
+  cxp:['Pasivo','Plan de pagos, tabla de amortización de deuda y gestión de pasivos financieros'],
   prop:['Proporcionalidad','Factor IVA — Art. 32 Ley IVA'],
   estres:['Estado de Resultados','Pérdidas y Ganancias del Período'],
   balgeneral:['Balance General','Estado de Situación Financiera'],
@@ -3848,7 +3855,7 @@ const TITLES={
   d113:['Reporte D-113','Rentas de capital mobiliario'],
   d116:['Reporte D-116','Rentas de capital inmobiliario'],
   activos:['Activos','Control de activos corrientes, fijos e intangibles'],
-  pasivos:['Pasivos','Control de pasivos corrientes y no corrientes'],
+  pasivos:['Pasivo','Plan de pagos, tabla de amortización de deuda y gestión de pasivos financieros'],
   patrim:['Patrimonio','Control de cuentas patrimoniales'],
   conv:['Convertidor','Moneda y calculadora IVA'],
   n8n:['Registrar Facturas','Bandeja de facturas escaneadas por registrar'],
@@ -3871,10 +3878,11 @@ const getS = t => {
 
 // ── NAVEGACIÓN ───────────────────────────────────────────────────
 function go(page,el){
+  if(page === 'cxp') page = 'pasivos';
   sessionStorage.setItem('f_active_view', page);
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
-  const targetPage = document.getElementById('pg-'+page);
+  const targetPage = document.getElementById('pg-'+page) || (page === 'pasivos' ? document.getElementById('pg-cxp') : null);
   if(targetPage) targetPage.classList.add('on');
   if(el) el.classList.add('on');
   else{
@@ -3899,7 +3907,7 @@ function go(page,el){
   try {
     if(['ingresos','compras','gastos','costos','obras'].includes(page)) renderMod(page);
     if(page==='activos') renderActivos();
-    if(page==='pasivos') renderPasivos();
+    if(page==='pasivos' || page==='cxp') renderCXP();
     if(page==='patrim') renderPatrimNeto();
     if(page==='d150') renderD150();
     if(page==='d105') renderD105();
@@ -4467,7 +4475,7 @@ function recalcularPorAbonoJS(cuotasAnteriores, cuotaCorteIdx, montoAbono, tipoR
 
 // ── Control UI Modal de Amortización ────────────────────────────────
 function openPasivoAmortModal() {
-  go('cxp');
+  go('pasivos');
 }
 
 function closePasivoAmortModal() {
@@ -5561,6 +5569,7 @@ const PATRIMONIO_SCHEMA = {
 };
 
 function renderPasivos() {
+  if (typeof renderCXP === 'function') renderCXP();
   const el = document.getElementById('mod-pasivos'); if(!el) return;
   if(!MODS.pasivos) MODS.pasivos = { pas_cor:{}, pas_ncor:{} };
 
