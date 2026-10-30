@@ -3315,9 +3315,9 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
     <div class="ni" onclick="go('efectivo',this)"><span class="ni-ico"><i data-lucide="banknote" stroke-width="2.5" width="16" height="16"></i></span><span>Flujo Efectivo</span></div>
     <div class="ni" onclick="go('patrimonio',this)"><span class="ni-ico"><i data-lucide="layers" stroke-width="2.5" width="16" height="16"></i></span><span>Cambios Patrimonio</span></div>
     <div class="ng">Reportes</div>
-    <div class="ni" onclick="go('d150',this)"><span class="ni-ico"><i data-lucide="file-text" stroke-width="2.5" width="16" height="16"></i></span><span>Reporte D-150</span><div class="ni-badge">IVA</div></div>
+    <div class="ni" onclick="go('d150',this)"><span class="ni-ico"><i data-lucide="file-text" stroke-width="2.5" width="16" height="16"></i></span><span>IVA</span><div class="ni-badge">IVA</div></div>
     <div class="ni" onclick="go('d105',this)"><span class="ni-ico"><i data-lucide="file-text" stroke-width="2.5" width="16" height="16"></i></span><span>Reporte D-105</span><div class="ni-badge">RTS</div></div>
-    <div class="ni" onclick="go('d101',this)"><span class="ni-ico"><i data-lucide="file-text" stroke-width="2.5" width="16" height="16"></i></span><span>Reporte D-101</span><div class="ni-badge">ISR</div></div>
+    <div class="ni" onclick="go('d101',this)"><span class="ni-ico"><i data-lucide="file-text" stroke-width="2.5" width="16" height="16"></i></span><span>Renta</span><div class="ni-badge">ISR</div></div>
     <div class="ni" onclick="go('d113',this)"><span class="ni-ico"><i data-lucide="file-text" stroke-width="2.5" width="16" height="16"></i></span><span>Reporte D-113</span><div class="ni-badge">IRM</div></div>
     <div class="ni" onclick="go('d116',this)"><span class="ni-ico"><i data-lucide="file-text" stroke-width="2.5" width="16" height="16"></i></span><span>Reporte D-116</span><div class="ni-badge">IRI</div></div>
     <div class="ni" onclick="go('conv',this)"><span class="ni-ico"><i data-lucide="arrow-right-left" stroke-width="2.5" width="16" height="16"></i></span><span>Convertidor</span></div>
@@ -4572,9 +4572,9 @@ const TITLES={
   balgeneral:['Balance General','Estado de Situación Financiera'],
   efectivo:['Flujo de Efectivo','Estado de Origen y Aplicación F.'],
   patrimonio:['Cambios en el Patrimonio','Variaciones del Capital'],
-  d150:['Reporte D-150','Declaración de impuestos IVA'],
+  d150:['IVA','Declaración de impuestos IVA'],
   d105:['Reporte D-105','Régimen de Tributación Simplificada'],
-  d101:['Reporte D-101','Impuesto sobre la Renta'],
+  d101:['Renta','Impuesto sobre la Renta'],
   d113:['Reporte D-113','Rentas de capital mobiliario'],
   d116:['Reporte D-116','Rentas de capital inmobiliario'],
   activos:['Activos','Control de activos corrientes, fijos e intangibles'],
@@ -9601,7 +9601,7 @@ function processImport(data) {
       n_alert++;
       tFeed.innerHTML += `
         <div style="padding:10px;background:var(--amber-l);border-right:3px solid var(--amber);border-radius:8px">
-          <div style="font-size:10px;font-weight:600;color:var(--amber);margin-bottom:2px">⚠️ Alerta CABYS / D-101</div>
+          <div style="font-size:10px;font-weight:600;color:var(--amber);margin-bottom:2px">⚠️ Alerta CABYS / Renta</div>
           <div style="font-size:11px;color:var(--ink2)">Gasto de <b>${fmt(tot)}</b> de <i>${row.NombreRazonSocial||'Proveedor'}</i> tiene IVA 13% pero su CABYS (${cabys}) es irregular (Materia prima agro u otros). Revisar prorrata.</div>
         </div>`;
     }
@@ -10174,7 +10174,7 @@ function renderD150(){
     <div style="background:var(--white);border:1px solid var(--cream3);border-radius:var(--r2);overflow:hidden;margin-bottom:16px;box-shadow:var(--shadow)">
       <div class="d150-head"><div>
         <div style="font-size:11px;font-weight:500;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Formulario oficial</div>
-        <div style="font-family:var(--ff);font-size:20px;font-weight:600">Declaración D-150</div>
+        <div style="font-family:var(--ff);font-size:20px;font-weight:600">Declaración de IVA</div>
         <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:3px">Impuesto al Valor Agregado · ${per}</div>
       </div>
       <div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end">
@@ -10518,14 +10518,14 @@ function renderD101(){
     <div style="background:var(--white);border:1px solid var(--cream3);border-radius:var(--r2);overflow:hidden;margin-bottom:16px;box-shadow:var(--shadow)">
       <div class="d150-head"><div>
         <div style="font-size:11px;font-weight:500;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Formulario oficial</div>
-        <div style="font-family:var(--ff);font-size:18px;font-weight:600">Declaración D-101</div>
+        <div style="font-family:var(--ff);font-size:18px;font-weight:600">Declaración de Renta</div>
         <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:3px">Impuesto sobre la Renta · ${anio}</div>
       </div>
       <div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end">
         <div><div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.09em">Empresa</div><div style="font-size:14px;font-weight:600">${activeClient.name}</div></div>
         <div style="display:flex;gap:8px;align-items:center">
           <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('d101')">🖨 Imprimir Reporte</button>
-          <button class="btn btn-out btn-sm" style="border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);background:transparent" onclick="showToast('Exportando D-101...')">⬇ Exportar</button>
+          <button class="btn btn-out btn-sm" style="border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);background:transparent" onclick="showToast('Exportando Declaración de Renta...')">⬇ Exportar</button>
         </div>
       </div></div>
       <div class="d150-stripe"></div>
@@ -17317,8 +17317,8 @@ const TITULOS_REPORTES = {
   'activos': 'Informe Detallado de Activos y PPE (NIIF Secc. 17)',
   'pasivos': 'Informe Detallado de Pasivos y Obligaciones',
   // Tributarios
-  'd150': 'Declaración Jurada D-150 / D-104-2 (Impuesto al Valor Agregado)',
-  'd101': 'Declaración Jurada D-101 (Impuesto sobre la Renta)',
+  'd150': 'Declaración Jurada del Impuesto sobre el Valor Agregado (IVA)',
+  'd101': 'Declaración Jurada del Impuesto sobre la Renta (Renta)',
   'd105': 'Declaración Jurada D-105 (Régimen de Tributación Simplificada)',
   'd113': 'Declaración Jurada D-113 (Rentas de Capital Mobiliario)',
   'd116': 'Declaración Jurada D-116 (Rentas de Capital Inmobiliario)',
@@ -17355,8 +17355,8 @@ const FAMILIAS_REPORTES = {
     nombre: 'Declaraciones Tributarias (DGT)',
     icono: '🧾',
     items: [
-      { id: 'd150', label: '📄 D-150 IVA' },
-      { id: 'd101', label: '📑 D-101 Renta' },
+      { id: 'd150', label: '📄 IVA' },
+      { id: 'd101', label: '📑 Renta' },
       { id: 'd105', label: '🏷️ D-105 Simplificado' },
       { id: 'd113', label: '💎 D-113 Mobiliario' },
       { id: 'd116', label: '🏢 D-116 Inmobiliario' },
@@ -18298,7 +18298,7 @@ function fmGenerarHTMLReporte(tipo, data) {
             <div class="fm-rep-brand">DIRECCIÓN GENERAL DE TRIBUTACIÓN · MINISTERIO DE HACIENDA DE COSTA RICA</div>
             <div class="fm-rep-empresa">${data.cliente.name}</div>
             <div class="fm-rep-id">Cédula: ${data.cliente.id} · Período Fiscal: ${data.periodoTxt}</div>
-            <div class="fm-rep-title">FORMULARIO D-150 / D-104-2 · DECLARACIÓN DEL IMPUESTO SOBRE EL VALOR AGREGADO</div>
+            <div class="fm-rep-title">DECLARACIÓN DEL IMPUESTO SOBRE EL VALOR AGREGADO (IVA)</div>
             <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Ley N° 9635 y D.E. N° 41779-H)</div>
           </div>
 
@@ -18350,7 +18350,7 @@ function fmGenerarHTMLReporte(tipo, data) {
             <div class="fm-rep-brand">DIRECCIÓN GENERAL DE TRIBUTACIÓN · MINISTERIO DE HACIENDA DE COSTA RICA</div>
             <div class="fm-rep-empresa">${data.cliente.name}</div>
             <div class="fm-rep-id">Cédula: ${data.cliente.id} · Período Fiscal: ${data.periodoTxt}</div>
-            <div class="fm-rep-title">FORMULARIO D-101 · DECLARACIÓN DEL IMPUESTO SOBRE LA RENTA</div>
+            <div class="fm-rep-title">DECLARACIÓN DEL IMPUESTO SOBRE LA RENTA (RENTA)</div>
             <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Ley N° 7092 y sus Reformas)</div>
           </div>
 
@@ -18358,7 +18358,7 @@ function fmGenerarHTMLReporte(tipo, data) {
             <thead>
               <tr>
                 <th style="width:50px;text-align:center">Casilla</th>
-                <th style="text-align:left">Concepto Oficial D-101</th>
+                <th style="text-align:left">Concepto Oficial Renta</th>
                 <th style="width:110px;text-align:right">Monto Declarado (₡)</th>
               </tr>
             </thead>
@@ -18580,8 +18580,8 @@ function fmGenerarHTMLReporte(tipo, data) {
 
               <tr class="fm-rep-section"><td colspan="2">4. APLICACIÓN AL IVA SOPORTADO EN COMPRAS Y GASTOS COMUNES</td></tr>
               <tr><td class="fm-rep-item">Total IVA soportado en insumos y adquisiciones del período</td><td class="fm-rep-num">${fmtCRC(data.prop.ivaSop)}</td></tr>
-              <tr><td class="fm-rep-item" style="color:#059669;font-weight:700">( ✔ ) IVA Acreditable (a declarar en formulario D-150 / D-104-2)</td><td class="fm-rep-num" style="color:#059669;font-weight:700">${fmtCRC(data.prop.ivaAcred)}</td></tr>
-              <tr><td class="fm-rep-item" style="color:#dc2626;font-weight:700">( ℹ ) IVA No Acreditable (deducible como gasto en Renta D-101 Art. 8 Ley 7092)</td><td class="fm-rep-num" style="color:#dc2626;font-weight:700">${fmtCRC(data.prop.ivaNoAcred)}</td></tr>
+              <tr><td class="fm-rep-item" style="color:#059669;font-weight:700">( ✔ ) IVA Acreditable (a declarar en IVA)</td><td class="fm-rep-num" style="color:#059669;font-weight:700">${fmtCRC(data.prop.ivaAcred)}</td></tr>
+              <tr><td class="fm-rep-item" style="color:#dc2626;font-weight:700">( ℹ ) IVA No Acreditable (deducible como gasto en Renta Art. 8 Ley 7092)</td><td class="fm-rep-num" style="color:#dc2626;font-weight:700">${fmtCRC(data.prop.ivaNoAcred)}</td></tr>
               <tr class="fm-rep-grandtot">
                 <td>TOTAL IVA SOPORTADO LIQUIDADO</td>
                 <td class="fm-rep-num">${fmtCRC(data.prop.ivaSop)}</td>

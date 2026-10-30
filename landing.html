@@ -1,0 +1,2677 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#1a56db"/>
+  <meta name="author" content="Luis Eduardo Vargas Medina"/>
+  <meta name="description" content="FACTURAMI · Sistema Contable Inteligente de Costa Rica. Sin códigos, sin asientos, en tiempo real, atemporal. 100% adaptado a la materia tributaria costarricense y NIIF."/>
+  <title>FACTURAMI · Sistema Contable Inteligente de Costa Rica</title>
+
+  <link rel="icon" type="image/x-icon" href="/favicon.ico"/>
+  <link rel="apple-touch-icon" href="/icon-192.png"/>
+
+  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Roboto+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* ── RESET Y VARIABLES DE COLOR ── */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-main: #090d16;
+      --bg-card: #0f172a;
+      --bg-card-subtle: #1e293b;
+      --bg-card-hover: #172554;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(59, 130, 246, 0.5);
+      
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      
+      --primary: #2563eb;
+      --primary-light: #3b82f6;
+      --primary-glow: rgba(37, 99, 235, 0.35);
+      
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      
+      --gradient-brand: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+      --gradient-glow: radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.22) 0%, transparent 70%);
+      --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 1px 1px rgba(255, 255, 255, 0.05);
+      --shadow-hover: 0 20px 40px -10px rgba(37, 99, 235, 0.25), 0 0 20px rgba(37, 99, 235, 0.2);
+
+      --font-heading: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-mono: 'Roboto Mono', monospace;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      color-scheme: dark;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      line-height: 1.6;
+      overflow-x: hidden;
+      position: relative;
+      background-image: 
+        radial-gradient(at 10% 15%, rgba(37, 99, 235, 0.12) 0px, transparent 50%),
+        radial-gradient(at 90% 40%, rgba(6, 182, 212, 0.1) 0px, transparent 50%),
+        radial-gradient(at 50% 85%, rgba(16, 185, 129, 0.08) 0px, transparent 60%);
+      background-attachment: fixed;
+    }
+
+    /* ── CONTENEDOR GENERAL ── */
+    .container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ── BARRA DE NAVEGACIÓN SUPERIOR (STICKY) ── */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(9, 13, 22, 0.82);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-subtle);
+      transition: all 0.3s ease;
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 76px;
+      gap: 20px;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-main);
+    }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, #1d4ed8 0%, #0284c7 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+      font-weight: 800;
+      font-size: 20px;
+      font-family: var(--font-heading);
+    }
+
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand-title {
+      font-family: var(--font-heading);
+      font-weight: 800;
+      font-size: 21px;
+      letter-spacing: -0.5px;
+      background: linear-gradient(180deg, #ffffff 40%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-badge {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      white-space: nowrap;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14.5px;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+
+    .nav-links a:hover {
+      color: #ffffff;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* BOTÓN DESTACADO EN LA ESQUINA SUPERIOR DERECHA */
+    .btn-login-header {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 10px 22px;
+      background: linear-gradient(135deg, #2563eb 0%, #0284c7 100%);
+      color: #ffffff;
+      text-decoration: none;
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 14.5px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+    }
+
+    .btn-login-header:hover {
+      background: linear-gradient(135deg, #1d4ed8 0%, #0369a1 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.6);
+      border-color: rgba(255, 255, 255, 0.35);
+    }
+
+    .btn-login-header:active {
+      transform: translateY(0);
+    }
+
+    .mobile-menu-btn {
+      display: none;
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      color: var(--text-main);
+      cursor: pointer;
+      padding: 8px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @media (max-width: 980px) {
+      .nav-links {
+        display: none;
+      }
+      .nav-links.active {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 76px;
+        left: 0;
+        right: 0;
+        background: rgba(15, 23, 42, 0.98);
+        border-bottom: 1px solid var(--border-focus);
+        padding: 24px;
+        gap: 18px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(20px);
+      }
+      .nav-links.active a {
+        font-size: 16px;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      .mobile-menu-btn {
+        display: flex;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .nav-inner {
+        height: 68px;
+      }
+      .brand-title {
+        font-size: 18px;
+      }
+      .brand-badge {
+        display: none;
+      }
+      .btn-login-header {
+        padding: 8px 14px;
+        font-size: 13px;
+        gap: 6px;
+      }
+    }
+
+    /* ── HERO SECTION ── */
+    .hero {
+      padding: 80px 0 60px;
+      position: relative;
+      text-align: center;
+    }
+
+    .hero-badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: rgba(37, 99, 235, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 999px;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #93c5fd;
+      margin-bottom: 24px;
+      box-shadow: 0 0 20px rgba(37, 99, 235, 0.2);
+    }
+
+    .hero-title {
+      font-family: var(--font-heading);
+      font-size: clamp(38px, 5.5vw, 64px);
+      font-weight: 800;
+      letter-spacing: -1.8px;
+      line-height: 1.12;
+      margin-bottom: 22px;
+      max-width: 1000px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .text-gradient {
+      background: linear-gradient(135deg, #60a5fa 0%, #38bdf8 50%, #34d399 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: clamp(17px, 2.2vw, 21px);
+      color: var(--text-muted);
+      max-width: 820px;
+      margin: 0 auto 36px;
+      font-weight: 400;
+      line-height: 1.6;
+    }
+
+    .hero-subtitle strong {
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 40px;
+    }
+
+    .btn-hero-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 36px;
+      background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+      color: #ffffff;
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.4);
+      transition: all 0.25s ease;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-hero-primary:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px rgba(37, 99, 235, 0.6);
+      background: linear-gradient(135deg, #1d4ed8 0%, #0891b2 100%);
+    }
+
+    .btn-hero-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 30px;
+      background: rgba(30, 41, 59, 0.7);
+      color: var(--text-main);
+      font-family: var(--font-heading);
+      font-weight: 600;
+      font-size: 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      border: 1px solid var(--border-subtle);
+      transition: all 0.25s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    .btn-hero-secondary:hover {
+      background: rgba(51, 65, 85, 0.85);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-2px);
+    }
+
+    .hero-features-chips {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      color: var(--text-dim);
+      font-size: 13.5px;
+      font-weight: 500;
+    }
+
+    .chip-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+
+    .chip-item i {
+      color: var(--accent-emerald);
+      width: 16px;
+      height: 16px;
+    }
+
+    /* ── HERO MOCKUP INTERACTIVO ── */
+    .hero-mockup-wrapper {
+      margin-top: 50px;
+      position: relative;
+      max-width: 1080px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .mockup-glow {
+      position: absolute;
+      top: -20px;
+      left: 10%;
+      right: 10%;
+      height: 100%;
+      background: radial-gradient(ellipse at center, rgba(37, 99, 235, 0.35) 0%, transparent 70%);
+      z-index: 0;
+      filter: blur(50px);
+      pointer-events: none;
+    }
+
+    .mockup-window {
+      position: relative;
+      z-index: 1;
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 18px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 30px rgba(37, 99, 235, 0.2);
+      overflow: hidden;
+      text-align: left;
+    }
+
+    .mockup-header {
+      background: #1e293b;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .mockup-dots {
+      display: flex;
+      gap: 7px;
+    }
+
+    .mockup-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+    }
+
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #10b981; }
+
+    .mockup-title-bar {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mockup-body {
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      background: #0a0f1d;
+    }
+
+    @media (max-width: 860px) {
+      .mockup-body {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .live-feed-card {
+      background: #111a2e;
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 18px;
+    }
+
+    .feed-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .feed-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #93c5fd;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-emerald);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent-emerald);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    .feed-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px;
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      border-left: 3px solid var(--primary);
+    }
+
+    .feed-item-success {
+      border-left-color: var(--accent-emerald);
+    }
+
+    .feed-text {
+      flex: 1;
+    }
+
+    .feed-supplier {
+      font-weight: 600;
+      color: #ffffff;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .feed-meta {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .metrics-grid-mockup {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .metric-box {
+      background: #111a2e;
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 14px;
+    }
+
+    .metric-label {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .metric-val {
+      font-size: 20px;
+      font-weight: 800;
+      font-family: var(--font-heading);
+      margin: 4px 0 2px;
+      color: #ffffff;
+    }
+
+    .metric-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+
+    .badge-green { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .badge-blue { background: rgba(37, 99, 235, 0.2); color: #93c5fd; }
+
+    /* ── SECCIÓN PILARES FUNDAMENTALES ── */
+    .section {
+      padding: 100px 0;
+      position: relative;
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 760px;
+      margin: 0 auto 60px;
+    }
+
+    .section-tag {
+      display: inline-block;
+      font-size: 12.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--accent-cyan);
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-family: var(--font-heading);
+      font-size: clamp(30px, 3.8vw, 44px);
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+
+    .section-desc {
+      font-size: 17px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ── GRID DE CARACTERÍSTICAS ("SIN CÓDIGOS, SIN ASIENTOS") ── */
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px;
+    }
+
+    @media (max-width: 980px) {
+      .grid-3 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .grid-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 32px 26px;
+      transition: all 0.3s ease;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-card);
+    }
+
+    .feature-card:hover {
+      border-color: var(--border-focus);
+      transform: translateY(-5px);
+      box-shadow: var(--shadow-hover);
+      background: var(--bg-card-hover);
+    }
+
+    .feature-icon-wrapper {
+      width: 54px;
+      height: 54px;
+      border-radius: 14px;
+      background: rgba(37, 99, 235, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #60a5fa;
+      margin-bottom: 22px;
+    }
+
+    .card-title {
+      font-family: var(--font-heading);
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #ffffff;
+    }
+
+    .card-desc {
+      font-size: 15px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      flex: 1;
+    }
+
+    .card-highlight-badge {
+      margin-top: 18px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent-emerald);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ── SECCIÓN "¿CÓMO FUNCIONA FACTURAMI?" (3 PASOS) ── */
+    .steps-wrapper {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 30px;
+      position: relative;
+    }
+
+    @media (max-width: 900px) {
+      .steps-wrapper {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .step-box {
+      background: #0f172a;
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 36px 28px;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .step-box:hover {
+      border-color: var(--primary-light);
+      background: #131d36;
+    }
+
+    .step-number {
+      font-family: var(--font-heading);
+      font-size: 42px;
+      font-weight: 900;
+      background: linear-gradient(180deg, #3b82f6 0%, rgba(59, 130, 246, 0.15) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+      line-height: 1;
+    }
+
+    .step-title {
+      font-family: var(--font-heading);
+      font-size: 21px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 12px;
+    }
+
+    .step-text {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* ── SECCIÓN TRIBUTARIA DE COSTA RICA (IVA, RENTA, REA, NIIF) ── */
+    .tributaria-box {
+      background: linear-gradient(145deg, #0e172a 0%, #172554 100%);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 24px;
+      padding: 50px 40px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    }
+
+    .tributaria-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 30px;
+      margin-top: 36px;
+    }
+
+    @media (max-width: 800px) {
+      .tributaria-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .tributaria-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 18px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 22px;
+    }
+
+    .tributaria-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: rgba(37, 99, 235, 0.2);
+      color: #60a5fa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .tributaria-content h4 {
+      font-family: var(--font-heading);
+      font-size: 17px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+
+    .tributaria-content p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* ── SECCIÓN PLANES Y PRECIOS ── */
+    .pricing-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-bottom: 48px;
+    }
+
+    .toggle-group {
+      display: inline-flex;
+      background: #1e293b;
+      padding: 4px;
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .toggle-btn {
+      background: none;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: var(--font-heading);
+    }
+
+    .toggle-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    }
+
+    .discount-badge {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      margin-left: 6px;
+      text-transform: uppercase;
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    @media (max-width: 1140px) {
+      .pricing-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .pricing-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .plan-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 32px 24px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: var(--shadow-card);
+    }
+
+    .plan-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6);
+      border-color: rgba(59, 130, 246, 0.4);
+    }
+
+    /* PLAN POPULAR DESTACADO */
+    .plan-card.popular {
+      background: linear-gradient(180deg, #162444 0%, #0f172a 100%);
+      border: 2px solid #3b82f6;
+      box-shadow: 0 20px 50px -10px rgba(37, 99, 235, 0.4);
+      transform: scale(1.02);
+    }
+
+    .plan-card.popular:hover {
+      transform: scale(1.04) translateY(-4px);
+    }
+
+    .popular-pill {
+      position: absolute;
+      top: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+      color: #ffffff;
+      font-size: 11.5px;
+      font-weight: 800;
+      padding: 4px 14px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.5);
+    }
+
+    .plan-target {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+    }
+
+    .plan-name {
+      font-family: var(--font-heading);
+      font-size: 22px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+
+    .plan-price-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      margin: 18px 0 6px;
+      white-space: nowrap;
+    }
+
+    .plan-currency {
+      font-size: 22px;
+      font-weight: 700;
+      color: #93c5fd;
+    }
+
+    .plan-price-num {
+      font-family: var(--font-heading);
+      font-size: clamp(28px, 2.2vw, 36px);
+      font-weight: 900;
+      color: #ffffff;
+      line-height: 1;
+      white-space: nowrap;
+      letter-spacing: -0.5px;
+    }
+
+    .plan-period {
+      font-size: 14px;
+      color: var(--text-dim);
+    }
+
+    .plan-subprice {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+      font-family: var(--font-mono);
+    }
+
+    .plan-features-list {
+      list-style: none;
+      margin-bottom: 30px;
+      flex: 1;
+    }
+
+    .plan-features-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 13.5px;
+      color: #cbd5e1;
+      margin-bottom: 11px;
+      line-height: 1.4;
+    }
+    .plan-features-list li span {
+      flex: 1;
+    }
+
+    .plan-features-list li i {
+      color: var(--accent-emerald);
+      width: 17px;
+      height: 17px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .btn-plan {
+      width: 100%;
+      padding: 13px 20px;
+      border-radius: 10px;
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 14.5px;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid var(--border-subtle);
+      background: #1e293b;
+      color: #ffffff;
+    }
+
+    .btn-plan:hover {
+      background: #334155;
+      transform: translateY(-2px);
+    }
+
+    .btn-plan-primary {
+      background: linear-gradient(135deg, #2563eb 0%, #0284c7 100%);
+      border-color: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+    }
+
+    .btn-plan-primary:hover {
+      background: linear-gradient(135deg, #1d4ed8 0%, #0369a1 100%);
+      box-shadow: 0 12px 28px rgba(37, 99, 235, 0.6);
+    }
+
+    /* ── CALCULADORA DE TIEMPO INTERACTIVA ── */
+    .calculator-box {
+      background: #0f172a;
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .calc-slider-wrap {
+      margin: 30px 0;
+    }
+
+    .calc-slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 12px;
+    }
+
+    .slider-val-badge {
+      font-family: var(--font-heading);
+      font-size: 24px;
+      font-weight: 800;
+      color: #38bdf8;
+    }
+
+    .custom-range {
+      width: 100%;
+      height: 8px;
+      border-radius: 5px;
+      background: #1e293b;
+      outline: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+    }
+
+    .custom-range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 10px rgba(37, 99, 235, 0.8);
+      cursor: pointer;
+    }
+
+    .calc-results-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    @media (max-width: 700px) {
+      .calc-results-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .calc-metric-card {
+      background: #1e293b;
+      padding: 18px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .calc-metric-num {
+      font-family: var(--font-heading);
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--accent-emerald);
+      margin: 6px 0;
+    }
+
+    .calc-metric-label {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* ── FAQ ACCORDION ── */
+    .faq-list {
+      max-width: 820px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .faq-item {
+      background: #0f172a;
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      overflow: hidden;
+      transition: all 0.25s ease;
+    }
+
+    .faq-item:hover {
+      border-color: rgba(59, 130, 246, 0.4);
+    }
+
+    .faq-question {
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      font-family: var(--font-heading);
+      font-size: 17px;
+      font-weight: 700;
+      color: #ffffff;
+      user-select: none;
+    }
+
+    .faq-icon {
+      transition: transform 0.3s ease;
+      color: var(--primary-light);
+    }
+
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease, padding 0.35s ease;
+      background: rgba(15, 23, 42, 0.4);
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.6;
+      padding: 0 24px;
+    }
+
+    .faq-item.open .faq-answer {
+      padding: 0 24px 20px;
+      max-height: 400px;
+    }
+
+    .faq-item.open .faq-icon {
+      transform: rotate(180deg);
+    }
+
+    /* ── BANNER FINAL CTA ── */
+    .cta-banner {
+      background: linear-gradient(135deg, #1d4ed8 0%, #0284c7 100%);
+      border-radius: 26px;
+      padding: 70px 40px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 25px 60px rgba(37, 99, 235, 0.4);
+      margin: 80px auto;
+    }
+
+    .cta-banner h2 {
+      font-family: var(--font-heading);
+      font-size: clamp(30px, 4vw, 44px);
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+    }
+
+    .cta-banner p {
+      font-size: 18px;
+      color: #e0f2fe;
+      max-width: 650px;
+      margin: 0 auto 36px;
+    }
+
+    .cta-banner-actions {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .btn-cta-white {
+      background: #ffffff;
+      color: #1e3a8a;
+      font-family: var(--font-heading);
+      font-weight: 800;
+      padding: 16px 36px;
+      border-radius: 12px;
+      text-decoration: none;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-cta-white:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+      background: #f8fafc;
+    }
+
+    .btn-cta-outline {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      color: #ffffff;
+      font-family: var(--font-heading);
+      font-weight: 700;
+      padding: 16px 30px;
+      border-radius: 12px;
+      text-decoration: none;
+      backdrop-filter: blur(8px);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-cta-outline:hover {
+      background: rgba(255, 255, 255, 0.25);
+      transform: translateY(-2px);
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border-subtle);
+      background: #080c14;
+      padding: 60px 0 40px;
+      font-size: 14px;
+      color: var(--text-dim);
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1.2fr;
+      gap: 40px;
+      margin-bottom: 50px;
+    }
+
+    @media (max-width: 860px) {
+      .footer-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .footer-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .footer-col h5 {
+      color: #ffffff;
+      font-family: var(--font-heading);
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+
+    .footer-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: #ffffff;
+    }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .legal-notice {
+      font-size: 12.5px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    /* ── COOKIE BANNER ── */
+    .cookie-banner {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      right: 24px;
+      max-width: 560px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--border-focus);
+      border-radius: 16px;
+      padding: 20px 24px;
+      z-index: 9999;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+      backdrop-filter: blur(16px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      animation: slideUp 0.4s ease;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .cookie-text {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .btn-cookie-accept {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    /* BOTÓN FLOTANTE WHATSAPP */
+    .floating-whatsapp {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      z-index: 999;
+      background: #25d366;
+      color: #ffffff;
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(37, 211, 102, 0.5);
+      text-decoration: none;
+      transition: all 0.25s ease;
+    }
+
+    .floating-whatsapp:hover {
+      transform: scale(1.1);
+      box-shadow: 0 12px 30px rgba(37, 211, 102, 0.7);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── BARRA DE NAVEGACIÓN SUPERIOR ── -->
+  <header class="navbar">
+    <div class="container nav-inner">
+      <!-- Marca y Logotipo -->
+      <a href="#inicio" class="brand-logo">
+        <div class="brand-icon">F</div>
+        <div class="brand-text">
+          <span class="brand-title">FACTURAMI</span>
+          <span class="brand-badge">Contabilidad Inteligente</span>
+        </div>
+      </a>
+
+      <!-- Menú Central -->
+      <nav class="nav-links">
+        <a href="#caracteristicas">Características</a>
+        <a href="#como-funciona">¿Cómo Funciona?</a>
+        <a href="#tributacion">Tributación Costa Rica</a>
+        <a href="#planes">Planes y Precios</a>
+        <a href="#calculadora">Calculadora</a>
+        <a href="#preguntas-frecuentes">Preguntas Frecuentes</a>
+      </nav>
+
+      <!-- Acción en la Esquina Superior Derecha -->
+      <div class="nav-actions">
+        <!-- BOTÓN PRINCIPAL QUE LLEVA DIRECTO A LA PESTAÑA DE LOGIN DE FACTURAMI -->
+        <a id="btnNavLogin" href="/app" target="_blank" rel="noopener noreferrer" class="btn-login-header" title="Abrir pestaña de login de FACTURAMI">
+          <i data-lucide="log-in" style="width:18px;height:18px;"></i>
+          <span>Ingresar a FACTURAMI</span>
+        </a>
+
+        <!-- Botón menú móvil -->
+        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Abrir menú" onclick="toggleMobileMenu()">
+          <i data-lucide="menu" id="menuIcon" style="width:20px;height:20px;"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── HERO SECTION ── -->
+  <section id="inicio" class="hero">
+    <div class="container">
+      <div class="hero-badge-pill">
+        <i data-lucide="sparkles" style="width:16px;height:16px;color:#38bdf8;"></i>
+        <span>Sistema Contable Único en el Mundo · Costa Rica</span>
+      </div>
+
+      <h1 class="hero-title">
+        La Evolución Inteligente de la Contabilidad<br/>
+        <span class="text-gradient">Sin Códigos, Sin Asientos, Fácil y Sencillo de Usar.</span>
+      </h1>
+
+      <p class="hero-subtitle">
+        Diseñado para que <strong>contadores independientes, despachos y empresas</strong> transformen horas de digitación manual en minutos de asesoría estratégica. 
+        Una plataforma <strong>autónoma y atemporal</strong>, alineada 100% con la normativa de la <strong>DGT y estándares NIIF</strong>, que procesa comprobantes electrónicos mediante <strong>Inteligencia Artificial</strong> para liquidar el <strong>IVA, Renta y emitir Estados Financieros</strong> en tiempo real.
+      </p>
+
+      <div class="hero-actions">
+        <a href="#planes" class="btn-hero-primary">
+          <i data-lucide="zap" style="width:19px;height:19px;"></i>
+          <span>Ver Planes y Precios</span>
+        </a>
+
+        <!-- Botón Secundario de Acceso al Login -->
+        <a id="btnHeroLogin" href="/app" target="_blank" rel="noopener noreferrer" class="btn-hero-secondary">
+          <i data-lucide="shield-check" style="width:19px;height:19px;color:#38bdf8;"></i>
+          <span>Acceder a la App</span>
+        </a>
+      </div>
+
+      <div class="hero-features-chips">
+        <span class="chip-item"><i data-lucide="check-circle-2"></i> 100% Normativa Tributaria y NIIF</span>
+        <span class="chip-item"><i data-lucide="check-circle-2"></i> Captura Automática Gmail con Agente IA</span>
+        <span class="chip-item"><i data-lucide="check-circle-2"></i> Hasta 3,000 Contabilidades</span>
+        <span class="chip-item"><i data-lucide="check-circle-2"></i> Funciona en la Nube</span>
+      </div>
+
+      <!-- Mockup Visual de Demostración -->
+      <div class="hero-mockup-wrapper">
+        <div class="mockup-glow"></div>
+        <div class="mockup-window">
+          <div class="mockup-header">
+            <div class="mockup-dots">
+              <span class="mockup-dot dot-red"></span>
+              <span class="mockup-dot dot-yellow"></span>
+              <span class="mockup-dot dot-green"></span>
+            </div>
+            <div class="mockup-title-bar">
+              <i data-lucide="cpu" style="width:14px;height:14px;color:#38bdf8;"></i>
+              <span>FACTURAMI v4.0 · Consola de Operación Contable en Vivo</span>
+            </div>
+            <div style="font-size:11px;color:#34d399;font-weight:600;display:flex;align-items:center;gap:4px;">
+              <span class="pulse-dot"></span> EN LÍNEA
+            </div>
+          </div>
+
+          <div class="mockup-body">
+            <!-- Feed de Facturas Procesadas por IA -->
+            <div class="live-feed-card">
+              <div class="feed-header">
+                <span class="feed-title">
+                  <i data-lucide="bot" style="width:16px;height:16px;color:#38bdf8;"></i>
+                  Extracción con Agente IA
+                </span>
+                <span style="font-size:11px;color:#94a3b8;">Clave 50 Dígitos OCR</span>
+              </div>
+
+              <div class="feed-item feed-item-success">
+                <i data-lucide="file-check-2" style="width:18px;height:18px;color:#10b981;margin-top:2px;"></i>
+                <div class="feed-text">
+                  <div class="feed-supplier">
+                    <span>Cía. Nacional de Fuerza y Luz (CNFL)</span>
+                    <span style="color:#38bdf8;font-family:var(--font-mono);">₡84,250</span>
+                  </div>
+                  <div class="feed-meta">IVA 13% Acreditado (₡9,692) · Gasto Operativo · Validado DGT</div>
+                </div>
+              </div>
+
+              <div class="feed-item feed-item-success">
+                <i data-lucide="file-check-2" style="width:18px;height:18px;color:#10b981;margin-top:2px;"></i>
+                <div class="feed-text">
+                  <div class="feed-supplier">
+                    <span>Inst. Costarricense de Acueductos (AyA)</span>
+                    <span style="color:#38bdf8;font-family:var(--font-mono);">₡18,400</span>
+                  </div>
+                  <div class="feed-meta">IVA Exento / No Sujeto · Servicio Público · Proporcionalidad OK</div>
+                </div>
+              </div>
+
+              <div class="feed-item feed-item-success">
+                <i data-lucide="file-check-2" style="width:18px;height:18px;color:#10b981;margin-top:2px;"></i>
+                <div class="feed-text">
+                  <div class="feed-supplier">
+                    <span>Walmart de México y Centroamérica</span>
+                    <span style="color:#38bdf8;font-family:var(--font-mono);">₡142,600</span>
+                  </div>
+                  <div class="feed-meta">Canasta Básica 1% + Tarifa General 13% clasificada al instante</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Resumen Tributario y Liquidación -->
+            <div class="metrics-grid-mockup">
+              <div class="metric-box">
+                <div class="metric-label">Débito Fiscal (IVA Ventas)</div>
+                <div class="metric-val" style="color:#60a5fa;">₡1,248,300</div>
+                <span class="metric-badge badge-blue">Tarifas 1%, 2%, 4%, 13%</span>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-label">Crédito Fiscal (IVA Compras)</div>
+                <div class="metric-val" style="color:#34d399;">₡812,450</div>
+                <span class="metric-badge badge-green">100% Soportado DGT</span>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-label">Proporcionalidad Automática</div>
+                <div class="metric-val" style="color:#f59e0b;">98.42%</div>
+                <span class="metric-badge badge-blue">Mes a Mes sin Cierre Anual</span>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-label">Saldo Declaración IVA</div>
+                <div class="metric-val" style="color:#ffffff;">₡435,850</div>
+                <span class="metric-badge badge-green">Listo para Enviar a ATV</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SECCIÓN: CARACTERÍSTICAS FUNDAMENTALES ("SIN CÓDIGOS, SIN ASIENTOS") ── -->
+  <section id="caracteristicas" class="section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Innovación Disruptiva</span>
+        <h2 class="section-title">Aumente Radicalmente el Valor de su Tiempo</h2>
+        <p class="section-desc">
+          FACTURAMI rompe con la complejidad tradicional de los sistemas contables anticuados.
+          Eliminamos la digitación repetitiva para que puedas asesorar a tus clientes y hacer crecer tu despacho.
+        </p>
+      </div>
+
+      <div class="grid-3">
+        <!-- Tarjeta 1 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <i data-lucide="database-zap" style="width:28px;height:28px;"></i>
+          </div>
+          <h3 class="card-title">Sin Códigos ni Catálogos</h3>
+          <p class="card-desc">
+            Olvídate de memorizar o configurar interminables catálogos de 500 cuentas contables. 
+            El motor de FACTURAMI estructura ingresos, compras, gastos, costos y activos de forma fluida e intuitiva.
+          </p>
+          <div class="card-highlight-badge">
+            <i data-lucide="check"></i> 100% Cero Fricción Inicial
+          </div>
+        </div>
+
+        <!-- Tarjeta 2 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <i data-lucide="layers" style="width:28px;height:28px;"></i>
+          </div>
+          <h3 class="card-title">Sin Asientos Manuales</h3>
+          <p class="card-desc">
+            Cada factura electrónica genera instantáneamente su impacto en libros, mayor y balances.
+            No requiere cuadres de partida doble manuales ni digitación tediosa línea por línea.
+          </p>
+          <div class="card-highlight-badge">
+            <i data-lucide="check"></i> Generación Automática
+          </div>
+        </div>
+
+        <!-- Tarjeta 3 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <i data-lucide="clock" style="width:28px;height:28px;"></i>
+          </div>
+          <h3 class="card-title">Atemporal y Sin Cierres</h3>
+          <p class="card-desc">
+            Apertura de un nuevo período fiscal en menos de 30 segundos sin necesidad de cerrar el anterior.
+            Revisa o ajusta meses pasados en cualquier instante sin alterar ni bloquear periodos activos.
+          </p>
+          <div class="card-highlight-badge">
+            <i data-lucide="check"></i> Flexibilidad Total
+          </div>
+        </div>
+
+        <!-- Tarjeta 4 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <i data-lucide="book-open" style="width:28px;height:28px;"></i>
+          </div>
+          <h3 class="card-title">Libros Digitales Oficiales</h3>
+          <p class="card-desc">
+            Confecciona de forma automática los libros contables digitales: Diario, Mayor, Balances y Estados Financieros.
+            Permite asientos mensuales, trimestrales, semestrales o un resumen anual con un clic.
+          </p>
+          <div class="card-highlight-badge">
+            <i data-lucide="check"></i> Conforme a Normas NIIF
+          </div>
+        </div>
+
+        <!-- Tarjeta 5 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <i data-lucide="laptop" style="width:28px;height:28px;"></i>
+          </div>
+          <h3 class="card-title">Teletrabajo y Portabilidad</h3>
+          <p class="card-desc">
+            Lleva contabilidades completas de una computadora a otra en segundos por nube privada.
+          </p>
+          <div class="card-highlight-badge">
+            <i data-lucide="check"></i> Nube Privada
+          </div>
+        </div>
+
+        <!-- Tarjeta 6 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <i data-lucide="users" style="width:28px;height:28px;"></i>
+          </div>
+          <h3 class="card-title">Hasta 3,000 Contabilidades</h3>
+          <p class="card-desc">
+            Potencia insuperable para despachos contables y contadores independientes: lleva hasta tres mil contabilidades
+            con total aislamiento de datos, perfiles independientes de cédula física o jurídica.
+          </p>
+          <div class="card-highlight-badge">
+            <i data-lucide="check"></i> Capacidad Multi-Cliente
+          </div>
+        </div>
+
+        <!-- Tarjeta 7 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <i data-lucide="user-check" style="width:28px;height:28px;"></i>
+          </div>
+          <h3 class="card-title">Persona Física o Jurídica</h3>
+          <p class="card-desc">
+            Estructura el tipo de contabilidad con solo un clic. Adapta automáticamente las tasas impositivas, estados financieros y obligaciones según el tipo de cédula.
+          </p>
+          <div class="card-highlight-badge">
+            <i data-lucide="check"></i> Configuración Inmediata
+          </div>
+        </div>
+
+        <!-- Tarjeta 8 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <i data-lucide="trending-down" style="width:28px;height:28px;"></i>
+          </div>
+          <h3 class="card-title">Asientos Recurrentes</h3>
+          <p class="card-desc">
+            Genera los asientos de depreciación para todo el plazo de vida útil del activo y la detiene de forma totalmente automática cuando este se agota.
+          </p>
+          <div class="card-highlight-badge">
+            <i data-lucide="check"></i> Automatización de Activos
+          </div>
+        </div>
+
+        <!-- Tarjeta 9 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrapper">
+            <i data-lucide="bar-chart-3" style="width:28px;height:28px;"></i>
+          </div>
+          <h3 class="card-title">Más de 60 Reportes</h3>
+          <p class="card-desc">
+            Reportes auxiliares de todo tipo, mensuales y acumulados: clientes, proveedores, balance de situación, comprobación, flujo de efectivo y comparativos multi-periodo.
+          </p>
+          <div class="card-highlight-badge">
+            <i data-lucide="check"></i> Inteligencia Contable
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SECCIÓN: ¿CÓMO FUNCIONA? (3 PASOS) ── -->
+  <section id="como-funciona" class="section" style="background:#070b13;">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Flujo Inteligente</span>
+        <h2 class="section-title">¿Cómo Funciona FACTURAMI?</h2>
+        <p class="section-desc">
+          Todo el ciclo contable y tributario se completa de forma continua en tres simples etapas automatizadas.
+        </p>
+      </div>
+
+      <div class="steps-wrapper">
+        <!-- Paso 1 -->
+        <div class="step-box">
+          <div class="step-number">01</div>
+          <h3 class="step-title">Recepción Inteligente</h3>
+          <p class="step-text">
+            Arrastra tus facturas en PDF o XML directamente al sistema, o deja que el <strong>Agente IA</strong> conectado
+            a tu correo electrónico (Gmail o Microsoft) capture y procese automáticamente cada factura que envían tus proveedores.
+          </p>
+        </div>
+
+        <!-- Paso 2 -->
+        <div class="step-box">
+          <div class="step-number">02</div>
+          <h3 class="step-title">Extracción y Clasificación IA</h3>
+          <p class="step-text">
+            Extrae con precisión absoluta la clave de 50 dígitos de Hacienda,
+            proveedor, desglose de IVA (1%, 2%, 4%, 8%, 13%, exento) y lo categoriza en compras, gastos, costos o activos.
+          </p>
+        </div>
+
+        <!-- Paso 3 -->
+        <div class="step-box">
+          <div class="step-number">03</div>
+          <h3 class="step-title">Declaraciones y Libros en 1 Clic</h3>
+          <p class="step-text">
+            FACTURAMI calcula la proporcionalidad mes a mes y elabora en tiempo real la declaración de <strong>IVA</strong>,
+            la de <strong>Renta</strong> y los 5 Estados Financieros bajo normas NIIF listos para presentar o imprimir.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SECCIÓN: TRIBUTACIÓN DE COSTA RICA ── -->
+  <section id="tributacion" class="section">
+    <div class="container">
+      <div class="tributaria-box">
+        <div style="text-align:center;max-width:720px;margin:0 auto;">
+          <span class="section-tag" style="color:#93c5fd;">Especialización Tributaria</span>
+          <h2 class="section-title" style="color:#ffffff;">100% Adaptado a la Materia Tributaria Costarricense</h2>
+          <p style="color:#cbd5e1;font-size:16px;">
+            Diseñado en estricto cumplimiento con la Ley de Fortalecimiento de las Finanzas Públicas (Ley 9635),
+            resoluciones administrativas de la Dirección General de Tributación (DGT) y el Ministerio de Hacienda.
+          </p>
+        </div>
+
+        <div class="tributaria-grid">
+          <!-- Item 1: IVA -->
+          <div class="tributaria-item">
+            <div class="tributaria-icon">
+              <i data-lucide="file-spreadsheet" style="width:24px;height:24px;"></i>
+            </div>
+            <div class="tributaria-content">
+              <h4>Declaración de IVA Automática</h4>
+              <p>Genera la declaración de IVA sin importar la cantidad de actividades económicas, tarifas diferenciadas (1%, 2%, 4%, 8%, 13%), bienes de capital o servicios.</p>
+            </div>
+          </div>
+
+          <!-- Item 2: Proporcionalidad -->
+          <div class="tributaria-item">
+            <div class="tributaria-icon">
+              <i data-lucide="percent" style="width:24px;height:24px;"></i>
+            </div>
+            <div class="tributaria-content">
+              <h4>Proporcionalidad Mes a Mes</h4>
+              <p>Calcula automáticamente el porcentaje de proporcionalidad en cada periodo mensual para que no tengas que realizar la compleja y tardía liquidación anual.</p>
+            </div>
+          </div>
+
+          <!-- Item 3: Renta -->
+          <div class="tributaria-item">
+            <div class="tributaria-icon">
+              <i data-lucide="calculator" style="width:24px;height:24px;"></i>
+            </div>
+            <div class="tributaria-content">
+              <h4>Declaración de Renta y XML para ATV</h4>
+              <p>Aplica tramos impositivos para persona física o jurídica, calculando el impuesto sobre la renta y generando el archivo para el portal ATV eliminando el error humano.</p>
+            </div>
+          </div>
+
+          <!-- Item 4: Regímenes Especiales REA -->
+          <div class="tributaria-item">
+            <div class="tributaria-icon">
+              <i data-lucide="wheat" style="width:24px;height:24px;"></i>
+            </div>
+            <div class="tributaria-content">
+              <h4>D-135 y D-137 Régimen Agropecuario (REA)</h4>
+              <p>Soporte completo para D-135 REA cada 4 meses y D-137 REA anual exclusiva para café, caña y miel, adaptándose a las necesidades de productores y cooperativas.</p>
+            </div>
+          </div>
+
+          <!-- Item 5: NIIF -->
+          <div class="tributaria-item">
+            <div class="tributaria-icon">
+              <i data-lucide="award" style="width:24px;height:24px;"></i>
+            </div>
+            <div class="tributaria-content">
+              <h4>100% Normas Internacionales (NIIF)</h4>
+              <p>Balance de Situación, Balance de Comprobación, Estado de Resultados, Flujo de Efectivo (método directo) y Cambios en el Patrimonio en forma mensual y acumulada.</p>
+            </div>
+          </div>
+
+          <!-- Item 6: Multidivisa e Idiomas -->
+          <div class="tributaria-item">
+            <div class="tributaria-icon">
+              <i data-lucide="globe" style="width:24px;height:24px;"></i>
+            </div>
+            <div class="tributaria-content">
+              <h4>Reportes Multidivisa y Multi-idioma</h4>
+              <p>Estados financieros emitibles en Colones (₡), Dólares ($), Euros (€) y traducibles al inglés, francés u otros idiomas para juntas directivas o entidades bancarias.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SECCIÓN: PLANES Y COSTES ── -->
+  <section id="planes" class="section" style="background:#070b13;">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Transparencia Total</span>
+        <h2 class="section-title">Planes y Precios a su Medida</h2>
+        <p class="section-desc">
+          Elija el plan ideal para su volumen contable. Sin contratos forzosos ni cobros ocultos. Facturación en colones (₡ CRC) o dólares ($ USD).
+        </p>
+      </div>
+
+      <!-- Controles de Selector: Moneda y Frecuencia -->
+      <div class="pricing-controls">
+        <!-- Toggle Moneda (Colones por defecto en Costa Rica) -->
+        <div class="toggle-group" id="currencyToggle">
+          <button class="toggle-btn active" data-currency="CRC">Colones (₡ CRC)</button>
+          <button class="toggle-btn" data-currency="USD">Dólares ($ USD)</button>
+        </div>
+
+        <!-- Toggle Facturación -->
+        <div class="toggle-group" id="billingToggle">
+          <button class="toggle-btn active" data-billing="monthly">Pago Mensual</button>
+          <button class="toggle-btn" data-billing="annual">
+            Pago Anual <span class="discount-badge">-15% Ahorro</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Grid de los 4 Planes Oficiales Rediseñados -->
+      <div class="pricing-grid">
+        <!-- PLAN 1: EMPRENDEDOR -->
+        <div class="plan-card">
+          <span class="plan-target">Independientes</span>
+          <h3 class="plan-name">Emprendedor</h3>
+          <p style="font-size:13px;color:var(--text-muted);min-height:36px;">
+            Ideal para profesionales autónomos con una sola actividad económica.
+          </p>
+
+          <div class="plan-price-wrap">
+            <span class="plan-currency">₡</span>
+            <span class="plan-price-num" data-usd="9" data-crc="4500">4 500</span>
+            <span class="plan-period">/ mes</span>
+          </div>
+          <div class="plan-subprice" id="subprice-p1">Facturado en moneda nacional</div>
+
+          <ul class="plan-features-list">
+            <li><i data-lucide="check"></i> <span><strong>1 Cédula</strong> (Física o Jurídica)</span></li>
+            <li><i data-lucide="check"></i> <span><strong>100 facturas IA</strong> al mes</span></li>
+            <li><i data-lucide="check"></i> <span>Automatización con Agente IA por correo</span></li>
+            <li><i data-lucide="check"></i> <span>Generación automática de IVA</span></li>
+            <li><i data-lucide="check"></i> <span>Proporcionalidad mensual</span></li>
+            <li><i data-lucide="check"></i> <span>Backup y sincronización</span></li>
+            <li><i data-lucide="check"></i> <span>Exportación a Excel</span></li>
+          </ul>
+
+          <a href="#" class="btn-plan" onclick="solicitarPlan('Plan Emprendedor (₡4,500 / $9)'); return false;">
+            <span>Elegir Plan</span>
+            <i data-lucide="arrow-right" style="width:16px;height:16px;"></i>
+          </a>
+        </div>
+
+        <!-- PLAN 2: PROFESIONAL (MÁS POPULAR) -->
+        <div class="plan-card popular">
+          <div class="popular-pill">MÁS POPULAR</div>
+          <span class="plan-target">Pymes y Comercios</span>
+          <h3 class="plan-name">Profesional</h3>
+          <p style="font-size:13px;color:var(--text-muted);min-height:36px;">
+            Diseñado para negocios en expansión y profesionales con varios proyectos.
+          </p>
+
+          <div class="plan-price-wrap">
+            <span class="plan-currency">₡</span>
+            <span class="plan-price-num" data-usd="19" data-crc="9600">9 600</span>
+            <span class="plan-period">/ mes</span>
+          </div>
+          <div class="plan-subprice" id="subprice-p2">Facturado en moneda nacional</div>
+
+          <ul class="plan-features-list">
+            <li><i data-lucide="check"></i> <span><strong>Hasta 3 Cédulas</strong> independientes</span></li>
+            <li><i data-lucide="check"></i> <span><strong>350 facturas IA</strong> al mes</span></li>
+            <li><i data-lucide="check"></i> <span>Automatización con Agente IA por correo</span></li>
+            <li><i data-lucide="check"></i> <span>Declaraciones de IVA y Renta</span></li>
+            <li><i data-lucide="check"></i> <span>Clasificación CABYS y gastos con IA</span></li>
+            <li><i data-lucide="check"></i> <span>Sincronización Móvil y Nube</span></li>
+            <li><i data-lucide="check"></i> <span>Soporte por correo prioritario</span></li>
+          </ul>
+
+          <a href="#" class="btn-plan btn-plan-primary" onclick="solicitarPlan('Plan Profesional (₡9,600 / $19)'); return false;">
+            <span>Elegir Plan</span>
+            <i data-lucide="arrow-right" style="width:16px;height:16px;"></i>
+          </a>
+        </div>
+
+        <!-- PLAN 3: CORPORATIVO -->
+        <div class="plan-card">
+          <span class="plan-target">Empresas Consolidadas</span>
+          <h3 class="plan-name">Corporativo</h3>
+          <p style="font-size:13px;color:var(--text-muted);min-height:36px;">
+            Para medianas empresas con alto volumen de facturación y multi-sucursal.
+          </p>
+
+          <div class="plan-price-wrap">
+            <span class="plan-currency">₡</span>
+            <span class="plan-price-num" data-usd="39" data-crc="19700">19 700</span>
+            <span class="plan-period">/ mes</span>
+          </div>
+          <div class="plan-subprice" id="subprice-p3">Facturado en moneda nacional</div>
+
+          <ul class="plan-features-list">
+            <li><i data-lucide="check"></i> <span><strong>Hasta 10 Cédulas</strong> / Sucursales</span></li>
+            <li><i data-lucide="check"></i> <span><strong>1,000 facturas IA</strong> al mes</span></li>
+            <li><i data-lucide="check"></i> <span>Automatización con Agente IA por correo</span></li>
+            <li><i data-lucide="check"></i> <span>Estados Financieros NIIF completos</span></li>
+            <li><i data-lucide="check"></i> <span>Acceso multi-dispositivo seguro</span></li>
+            <li><i data-lucide="check"></i> <span>Soporte técnico por WhatsApp</span></li>
+          </ul>
+
+          <a href="#" class="btn-plan" onclick="solicitarPlan('Plan Corporativo (₡19,700 / $39)'); return false;">
+            <span>Elegir Plan</span>
+            <i data-lucide="arrow-right" style="width:16px;height:16px;"></i>
+          </a>
+        </div>
+
+        <!-- PLAN 4: DESPACHO CONTABLE -->
+        <div class="plan-card">
+          <span class="plan-target">Despachos y Contadores</span>
+          <h3 class="plan-name">Despacho</h3>
+          <p style="font-size:13px;color:var(--text-muted);min-height:36px;">
+            La herramienta definitiva para contadores públicos que llevan carteras grandes.
+          </p>
+
+          <div class="plan-price-wrap">
+            <span class="plan-currency">₡</span>
+            <span class="plan-price-num" data-usd="79" data-crc="39900">39 900</span>
+            <span class="plan-period">/ mes</span>
+          </div>
+          <div class="plan-subprice" id="subprice-p4">Facturado en moneda nacional</div>
+
+          <ul class="plan-features-list">
+            <li><i data-lucide="check"></i> <span><strong>Contabilidades ILIMITADAS</strong> (hasta 3,000)</span></li>
+            <li><i data-lucide="check"></i> <span><strong>3,000 facturas IA</strong> al mes</span></li>
+            <li><i data-lucide="check"></i> <span>Automatización con Agente IA por correo</span></li>
+            <li><i data-lucide="check"></i> <span>XML para ATV y Libros Oficiales</span></li>
+            <li><i data-lucide="check"></i> <span>Apertura de periodos en 30 seg</span></li>
+            <li><i data-lucide="check"></i> <span>REA D-135 / D-137 incluidos</span></li>
+            <li><i data-lucide="check"></i> <span>Acompañamiento dedicado</span></li>
+          </ul>
+
+          <a href="#" class="btn-plan" onclick="solicitarPlan('Plan Despacho (₡39,900 / $79)'); return false;">
+            <span>Elegir Plan</span>
+            <i data-lucide="arrow-right" style="width:16px;height:16px;"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CALCULADORA INTERACTIVA DE AHORRO ── -->
+  <section id="calculadora" class="section">
+    <div class="container">
+      <div class="calculator-box">
+        <div style="text-align:center;">
+          <span class="section-tag">Calculadora de Retorno</span>
+          <h3 style="font-family:var(--font-heading);font-size:28px;font-weight:800;color:#ffffff;margin-bottom:8px;">
+            ¿Cuánto tiempo y dinero ahorrarás cada mes?
+          </h3>
+          <p style="color:var(--text-muted);font-size:15px;">
+            Mueve el control deslizante para calcular las horas de digitación que FACTURAMI recupera para ti.
+          </p>
+        </div>
+
+        <div class="calc-slider-wrap">
+          <div class="calc-slider-header">
+            <span style="font-size:15px;font-weight:600;color:#ffffff;">Facturas mensuales procesadas:</span>
+            <span class="slider-val-badge" id="sliderValDisplay">350 facturas / mes</span>
+          </div>
+          <input type="range" min="50" max="3000" step="50" value="350" class="custom-range" id="invoiceSlider"/>
+        </div>
+
+        <div class="calc-results-grid">
+          <div class="calc-metric-card">
+            <div class="calc-metric-label">Tiempo ahorrado al mes</div>
+            <div class="calc-metric-num" id="calcHoursSaved">23 horas</div>
+            <div style="font-size:12px;color:var(--text-dim);">Equivale a casi 3 jornadas laborales</div>
+          </div>
+
+          <div class="calc-metric-card">
+            <div class="calc-metric-label">Valor estimado recuperado</div>
+            <div class="calc-metric-num" id="calcMoneySaved" style="color:#38bdf8;">₡172,500</div>
+            <div style="font-size:12px;color:var(--text-dim);">Calculado a ₡7,500 / hora profesional</div>
+          </div>
+
+          <div class="calc-metric-card">
+            <div class="calc-metric-label">Plan recomendado</div>
+            <div class="calc-metric-num" id="calcPlanRec" style="color:#f59e0b;font-size:22px;">Profesional ($19)</div>
+            <div style="font-size:12px;color:var(--text-dim);">Retorno de inversión superior a 15x</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── PREGUNTAS FRECUENTES (FAQ) ── -->
+  <section id="preguntas-frecuentes" class="section" style="background:#070b13;">
+    <!-- Anclas y alias de compatibilidad -->
+    <span id="faq" style="position:relative;top:-90px;display:block;visibility:hidden;"></span>
+    <span id="Preguntas-Frecuentes" style="position:relative;top:-90px;display:block;visibility:hidden;"></span>
+    <span id="Preguntas Frecuentes" style="position:relative;top:-90px;display:block;visibility:hidden;"></span>
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Resolviendo Dudas</span>
+        <h2 class="section-title">Preguntas Frecuentes</h2>
+        <p class="section-desc">
+          Todo lo que necesitas saber antes de modernizar tu contabilidad con FACTURAMI.
+        </p>
+      </div>
+
+      <div class="faq-list">
+        <!-- FAQ 1 -->
+        <div class="faq-item open">
+          <div class="faq-question">
+            <span>¿Qué significa que trabaje "sin códigos, sin asientos y sin cierres"?</span>
+            <i data-lucide="chevron-down" class="faq-icon"></i>
+          </div>
+          <div class="faq-answer">
+            En lugar de obligarte a configurar un catálogo contable rígido de cientos de cuentas y digitar asientos dobles (Debe y Haber) manualmente, FACTURAMI procesa directamente la información fiscal de las facturas electrónicas de Hacienda. Los libros Diario, Mayor, Balances y Estados Financieros se computan matemáticamente en tiempo real. Además, puedes aperturar un nuevo periodo fiscal en 30 segundos sin necesidad de cerrar o bloquear el anterior.
+          </div>
+        </div>
+
+        <!-- FAQ 2 -->
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>¿Cumple 100% con las exigencias del Ministerio de Hacienda de Costa Rica?</span>
+            <i data-lucide="chevron-down" class="faq-icon"></i>
+          </div>
+          <div class="faq-answer">
+            Totalmente. Está construido con estricto apego a la Ley 9635 (Fortalecimiento de las Finanzas Públicas), resoluciones de la Dirección General de Tributación (DGT) y el sistema ATV. Genera la declaración de IVA con todas las tarifas diferenciadas (1%, 2%, 4%, 8%, 13%), calcula la proporcionalidad del IVA mes a mes y emite el archivo XML oficial de la declaración de Renta para subir directamente a ATV sin errores de digitación.
+          </div>
+        </div>
+
+        <!-- FAQ 3 -->
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>¿Cómo funciona la captura automática de facturas con el Agente IA?</span>
+            <i data-lucide="chevron-down" class="faq-icon"></i>
+          </div>
+          <div class="faq-answer">
+            Puedes simplemente arrastrar archivos PDF o XML al sistema, o bien utilizar el Agente IA que monitorea tu correo electrónico comercial (Gmail o Microsoft). Cuando un proveedor te envía una factura electrónica, el agente la extrae, lee la clave numérica de 50 dígitos, montos, impuestos y clasifica la compra al instante.
+          </div>
+        </div>
+
+
+        <!-- FAQ 5 -->
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>¿Cuántas contabilidades o empresas puedo gestionar con una licencia?</span>
+            <i data-lucide="chevron-down" class="faq-icon"></i>
+          </div>
+          <div class="faq-answer">
+            Dependiendo de tu plan: desde 1 empresa en el Plan Emprendedor, hasta 10 en el Corporativo y contabilidades ILIMITADAS (hasta 3,000 perfiles independientes) en el Plan Despacho. Cada empresa mantiene sus datos, catálogos, historial tributario y estados financieros en un entorno estrictamente aislado y confidencial.
+          </div>
+        </div>
+
+        <!-- FAQ 6 -->
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>¿Cómo accedo si ya tengo una cuenta registrada?</span>
+            <i data-lucide="chevron-down" class="faq-icon"></i>
+          </div>
+          <div class="faq-answer">
+            Simplemente haz clic en el botón <strong>"Ingresar a FACTURAMI"</strong> ubicado en la esquina superior derecha de esta página (o en cualquiera de los botones de acceso a la app). Serás redirigido directamente a la pantalla de inicio de sesión con tu usuario y contraseña.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── BANNER FINAL DE ACCIÓN ── -->
+  <div class="container">
+    <div class="cta-banner">
+      <h2>¿Listo para revolucionar tu contabilidad?</h2>
+      <p>
+        Únete a los contadores independientes y empresas de Costa Rica que ya aumentaron su productividad y dejaron atrás la digitación manual.
+      </p>
+
+      <div class="cta-banner-actions">
+        <!-- Botón que lleva a la pestaña de login de FACTURAMI -->
+        <a id="btnCtaLogin" href="/app" target="_blank" rel="noopener noreferrer" class="btn-cta-white">
+          <i data-lucide="log-in" style="width:20px;height:20px;"></i>
+          <span>Ingresar a FACTURAMI</span>
+        </a>
+
+        <a href="https://wa.me/50688026830?text=Hola,%20quisiera%20más%20información%20y%20una%20demostración%20de%20FACTURAMI" target="_blank" class="btn-cta-outline">
+          <i data-lucide="message-circle" style="width:20px;height:20px;"></i>
+          <span>Chatea en WhatsApp (+506 8802 6830)</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FOOTER CORPORATIVO ── -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <!-- Columna 1 -->
+        <div class="footer-col">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <div class="brand-icon" style="width:34px;height:34px;font-size:16px;">F</div>
+            <span style="font-family:var(--font-heading);font-weight:800;font-size:18px;color:#fff;">FACTURAMI</span>
+          </div>
+          <p style="font-size:13.5px;color:var(--text-muted);line-height:1.6;margin-bottom:16px;">
+            Sistema Contable Único en el Mundo. Inteligencia Artificial aplicada a la contabilidad costarricense, 
+            declaraciones oficiales de Hacienda y normas NIIF.
+          </p>
+          <div style="font-size:12px;color:var(--accent-cyan);font-weight:600;">
+            Desarrollado con orgullo en San José, Costa Rica 🇨🇷
+          </div>
+        </div>
+
+        <!-- Columna 2 -->
+        <div class="footer-col">
+          <h5>Navegación</h5>
+          <ul class="footer-links">
+            <li><a href="#caracteristicas">Características</a></li>
+            <li><a href="#como-funciona">¿Cómo Funciona?</a></li>
+            <li><a href="#tributacion">Tributación Costa Rica</a></li>
+            <li><a href="#planes">Planes y Precios</a></li>
+            <li><a href="#calculadora">Calculadora de Retorno</a></li>
+          </ul>
+        </div>
+
+        <!-- Columna 3 -->
+        <div class="footer-col">
+          <h5>Legal y Soporte</h5>
+          <ul class="footer-links">
+            <li><a href="#" onclick="openPrivacyPolicy(); return false;">Política de Privacidad</a></li>
+            <li><a href="#" onclick="openTermsOfService(); return false;">Términos del Servicio</a></li>
+            <li><a href="#preguntas-frecuentes">Preguntas Frecuentes</a></li>
+            <li><a href="mailto:soporte@facturami.app">soporte@facturami.app</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div class="legal-notice">
+          © 2026 FACTURAMI. Todos los derechos reservados.
+        </div>
+
+        <div>
+          <!-- Link rápido de acceso al sistema -->
+          <a href="/app" target="_blank" rel="noopener noreferrer" style="color:var(--primary-light);text-decoration:none;font-weight:600;font-size:13.5px;display:inline-flex;align-items:center;gap:6px;">
+            <span>Ir al Login de FACTURAMI</span>
+            <i data-lucide="arrow-right" style="width:15px;height:15px;"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ── AVISO DE COOKIES DISCRETO ── -->
+  <div class="cookie-banner" id="cookieBanner">
+    <div class="cookie-text">
+      Utilizamos cookies estrictamente necesarias para el funcionamiento seguro del sistema, como mantener tu sesión activa y resguardar tus preferencias. Al continuar navegando, aceptas su uso.
+    </div>
+    <button class="btn-cookie-accept" onclick="document.getElementById('cookieBanner').style.display='none'; localStorage.setItem('fm_cookie_consent','1');">Entendido</button>
+  </div>
+
+  <!-- ── BOTÓN FLOTANTE DE WHATSAPP ── -->
+  <a href="https://wa.me/50688026830?text=Hola,%20me%20gustaría%20solicitar%20información%20y%20planes%20de%20FACTURAMI" target="_blank" class="floating-whatsapp" title="Chatea en WhatsApp con el +506 8802 6830">
+    <i data-lucide="message-circle" style="width:30px;height:30px;"></i>
+  </a>
+
+  <!-- ── SCRIPTS INTERACTIVOS ── -->
+  <script>
+    // 1. Inicializar iconos de Lucide
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+
+    // 2. Comportamiento dinámico para los botones de LOGIN
+    // Si se accede vía file:/// (doble clic local), abre FACTURAMI.html
+    // Si se accede vía HTTP/HTTPS (servidor web / VPS / localhost), abre /app
+    const targetAppUrl = (window.location.protocol === 'file:') ? 'FACTURAMI.html' : '/app';
+    const loginLinks = ['btnNavLogin', 'btnHeroLogin', 'btnCtaLogin'];
+    loginLinks.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.setAttribute('href', targetAppUrl);
+      }
+    });
+
+    // 3. Toggle de Moneda (USD / CRC) y Frecuencia de Facturación (Mensual / Anual)
+    let currentCurrency = 'CRC';
+    let currentBilling = 'monthly';
+
+    const currencyBtns = document.querySelectorAll('#currencyToggle .toggle-btn');
+    const billingBtns = document.querySelectorAll('#billingToggle .toggle-btn');
+    const priceElements = document.querySelectorAll('.plan-price-num');
+
+    function actualizarPrecios() {
+      priceElements.forEach(el => {
+        const usdBase = parseFloat(el.getAttribute('data-usd'));
+        const crcBase = parseFloat(el.getAttribute('data-crc'));
+
+        let finalUsd = usdBase;
+        let finalCrc = crcBase;
+
+        // Descuento del 15% en facturación anual
+        if (currentBilling === 'annual') {
+          finalUsd = Math.round(usdBase * 0.85);
+          finalCrc = Math.round(crcBase * 0.85);
+        }
+
+        if (currentCurrency === 'USD') {
+          el.textContent = finalUsd;
+          el.previousElementSibling.textContent = '$';
+        } else {
+          el.textContent = finalCrc.toLocaleString('es-CR');
+          el.previousElementSibling.textContent = '₡';
+        }
+      });
+
+      // Actualizar subtítulos en planes
+      if (currentCurrency === 'CRC') {
+        if (currentBilling === 'annual') {
+          document.getElementById('subprice-p1').textContent = 'Facturado anual (₡45 900 / año)';
+          document.getElementById('subprice-p2').textContent = 'Facturado anual (₡97 920 / año)';
+          document.getElementById('subprice-p3').textContent = 'Facturado anual (₡200 940 / año)';
+          document.getElementById('subprice-p4').textContent = 'Facturado anual (₡406 980 / año)';
+        } else {
+          document.getElementById('subprice-p1').textContent = 'Facturado en moneda nacional';
+          document.getElementById('subprice-p2').textContent = 'Facturado en moneda nacional';
+          document.getElementById('subprice-p3').textContent = 'Facturado en moneda nacional';
+          document.getElementById('subprice-p4').textContent = 'Facturado en moneda nacional';
+        }
+      } else {
+        if (currentBilling === 'annual') {
+          document.getElementById('subprice-p1').textContent = 'Facturado anual (~$92 / año)';
+          document.getElementById('subprice-p2').textContent = 'Facturado anual (~$194 / año)';
+          document.getElementById('subprice-p3').textContent = 'Facturado anual (~$398 / año)';
+          document.getElementById('subprice-p4').textContent = 'Facturado anual (~$805 / año)';
+        } else {
+          document.getElementById('subprice-p1').textContent = '~₡4,500 CRC / mes';
+          document.getElementById('subprice-p2').textContent = '~₡9,600 CRC / mes';
+          document.getElementById('subprice-p3').textContent = '~₡19,700 CRC / mes';
+          document.getElementById('subprice-p4').textContent = '~₡39,900 CRC / mes';
+        }
+      }
+
+      // Actualizar recomendación de la calculadora si está visible
+      actualizarCalc();
+    }
+
+    currencyBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        currencyBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentCurrency = btn.getAttribute('data-currency');
+        actualizarPrecios();
+      });
+    });
+
+    billingBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        billingBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentBilling = btn.getAttribute('data-billing');
+        actualizarPrecios();
+      });
+    });
+
+    // 4. Calculadora de Ahorro Interactiva
+    const slider = document.getElementById('invoiceSlider');
+    const valDisplay = document.getElementById('sliderValDisplay');
+    const hoursEl = document.getElementById('calcHoursSaved');
+    const moneyEl = document.getElementById('calcMoneySaved');
+    const planRecEl = document.getElementById('calcPlanRec');
+
+    function actualizarCalc() {
+      if (!slider || !valDisplay || !hoursEl || !moneyEl || !planRecEl) return;
+      const val = parseInt(slider.value, 10);
+      valDisplay.textContent = `${val.toLocaleString('es-CR')} facturas / mes`;
+
+      // Estimación: 4 minutos de digitación manual por factura vs 5 segundos en FACTURAMI
+      const minutesSaved = val * 3.9;
+      const hoursSaved = Math.round(minutesSaved / 60);
+      hoursEl.textContent = `${hoursSaved} horas`;
+
+      // Ahorro monetario estimado a ₡7,500 / hora contable
+      const moneyColones = hoursSaved * 7500;
+      moneyEl.textContent = `₡${moneyColones.toLocaleString('es-CR')}`;
+
+      // Recomendación de plan
+      if (val <= 100) {
+        planRecEl.textContent = currentCurrency === 'CRC' ? 'Emprendedor (₡4 500)' : 'Emprendedor ($9)';
+      } else if (val <= 350) {
+        planRecEl.textContent = currentCurrency === 'CRC' ? 'Profesional (₡9 600)' : 'Profesional ($19)';
+      } else if (val <= 1000) {
+        planRecEl.textContent = currentCurrency === 'CRC' ? 'Corporativo (₡19 700)' : 'Corporativo ($39)';
+      } else {
+        planRecEl.textContent = currentCurrency === 'CRC' ? 'Despacho (₡39 900)' : 'Despacho ($79)';
+      }
+    }
+
+    if (slider) {
+      slider.addEventListener('input', actualizarCalc);
+    }
+
+    
+    // 5.1 Auto-scroll dinámico si se accede vía /Preguntas Frecuentes o #preguntas-frecuentes
+    try {
+      const currentPath = decodeURIComponent(window.location.pathname).toLowerCase();
+      const currentHash = decodeURIComponent(window.location.hash).toLowerCase();
+      if (currentPath.includes('preguntas') || currentPath.includes('faq') || currentHash.includes('preguntas') || currentHash.includes('faq')) {
+        window.addEventListener('DOMContentLoaded', () => {
+          setTimeout(() => {
+            const targetEl = document.getElementById('preguntas-frecuentes') || document.getElementById('faq');
+            if (targetEl) {
+              targetEl.scrollIntoView({ behavior: 'smooth' });
+            }
+          }, 300);
+        });
+      }
+    } catch(e) {}
+
+    // 5. Acordeón Interactivo de Preguntas Frecuentes (FAQ)
+    document.querySelectorAll('.faq-question').forEach(item => {
+      item.addEventListener('click', () => {
+        const parent = item.parentElement;
+        const isOpen = parent.classList.contains('open');
+
+        // Cerrar los demás acordeones
+        document.querySelectorAll('.faq-item').forEach(f => f.classList.remove('open'));
+
+        if (!isOpen) {
+          parent.classList.add('open');
+        }
+      });
+    });
+
+    // 6. Acción al presionar "Elegir Plan": abre la pestaña de la aplicación
+    window.solicitarPlan = function(planName) {
+      try { sessionStorage.setItem('fm_selected_plan', planName); } catch(e){}
+      window.open(targetAppUrl, '_blank');
+    };
+
+    // 7. Menú móvil interactivo
+    window.toggleMobileMenu = function() {
+      const nav = document.querySelector('.nav-links');
+      if (nav) {
+        nav.classList.toggle('active');
+        const icon = document.getElementById('menuIcon');
+        if (icon) {
+          const isOpen = nav.classList.contains('active');
+          icon.setAttribute('data-lucide', isOpen ? 'x' : 'menu');
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+      }
+    };
+
+    // Cerrar menú móvil al hacer clic en cualquier enlace
+    document.querySelectorAll('.nav-links a').forEach(link => {
+      link.addEventListener('click', () => {
+        const nav = document.querySelector('.nav-links');
+        if (nav && nav.classList.contains('active')) {
+          nav.classList.remove('active');
+          const icon = document.getElementById('menuIcon');
+          if (icon) {
+            icon.setAttribute('data-lucide', 'menu');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+          }
+        }
+      });
+    });
+
+    // 8. Textos Legales Exhaustivos
+    const FM_LEGAL_DOCS = {
+      privacy: `<div style="font-family:system-ui,-apple-system,sans-serif;color:#cbd5e1;font-size:14px;line-height:1.75;">
+<div style="background:rgba(37,99,235,0.12);border-left:4px solid #3b82f6;padding:14px 18px;border-radius:8px;margin-bottom:24px;">
+  <strong style="color:#93c5fd;font-size:14.5px;">Compromiso de privacidad</strong><br/>
+  FACTURAMI trata los datos personales conforme a la <strong>Ley N° 8968</strong> de Protección de la Persona frente al Tratamiento
+  de sus Datos Personales y su Reglamento (Decreto Ejecutivo N° 37554-JP). La información contable y tributaria pertenece al Usuario
+  y a sus clientes, y <strong>nunca será vendida ni cedida con fines comerciales</strong>.
+</div>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">1. Roles en el tratamiento</h4>
+<ul style="padding-left:20px;margin:8px 0 14px;"><li><strong>Datos de la cuenta del Usuario</strong> (nombre, correo, cédula, credenciales): FACTURAMI actúa como <strong>responsable</strong> del tratamiento.</li><li><strong>Datos de los clientes del Usuario</strong> (contribuyentes, comprobantes, contabilidad): el Usuario —contador, despacho o empresa— es el <strong>responsable</strong>, y FACTURAMI actúa como <strong>encargado</strong>, tratándolos únicamente por cuenta y bajo las instrucciones del Usuario.</li><li>Contacto para asuntos de privacidad: <strong>soporte@facturami.app</strong>.</li></ul>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">2. Datos que tratamos</h4>
+<ul style="padding-left:20px;margin:8px 0 14px;"><li><strong>Cuenta:</strong> nombre, usuario, correo electrónico, cédula y contraseña (almacenada cifrada mediante <em>bcrypt</em>; no es legible por nadie).</li><li><strong>Contribuyentes:</strong> cédula física, jurídica o DIMEX, nombre o razón social, actividad económica y tipo de régimen.</li><li><strong>Comprobantes electrónicos:</strong> clave numérica de 50 dígitos, emisor, receptor, montos, descuentos, tarifas de IVA y descripción de bienes o servicios.</li><li><strong>Contabilidad:</strong> transacciones, activos, pasivos, patrimonio, libros y reportes.</li><li><strong>Datos técnicos:</strong> identificadores de sesión (tokens) y registros de operación necesarios para la seguridad y el funcionamiento.</li></ul>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">3. Finalidad</h4>
+<p>Los datos se usan <strong>exclusivamente para prestar el servicio</strong>: procesar comprobantes, generar la contabilidad, reportes,
+cálculos tributarios y estados financieros, brindar soporte y mantener la seguridad de la plataforma. No se usan para publicidad de
+terceros ni perfilamiento comercial.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">4. Inteligencia artificial</h4>
+<ul style="padding-left:20px;margin:8px 0 14px;"><li>La inteligencia artificial se utiliza para leer y clasificar los comprobantes que el Usuario carga o autoriza capturar desde su correo electrónico.</li><li><strong>FACTURAMI no utiliza los datos de los Usuarios ni de sus clientes para entrenar modelos de inteligencia artificial propios ni de terceros.</strong></li><li>Los resultados de la IA se presentan al Usuario para su revisión y aprobación antes de incorporarse a la contabilidad.</li></ul>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">5. Proveedores (subencargados) y transferencia internacional</h4>
+<p>Para prestar el servicio, FACTURAMI se apoya en los siguientes proveedores, sujetos a obligaciones de confidencialidad y seguridad:</p>
+<ul style="padding-left:20px;margin:8px 0 14px;"><li><strong>Google LLC – servicio Gemini API:</strong> extracción y clasificación de datos de comprobantes mediante inteligencia artificial.</li><li><strong>Proveedor de infraestructura en la nube:</strong> alojamiento del servidor y de las bases de datos.</li><li><strong>Proveedor de correo electrónico autorizado por el Usuario</strong> (por ejemplo, Gmail): solo cuando el Usuario activa la captura automática de facturas.</li></ul>
+<p>Algunos de estos proveedores procesan datos en servidores ubicados <strong>fuera de Costa Rica</strong> (por ejemplo, en Estados Unidos).
+Al utilizar las funciones correspondientes, el Usuario es informado y consiente esta transferencia internacional, que se realiza
+únicamente para prestar el servicio. FACTURAMI informará los cambios relevantes en este listado.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">6. Seguridad</h4>
+<ul style="padding-left:20px;margin:8px 0 14px;"><li><strong>Aislamiento por cuenta:</strong> cada cuenta accede únicamente a sus propios datos; un Usuario no puede ver la información de otro.</li><li><strong>Cifrado en tránsito</strong> mediante HTTPS en el dominio oficial de la plataforma.</li><li><strong>Contraseñas cifradas</strong> y sesiones con expiración automática.</li><li><strong>Protecciones de pantalla</strong> y marca de agua para reducir capturas no autorizadas.</li><li>Respaldos periódicos de la información.</li></ul>
+<p>Ningún sistema es infalible; en caso de un incidente de seguridad que afecte datos personales, FACTURAMI lo comunicará a los
+afectados sin dilación indebida y adoptará las medidas correctivas correspondientes.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">7. Confidencialidad y acceso del personal</h4>
+<p>El personal técnico y de soporte de FACTURAMI no accede al contenido de comprobantes, contabilidades ni reportes, salvo autorización
+expresa del Usuario para atender una solicitud de soporte concreta, o por requerimiento de autoridad competente conforme a la ley.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">8. Derechos del titular</h4>
+<p>Conforme a la Ley N° 8968, el titular puede ejercer sus derechos de <strong>acceso, rectificación, supresión y oposición</strong>.
+Puede hacerlo directamente en la plataforma o escribiendo a <strong>soporte@facturami.app</strong>; la solicitud se atenderá dentro de
+los <strong>cinco (5) días hábiles</strong> siguientes. Cuando la solicitud se refiera a datos de clientes de un Usuario, FACTURAMI la
+trasladará al Usuario como responsable y le asistirá en su atención.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">9. Conservación, exportación y eliminación</h4>
+<p>Los datos se conservan mientras la cuenta esté activa. El Usuario puede exportar su información en formatos abiertos (Excel, CSV,
+JSON o XML) en cualquier momento. Tras la cancelación, el Usuario dispone de treinta (30) días naturales para exportarla; vencido ese plazo
+se elimina de forma definitiva, salvo lo que deba conservarse por obligación legal.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">10. Cookies y almacenamiento local</h4>
+<p>FACTURAMI utiliza únicamente cookies y almacenamiento local estrictamente necesarios para mantener la sesión, recordar preferencias
+y garantizar la seguridad. No se utilizan cookies publicitarias ni de rastreo de terceros.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">11. Cambios a esta política</h4>
+<p>Los cambios sustanciales se comunicarán con antelación razonable. Esta política se complementa con los <a href="#" onclick="(window.openTermsOfService||function(){fmOpenLegalModal('terms')})();return false;" style="color:#60a5fa;text-decoration:underline;">Términos y Condiciones del Servicio</a>.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">12. Ley aplicable</h4>
+<p>Esta política se rige por las leyes de la República de Costa Rica. El titular puede acudir además ante la Agencia de Protección de
+Datos de los Habitantes (PRODHAB).</p>
+<div style="margin-top:28px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08);font-size:12.5px;color:#94a3b8;text-align:center;">Última actualización: 28 de octubre de 2026 · FACTURAMI · San José, Costa Rica</div></div>`,
+      terms: `<div style="font-family:system-ui,-apple-system,sans-serif;color:#cbd5e1;font-size:14px;line-height:1.75;">
+<div style="background:rgba(16,185,129,0.12);border-left:4px solid #10b981;padding:14px 18px;border-radius:8px;margin-bottom:24px;">
+  <strong style="color:#6ee7b7;font-size:14.5px;">Términos y Condiciones del Servicio</strong><br/>
+  Al crear una cuenta o utilizar FACTURAMI, el Usuario acepta íntegramente estos Términos y Condiciones del Servicio
+  (en adelante, "los Términos") y la <a href="#" onclick="(window.openPrivacyPolicy||function(){fmOpenLegalModal('privacy')})();return false;" style="color:#60a5fa;text-decoration:underline;">Política de Privacidad</a>, que forma parte integral de ellos.
+</div>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">1. Objeto</h4>
+<p>FACTURAMI es una plataforma de software como servicio (SaaS) para la gestión contable y tributaria en Costa Rica: registro y
+clasificación de comprobantes electrónicos, cálculo de impuestos, generación de libros, reportes y estados financieros.
+FACTURAMI es una herramienta tecnológica: <strong>no presta servicios de contaduría pública, asesoría tributaria, legal ni financiera</strong>.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">2. Licencia de uso</h4>
+<p>Se otorga al Usuario una licencia de uso no exclusiva, intransferible, revocable y limitada al plan contratado
+(Emprendedor, Profesional, Corporativo o Despacho), para gestionar sus propias contabilidades o las de sus clientes.
+No se transfiere al Usuario ningún derecho de propiedad sobre el software.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">3. Cuenta y responsabilidades del Usuario</h4>
+<p>El Usuario se obliga a:</p>
+<ul style="padding-left:20px;margin:8px 0 14px;"><li>Custodiar sus credenciales de acceso; toda actividad realizada desde su cuenta se presume efectuada por él.</li><li><strong>Revisar y validar todo resultado generado por la plataforma, en especial los obtenidos mediante inteligencia artificial</strong>, antes de contabilizarlo, presentarlo ante la Administración Tributaria o tomar decisiones con base en él.</li><li>Ingresar únicamente datos para cuyo tratamiento cuente con base legal o con el consentimiento de su titular, incluyendo la autorización de los contribuyentes cuya información procese.</li><li>No utilizar la plataforma ni sus funciones de inteligencia artificial para generar, alterar o validar comprobantes falsos o información fraudulenta.</li><li>No intentar manipular las funciones de inteligencia artificial (por ejemplo, mediante instrucciones maliciosas o <em>prompt injection</em>), eludir los controles de la plataforma, ni extraer, replicar o someter a ingeniería inversa el software, los modelos o sus instrucciones internas.</li><li>Utilizar el servicio conforme a la ley, la moral y el orden público.</li></ul>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">4. Disponibilidad y límites de uso</h4>
+<p>FACTURAMI procura una disponibilidad mensual del 99.5% de la plataforma, con respaldos periódicos. Este objetivo
+<strong>no cubre</strong> interrupciones atribuibles a proveedores externos (incluidos los proveedores de inteligencia artificial,
+correo electrónico o infraestructura), fuerza mayor, ni mantenimientos programados, que se procurará realizar en horarios de bajo uso.</p>
+<p>Las funciones de inteligencia artificial están sujetas a <strong>límites de uso según el plan contratado</strong> (por ejemplo,
+cantidad de facturas procesadas por mes). Superado el límite, la función podrá suspenderse hasta el siguiente período o hasta
+ampliar el plan.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">5. Funcionalidades de Inteligencia Artificial</h4>
+<p><strong>5.1 Naturaleza.</strong> FACTURAMI incorpora funciones de inteligencia artificial para la lectura y extracción de datos de
+comprobantes (PDF y XML), la clasificación de gastos, compras y tarifas de IVA, y la captura automatizada desde el correo electrónico
+autorizado por el Usuario. Estas funciones generan resultados probabilísticos y <strong>pueden contener errores</strong>: por ejemplo,
+leer mal un monto, clasificar incorrectamente un gasto o aplicar un criterio tributario o NIIF que no corresponda.</p>
+<p><strong>5.2 Carácter de apoyo.</strong> Los resultados de la inteligencia artificial son sugerencias de apoyo y no constituyen
+asesoría contable, tributaria, legal ni financiera. La responsabilidad profesional sobre la información contabilizada y declarada
+permanece en el Usuario.</p>
+<p><strong>5.3 Control humano.</strong> Los comprobantes procesados por inteligencia artificial se presentan en una bandeja de revisión
+para que el Usuario los verifique, corrija o rechace antes de incorporarlos a la contabilidad. <strong>FACTURAMI no envía declaraciones,
+comprobantes ni información alguna a la Administración Tributaria</strong>; la presentación ante el Ministerio de Hacienda la realiza
+siempre el Usuario.</p>
+<p><strong>5.4 Datos y entrenamiento.</strong> Los datos se tratan conforme a la Ley N° 8968 y a la Política de Privacidad, únicamente
+para prestar el servicio. <strong>FACTURAMI no utiliza los datos de los Usuarios ni de sus clientes para entrenar modelos de inteligencia
+artificial propios ni de terceros.</strong> Cualquier uso distinto requerirá consentimiento expreso, separado y revocable del Usuario.</p>
+<p><strong>5.5 Proveedores externos.</strong> Para operar estas funciones, FACTURAMI emplea proveedores tecnológicos que actúan como
+subencargados del tratamiento, sujetos a obligaciones de confidencialidad y seguridad. El listado vigente consta en la Política de
+Privacidad.</p>
+<p><strong>5.6 Usos prohibidos.</strong> Queda prohibido usar las funciones de inteligencia artificial para generar, alterar o validar
+comprobantes falsos, eludir controles de la plataforma, o extraer, replicar o someter a ingeniería inversa los modelos o instrucciones del
+sistema.</p>
+<p><strong>5.7 Cambios.</strong> FACTURAMI podrá modificar, limitar o retirar funciones de inteligencia artificial y adaptar estos
+Términos a la normativa que se emita sobre la materia, con aviso previo razonable al Usuario.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">6. Tratamiento de datos personales</h4>
+<p>Respecto de la información de sus clientes, <strong>el Usuario actúa como responsable</strong> de la base de datos y
+<strong>FACTURAMI como encargado del tratamiento</strong>, por cuenta y bajo las instrucciones del Usuario, de conformidad con la
+Ley N° 8968 y su Reglamento. Respecto de los datos de registro de la propia cuenta del Usuario, FACTURAMI actúa como responsable.
+El detalle consta en la <a href="#" onclick="(window.openPrivacyPolicy||function(){fmOpenLegalModal('privacy')})();return false;" style="color:#60a5fa;text-decoration:underline;">Política de Privacidad</a>.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">7. Confidencialidad</h4>
+<p>FACTURAMI tratará como confidencial toda la información contable, financiera y tributaria del Usuario y de sus clientes. Su personal
+y proveedores solo accederán a ella en la medida estrictamente necesaria para prestar el servicio, atender una solicitud de soporte
+autorizada por el Usuario o cumplir una orden de autoridad competente. Esta obligación subsiste tras la terminación del servicio.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">8. Propiedad intelectual y propiedad de los resultados</h4>
+<p>El software, su código, diseño, marcas, bases de conocimiento e instrucciones internas son propiedad exclusiva del titular de
+FACTURAMI y están protegidos por la legislación de propiedad intelectual. Queda prohibida su copia, distribución, modificación o
+explotación sin autorización escrita.</p>
+<p>Los datos ingresados por el Usuario y los reportes, libros y resultados generados a partir de ellos <strong>pertenecen al Usuario</strong>.
+Dado que los resultados de inteligencia artificial se producen de forma automatizada, FACTURAMI no garantiza que sean únicos ni
+exclusivos.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">9. Garantías y limitación de responsabilidad</h4>
+<p>El servicio se presta "en el estado en que se encuentra". FACTURAMI no ejerce la contaduría pública y la toma de decisiones
+contables, financieras y tributarias corresponde exclusivamente al Usuario. Lo anterior incluye los resultados generados mediante
+inteligencia artificial, respecto de los cuales <strong>FACTURAMI no garantiza exactitud, integridad ni idoneidad para un fin
+particular</strong>.</p>
+<p>FACTURAMI no será responsable por multas, sanciones o intereses impuestos por la Administración Tributaria derivados de información
+no revisada por el Usuario, de datos erróneos consignados por terceros en sus comprobantes, ni de declaraciones presentadas fuera de plazo.</p>
+<p><strong>La responsabilidad total de FACTURAMI no excederá el monto pagado por el Usuario en los doce (12) meses anteriores al hecho
+que la origine, salvo dolo o culpa grave.</strong> Nada en estos Términos limita los derechos irrenunciables que la Ley N° 7472
+(Promoción de la Competencia y Defensa Efectiva del Consumidor) reconozca al Usuario cuando califique como consumidor.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">10. Plazo, terminación y devolución de datos</h4>
+<p>El servicio se presta por el período contratado y se renueva según el plan elegido. El Usuario puede cancelar en cualquier momento.
+FACTURAMI podrá suspender o terminar el servicio por incumplimiento grave de estos Términos, falta de pago o uso fraudulento,
+previa notificación cuando la naturaleza del caso lo permita.</p>
+<p>Antes y hasta <strong>treinta (30) días naturales</strong> después de la terminación, el Usuario podrá exportar su información en formatos
+abiertos (Excel, CSV, JSON o XML). Vencido ese plazo, los datos se eliminarán de forma definitiva, salvo aquellos que deban conservarse
+por obligación legal.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">11. Modificaciones</h4>
+<p>FACTURAMI podrá actualizar estos Términos. Los cambios sustanciales se notificarán con al menos quince (15) días naturales de
+anticipación. El uso continuado del servicio después de esa fecha implica su aceptación; si el Usuario no está de acuerdo, podrá
+cancelar y exportar sus datos conforme a la cláusula 10.</p>
+
+<h4 style="color:#60a5fa;font-size:16px;margin:22px 0 8px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">12. Ley aplicable y jurisdicción</h4>
+<p>Estos Términos se rigen por las leyes de la República de Costa Rica. Las controversias se someterán a los tribunales de San José,
+sin perjuicio de los derechos y foros que la legislación de protección al consumidor reconozca al Usuario.</p>
+<div style="margin-top:28px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08);font-size:12.5px;color:#94a3b8;text-align:center;">Última actualización: 28 de octubre de 2026 · FACTURAMI · San José, Costa Rica</div></div>`
+    };
+
+    window.openPrivacyPolicy = function() {
+      const modal = document.getElementById('infoModal');
+      const titleEl = document.getElementById('modalTitle');
+      const subEl = document.getElementById('modalSubtitle');
+      const bodyEl = document.getElementById('modalBody');
+      if (modal && titleEl && bodyEl) {
+        titleEl.textContent = 'Política de Privacidad y Protección de Datos';
+        if (subEl) subEl.textContent = 'Marco Jurídico · Ley N° 8968, Código Tributario y Normas NIIF';
+        bodyEl.innerHTML = FM_LEGAL_DOCS.privacy;
+        modal.style.display = 'flex';
+        bodyEl.scrollTop = 0;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      }
+    };
+
+    window.openTermsOfService = function() {
+      const modal = document.getElementById('infoModal');
+      const titleEl = document.getElementById('modalTitle');
+      const subEl = document.getElementById('modalSubtitle');
+      const bodyEl = document.getElementById('modalBody');
+      if (modal && titleEl && bodyEl) {
+        titleEl.textContent = 'Términos y Condiciones del Servicio';
+        if (subEl) subEl.textContent = 'Contrato de Licencia de Uso Profesional de Software · Costa Rica';
+        bodyEl.innerHTML = FM_LEGAL_DOCS.terms;
+        modal.style.display = 'flex';
+        bodyEl.scrollTop = 0;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      }
+    };
+
+    window.showLegalModal = function(title, content) {
+      const modal = document.getElementById('infoModal');
+      const titleEl = document.getElementById('modalTitle');
+      const bodyEl = document.getElementById('modalBody');
+      if (modal && titleEl && bodyEl) {
+        titleEl.textContent = title;
+        bodyEl.innerHTML = content;
+        modal.style.display = 'flex';
+        bodyEl.scrollTop = 0;
+      }
+    };
+
+    // 9. Ocultar aviso de cookies si ya fue aceptado
+    if (localStorage.getItem('fm_cookie_consent') === '1') {
+      const banner = document.getElementById('cookieBanner');
+      if (banner) banner.style.display = 'none';
+    }
+  </script>
+
+  <!-- ── MODAL INFORMATIVO LEGAL EXPANDIDO ── -->
+  <div id="infoModal" style="display:none;position:fixed;inset:0;background:rgba(5,9,18,0.85);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:#0b1324;border:1px solid rgba(59,130,246,0.35);border-radius:20px;max-width:860px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,0.9), 0 0 30px rgba(37,99,235,0.25);overflow:hidden;position:relative;">
+      
+      <!-- Encabezado del Modal -->
+      <div style="padding:20px 26px;background:#111c35;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(37,99,235,0.2);display:flex;align-items:center;justify-content:center;color:#60a5fa;">
+            <i data-lucide="shield-check" style="width:20px;height:20px;"></i>
+          </div>
+          <div>
+            <h3 id="modalTitle" style="font-family:var(--font-heading);font-size:18px;font-weight:800;color:#ffffff;line-height:1.2;"></h3>
+            <span id="modalSubtitle" style="font-size:11.5px;color:#94a3b8;font-family:var(--font-mono);">Marco Legal y Normativo · Costa Rica</span>
+          </div>
+        </div>
+        <button onclick="document.getElementById('infoModal').style.display='none'" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#94a3b8'">
+          <i data-lucide="x" style="width:18px;height:18px;"></i>
+        </button>
+      </div>
+
+      <!-- Contenido Scrollable -->
+      <div id="modalBody" style="font-size:14px;color:#cbd5e1;line-height:1.75;padding:26px;overflow-y:auto;flex:1;"></div>
+
+      <!-- Pie del Modal -->
+      <div style="padding:14px 26px;background:#111c35;border-top:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:12px;color:#64748b;">Vigente para el período fiscal 2026 · FACTURAMI</span>
+        <div style="display:flex;gap:10px;">
+          <button onclick="window.print()" style="background:rgba(255,255,255,0.08);color:#cbd5e1;border:1px solid rgba(255,255,255,0.15);padding:9px 18px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;">Imprimir / Guardar</button>
+          <button onclick="document.getElementById('infoModal').style.display='none'" style="background:linear-gradient(135deg, #2563eb 0%, #0284c7 100%);color:#fff;border:none;padding:9px 22px;border-radius:8px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:var(--font-heading);box-shadow:0 4px 15px rgba(37,99,235,0.4);">Entendido y Cerrar</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>
+
