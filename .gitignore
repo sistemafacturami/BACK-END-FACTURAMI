@@ -1,0 +1,70 @@
+# ==============================================================================
+# FACTURAMI - ARCHIVO DE EXCLUSIÓN GIT (.gitignore)
+# Protege secretos, bases de datos con información real y entornos locales
+# ==============================================================================
+
+# --- Entornos y Credenciales Sensibles ---
+.env
+.env.local
+.env.production
+.env.*
+!.env.example
+*.key
+*.pem
+*.pfx
+*.cert
+*.crt
+
+# --- Bases de Datos y Datos Reales de Contribuyentes ---
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+facturami.db
+facturami_data.db
+users.json
+usb_database.json
+facturas_queue*.json
+storage/
+backups/
+backup_cloud.sh
+
+# --- Entornos Virtuales y Dependencias ---
+.venv/
+venv/
+env/
+ENV/
+node_modules/
+.n8n/
+
+# --- Caché de Python y Compilados ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Archivos Temporales, Logs y Backups Locales ---
+tmp/
+cache/
+logs/
+*.log
+*.bak
+*.bak*
+*.tmp
+scratch/
+
+# --- Archivos de Oficina, Facturas de Prueba y Diseños Privados ---
+*.docx
+*.pdf
+*.lnk
+camisa_facturami_mockup*
+
+# --- Configuraciones de IDE y Sistema Operativo ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
