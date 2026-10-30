@@ -4955,7 +4955,7 @@ function nafSeleccionarCat(cat) {
   const anosInp = document.getElementById('naf_anos');
   if (cat === 'cor') {
     if (depRow) depRow.style.opacity = '0.5';
-    if (anosInp) anosInp.value = '0';
+    if (anosInp && !afEditMovIdx) anosInp.value = '0';
   } else {
     if (depRow) depRow.style.opacity = '1';
   }
@@ -4963,37 +4963,136 @@ function nafSeleccionarCat(cat) {
   nafRecalcularPreview();
 }
 
-function nafPopulateCuentas(cat, preselect = null) {
-  const sel = document.getElementById('naf_cuenta');
-  if (!sel) return;
+function nafSeleccionarDeSelect(val) {
+  if (!val) return;
+  const inp = document.getElementById('naf_cuenta');
+  if (inp) {
+    inp.value = val;
+    nafCambiarCuenta(val);
+  }
+  const sel = document.getElementById('naf_cuenta_quick');
+  if (sel) sel.selectedIndex = 0;
+}
 
-  const items = (ACTIVOS_SCHEMA[cat] && ACTIVOS_SCHEMA[cat].items) ? ACTIVOS_SCHEMA[cat].items : [];
-  sel.innerHTML = items.map(it => `<option value="${it}">${it}</option>`).join('');
+function nafPopulateCuentas(cat = null, preselect = null) {
+  const datalist = document.getElementById('naf_cuentas_list');
+  const quickSelect = document.getElementById('naf_cuenta_quick');
+  const inp = document.getElementById('naf_cuenta');
+  if (!datalist) return;
 
-  if (preselect && items.includes(preselect)) {
-    sel.value = preselect;
-  } else if (items.length > 0) {
-    sel.value = items[0];
+  const categorias = [
+    { key: 'no_cor', title: 'ACTIVO NO CORRIENTE', items: [...(ACTIVOS_SCHEMA.no_cor?.items || [])] },
+    { key: 'cor', title: 'ACTIVO CORRIENTE', items: [...(ACTIVOS_SCHEMA.cor?.items || [])].filter(c => c !== 'IVA SOPORTADO' && c !== 'IVA DEDUCIBLE - PROPORCIONALIDAD') },
+    { key: 'intan', title: 'ACTIVO INTANGIBLE', items: [...(ACTIVOS_SCHEMA.intan?.items || [])] }
+  ];
+
+  if (typeof MODS !== 'undefined' && MODS.activos) {
+    categorias.forEach(cg => {
+      const data = MODS.activos[cg.key] || {};
+      Object.keys(data).forEach(cName => {
+        if (!cg.items.includes(cName) && cName !== 'IVA SOPORTADO' && cName !== 'IVA DEDUCIBLE - PROPORCIONALIDAD') {
+          cg.items.push(cName);
+        }
+      });
+    });
   }
 
-  nafCambiarCuenta(sel.value);
+  const order = cat ? [cat, ...['no_cor', 'cor', 'intan'].filter(k => k !== cat)] : ['no_cor', 'cor', 'intan'];
+
+  let dlHtml = '';
+  order.forEach(catKey => {
+    const cg = categorias.find(c => c.key === catKey);
+    if (!cg) return;
+    cg.items.forEach(it => {
+      const yrs = (catKey === 'no_cor' && typeof NC_DEP_YEARS !== 'undefined' && NC_DEP_YEARS[it] !== undefined) ? ` (${NC_DEP_YEARS[it]} años)` : '';
+      dlHtml += `<option value="${it}">${cg.title}${yrs}</option>`;
+    });
+  });
+  datalist.innerHTML = dlHtml;
+
+  if (quickSelect) {
+    let qsHtml = '<option value="" disabled selected>▼ Ver todas las cuentas</option>';
+    order.forEach(catKey => {
+      const cg = categorias.find(c => c.key === catKey);
+      if (!cg) return;
+      qsHtml += `<optgroup label="${cg.title}">`;
+      cg.items.forEach(it => {
+        const yrs = (catKey === 'no_cor' && typeof NC_DEP_YEARS !== 'undefined' && NC_DEP_YEARS[it] !== undefined) ? ` (${NC_DEP_YEARS[it]} años)` : '';
+        qsHtml += `<option value="${it}">${it}${yrs}</option>`;
+      });
+      qsHtml += `</optgroup>`;
+    });
+    quickSelect.innerHTML = qsHtml;
+  }
+
+  if (preselect) {
+    if (inp) inp.value = preselect;
+    nafCambiarCuenta(preselect);
+  } else if (cat && inp && (!inp.value || !afEditMovIdx)) {
+    const cg = categorias.find(c => c.key === cat);
+    if (cg && cg.items.length > 0 && !inp.value) {
+      inp.value = cg.items[0];
+      nafCambiarCuenta(inp.value);
+    }
+  }
 }
 
 function nafCambiarCuenta(cta) {
-  const cat = document.getElementById('naf_cat').value;
+  cta = (cta || '').trim();
+  if (!cta) return;
+
   const anosInp = document.getElementById('naf_anos');
   const detInp = document.getElementById('naf_detalle');
 
+  let detectedCat = null;
+  if (ACTIVOS_SCHEMA.no_cor?.items?.includes(cta)) {
+    detectedCat = 'no_cor';
+  } else if (ACTIVOS_SCHEMA.cor?.items?.includes(cta)) {
+    detectedCat = 'cor';
+  } else if (ACTIVOS_SCHEMA.intan?.items?.includes(cta)) {
+    detectedCat = 'intan';
+  }
+
+  if (detectedCat) {
+    const hiddenInp = document.getElementById('naf_cat');
+    if (hiddenInp && hiddenInp.value !== detectedCat) {
+      hiddenInp.value = detectedCat;
+      ['cor', 'no_cor', 'intan'].forEach(k => {
+        const btn = document.getElementById(`naf_btn_${k}`);
+        if (btn) {
+          if (k === detectedCat) {
+            btn.style.border = '2px solid #2563eb';
+            btn.style.background = '#eff6ff';
+            btn.style.color = '#1e40af';
+            btn.style.fontWeight = '700';
+          } else {
+            btn.style.border = '1px solid #d1d5db';
+            btn.style.background = '#f9fafb';
+            btn.style.color = '#374151';
+            btn.style.fontWeight = '600';
+          }
+        }
+      });
+    }
+  }
+
+  const cat = document.getElementById('naf_cat')?.value || 'no_cor';
+  const depRow = document.getElementById('naf_dep_row');
+
   if (cat === 'no_cor') {
-    const defYrs = NC_DEP_YEARS[cta] !== undefined ? NC_DEP_YEARS[cta] : 5;
-    if (anosInp && (!afEditMovIdx || anosInp.value === '')) {
+    if (depRow) depRow.style.opacity = '1';
+    const defYrs = (typeof NC_DEP_YEARS !== 'undefined' && NC_DEP_YEARS[cta] !== undefined) ? NC_DEP_YEARS[cta] : 5;
+    if (anosInp && (!afEditMovIdx || anosInp.value === '' || anosInp.value === '0')) {
       anosInp.value = defYrs;
     }
   } else if (cat === 'cor') {
-    if (anosInp) anosInp.value = 0;
+    if (depRow) depRow.style.opacity = '0.5';
+    if (anosInp && !afEditMovIdx) anosInp.value = 0;
+  } else {
+    if (depRow) depRow.style.opacity = '1';
   }
 
-  if (detInp && !detInp.value) {
+  if (detInp && (!detInp.value || detInp.value.startsWith('Compra de '))) {
     detInp.value = 'Compra de ' + cta;
   }
 
@@ -12740,8 +12839,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
           <div>
-            <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Cuenta Contable *</label>
-            <select id="naf_cuenta" required onchange="nafCambiarCuenta(this.value)" class="fd-inp" style="width:100%; font-weight:600;"></select>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label style="font-size:11px; font-weight:700; color:#374151;">Cuenta Contable (Editable) *</label>
+              <span style="font-size:10px; color:#6b7280;">Escriba o elija</span>
+            </div>
+            <div style="position:relative; display:flex; align-items:center;">
+              <input type="text" id="naf_cuenta" list="naf_cuentas_list" required placeholder="Seleccione o escriba la cuenta..." oninput="nafCambiarCuenta(this.value)" onchange="nafCambiarCuenta(this.value)" class="fd-inp" style="width:100%; font-weight:700; padding-right:32px;">
+              <select id="naf_cuenta_quick" onchange="nafSeleccionarDeSelect(this.value)" style="position:absolute; right:2px; width:28px; height:28px; border:none; background:transparent; cursor:pointer; color:#6b7280; font-size:12px;" title="Ver todas las cuentas disponibles">
+                <option value="" disabled selected>▼</option>
+              </select>
+            </div>
+            <datalist id="naf_cuentas_list"></datalist>
           </div>
           <div>
             <label style="font-size:11px; font-weight:700; color:#374151; display:block; margin-bottom:4px;">Descripción / Detalle *</label>
