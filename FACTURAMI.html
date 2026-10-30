@@ -4163,6 +4163,66 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
 
 <script>
 
+function fmFormatNumEspacios(num, minDec, maxDec) {
+  if (num === null || num === undefined || num === '') return (maxDec === 0 ? '0' : '0,00');
+  let n = typeof num === 'number' ? num : parseFloat(String(num).replace(/[\s\u00a0\u202f]/g, '').replace(/,/g, '.'));
+  if (isNaN(n)) return (maxDec === 0 ? '0' : '0,00');
+  const isNeg = n < -0.0000001;
+  const absN = Math.abs(n);
+
+  let minD = (minDec !== undefined && minDec !== null) ? minDec : (Number.isInteger(absN) ? 0 : 2);
+  let maxD = (maxDec !== undefined && maxDec !== null) ? maxDec : Math.max(minD, (Number.isInteger(absN) ? 0 : 2));
+
+  let str;
+  if (maxD === 0) {
+    str = Math.round(absN).toString();
+  } else {
+    str = absN.toFixed(maxD);
+    if (minD < maxD) {
+      let [intP, decP] = str.split('.');
+      while (decP.length > minD && decP.endsWith('0')) {
+        decP = decP.slice(0, -1);
+      }
+      str = decP.length > 0 ? (intP + '.' + decP) : intP;
+    }
+  }
+
+  const parts = str.split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  let res = parts[0];
+  if (parts.length > 1 && parts[1].length > 0) {
+    res += ',' + parts[1];
+  }
+  return isNeg ? ('- ' + res) : res;
+}
+window.fmFormatNumEspacios = fmFormatNumEspacios;
+
+function fmParseNum(val) {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  let s = String(val).replace(/[\s\u00a0\u202f]/g, '');
+  if (s.includes('.') && s.includes(',')) {
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      s = s.replace(/,/g, '');
+    }
+  } else if (s.includes(',')) {
+    s = s.replace(/,/g, '.');
+  }
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+window.fmParseNum = fmParseNum;
+
+// Monkey-patch Number.prototype.toLocaleString so EVERY toLocaleString call uses spaces
+const _origNumberToLocaleString = Number.prototype.toLocaleString;
+Number.prototype.toLocaleString = function(loc, opts) {
+  let minDec = (opts && opts.minimumFractionDigits !== undefined) ? opts.minimumFractionDigits : null;
+  let maxDec = (opts && opts.maximumFractionDigits !== undefined) ? opts.maximumFractionDigits : null;
+  return fmFormatNumEspacios(this.valueOf(), minDec, maxDec);
+};
+
 function toggleCuentaBancoSelect() {
   const orig = document.getElementById('m_origen_fondos')?.value;
   const bw = document.getElementById('m_cuenta_banco_wrap');
@@ -4523,12 +4583,12 @@ const TITLES={
   conv:['Convertidor','Moneda y calculadora IVA'],
   n8n:['Registrar Facturas','Bandeja de facturas escaneadas por registrar'],
 };
-const fmt = n => n===0?'—':'₡'+(n<0?'-':'')+Math.round(Math.abs(n)).toLocaleString('es-CR');
+const fmt = n => n===0?'—':'₡'+(n<0?'-':'')+fmFormatNumEspacios(Math.round(Math.abs(n)), 0, 0);
 function fmtCRC(n, forceMinus = false) {
-  if (n === null || n === undefined || n === '') return '0.00';
-  const num = typeof n === 'number' ? n : (parseFloat(String(n).replace(/\s/g, '').replace(/,/g, '')) || 0);
+  if (n === null || n === undefined || n === '') return '0,00';
+  const num = typeof n === 'number' ? n : fmParseNum(n);
   const isNeg = (num < -0.0001) || forceMinus;
-  const absStr = Math.abs(num).toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const absStr = fmFormatNumEspacios(Math.abs(num), 2, 2);
   return (isNeg && Math.abs(num) > 0.0001) ? `- ${absStr}` : absStr;
 }
 window.fmtCRC = fmtCRC;
@@ -8808,7 +8868,7 @@ const NC_DEP_YEARS = {
   'ACTIVOS BIOLOGICOS':0, 'OBRAS EN PROCESO':0, 'PROPIEDADES DE INVERSION':40
 };
 
-function fmtNC(n) { return '₡' + Math.round(n).toLocaleString('es-CR'); }
+function fmtNC(n) { return '₡' + fmFormatNumEspacios(Math.round(n), 0, 0); }
 
 function openNoCorrModal() {
   selectedAssetCat = 'no_cor';
@@ -9055,7 +9115,7 @@ let drActivos = [];
 let drChartEvol = null;
 let drChartDep = null;
 
-function drFmt(n) { return '₡' + Math.round(n).toLocaleString('es-CR'); }
+function drFmt(n) { return '₡' + fmFormatNumEspacios(Math.round(n), 0, 0); }
 function drFmtPct(n) { return Math.min(n, 100).toFixed(1) + '%'; }
 function drMesesDesde(fechaStr) {
   if(!fechaStr) return 0;
@@ -10134,7 +10194,7 @@ function renderD150(){
     <div id="d150p-compras" style="display:none"><div class="fd104-sec" style="border-radius:0 0 var(--r2) var(--r2)"><div class="fd104-hd">Compras y Proporcionalidad</div>${s2}</div></div>
   </div>`;
   // ── Auto-populate from Ingresos, Compras, Gastos ──
-  const setF=(id,val)=>{const e=document.getElementById('d_'+id);if(e)e.value=val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');};
+  const setF=(id,val)=>{const e=document.getElementById('d_'+id);if(e)e.value=fmFormatNumEspacios(val, 2, 2);};
   const agg=(keys)=>{const t={c05:0,c1:0,c2:0,c4:0,c8:0,c13:0,ex:0,ns:0};keys.forEach(k=>{if(!MODS[k])return;filterRows(MODS[k].rows).forEach(r=>{const s=getS(r.tipo);t.c05+=(r.c05||0)*s;t.c1+=(r.c1||0)*s;t.c2+=(r.c2||0)*s;t.c4+=(r.c4||0)*s;t.c8+=(r.c8||0)*s;t.c13+=(r.c13||0)*s;t.ex+=(r.ex||0)*s;t.ns+=(r.ns||0)*s;});});return t;};
   // Ventas ← Ingresos
   const v=agg(['ingresos']);
@@ -10146,7 +10206,7 @@ function renderD150(){
   setF('c_exen',c.ex);setF('c_nsuj',c.ns);
   d150Calc();
 }
-function d150BlurInp(el){let v=parseFloat(el.value.replace(/,/g,''))||0;el.value=v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');d150Calc();}
+function d150BlurInp(el){let v=fmParseNum(el.value);el.value=fmFormatNumEspacios(v, 2, 2);d150Calc();}
 function d150Tab(t){
   ['ventas','compras'].forEach(k=>{
     const p=document.getElementById('d150p-'+k),tb=document.getElementById('d150tab-'+k);
@@ -10156,7 +10216,7 @@ function d150Tab(t){
 }
 function d150Calc(){
   const gv=id=>{const e=document.getElementById('d_'+id);return e?parseFloat(e.value.replace(/,/g,''))||0:0;};
-  const sv=(id,val)=>{const e=document.getElementById('d_'+id);if(!e)return;const s=val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');if(e.tagName==='INPUT')e.value=s;else e.textContent=s;};
+  const sv=(id,val)=>{const e=document.getElementById('d_'+id);if(!e)return;const s=fmFormatNumEspacios(val, 2, 2);if(e.tagName==='INPUT')e.value=s;else e.textContent=s;};
   const vr=[{id:'v05',p:.005},{id:'v1',p:.01},{id:'v2',p:.02},{id:'v3',p:.03},{id:'v4',p:.04},{id:'v4e',p:.04},{id:'v13',p:.13}];
   let vtG=0,vtGr=0,vtI=0;
   vr.forEach(v=>{const b=gv(v.id+'_b'),imp=b*v.p;sv(v.id+'_i',imp);vtG+=b;vtGr+=b;vtI+=imp;});
@@ -10277,16 +10337,16 @@ function loadD105Tri(tri){
       t.grav+=g; t.iva+=iv; t.ex+=(r.ex||0)*s; t.ns+=(r.ns||0)*s;
     });
   });
-  const fN=(n)=>n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  const fN=(n)=>fmFormatNumEspacios(n, 2, 2);
   const cgrElem=document.getElementById('d105_cgr');
   if(cgrElem)cgrElem.value=fN(t.ex+t.ns+t.grav+t.iva);
   d105Calc();
 }
-function d105BlurInp(el){let v=parseFloat(el.value.replace(/,/g,''))||0;el.value=v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');d105Calc();}
+function d105BlurInp(el){let v=fmParseNum(el.value);el.value=fmFormatNumEspacios(v, 2, 2);d105Calc();}
 function d105BlurF(el){let v=parseFloat(el.value)||0;el.value=v.toFixed(2);d105Calc();}
 function d105Calc(){
   const gv=id=>{const e=document.getElementById(id);return e?parseFloat(e.value.replace(/,/g,''))||0:0;};
-  const sv=(id,val)=>{const e=document.getElementById(id);if(e)e.textContent=val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');};
+  const sv=(id,val)=>{const e=document.getElementById(id);if(e)e.textContent=fmFormatNumEspacios(val, 2, 2);};
   const ctot=gv('d105_cgr');
   sv('d105_ctot',ctot);
   const fisr=parseFloat(document.getElementById('d105_fisr')?.value)||0;
@@ -10301,10 +10361,10 @@ function d105Calc(){
   sv('d105_deuda',timp+inter-comp);
 }
 
-function d113Blur(el){let v=parseFloat(el.value.replace(/,/g,''))||0;el.value=v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');d113Calc();}
+function d113Blur(el){let v=fmParseNum(el.value);el.value=fmFormatNumEspacios(v, 2, 2);d113Calc();}
 function d113Calc(){
   const gv=id=>{const e=document.getElementById(id);return e?parseFloat(e.value.replace(/,/g,''))||0:0;};
-  const sv=(id,val)=>{const e=document.getElementById(id);if(e)e.textContent=val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');};
+  const sv=(id,val)=>{const e=document.getElementById(id);if(e)e.textContent=fmFormatNumEspacios(val, 2, 2);};
   const total = gv('d113_1')+gv('d113_2')+gv('d113_3')+gv('d113_4')+gv('d113_5')+gv('d113_6');
   sv('d113_rcm', total);
   sv('d113_base', total);
@@ -10349,10 +10409,10 @@ function renderD113(){
   d113Calc();
 }
 
-function d116Blur(el){let v=parseFloat(el.value.replace(/,/g,''))||0;el.value=v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');d116Calc();}
+function d116Blur(el){let v=fmParseNum(el.value);el.value=fmFormatNumEspacios(v, 2, 2);d116Calc();}
 function d116Calc(){
   const gv=id=>{const e=document.getElementById(id);return e?parseFloat(e.value.replace(/,/g,''))||0:0;};
-  const sv=(id,val)=>{const e=document.getElementById(id);if(e)e.textContent=val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');};
+  const sv=(id,val)=>{const e=document.getElementById(id);if(e)e.textContent=fmFormatNumEspacios(val, 2, 2);};
   const g123 = gv('d116_1')+gv('d116_2')+gv('d116_3');
   const g4 = gv('d116_4');
   const totalRci = g123 + g4;
@@ -10408,10 +10468,10 @@ function renderD116(){
   d116Calc();
 }
 
-function d101Blur(el){let v=parseFloat(el.value.replace(/,/g,''))||0;el.value=v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');d101Calc();}
+function d101Blur(el){let v=fmParseNum(el.value);el.value=fmFormatNumEspacios(v, 2, 2);d101Calc();}
 function d101Calc(){
   const gv=id=>{const e=document.getElementById('c'+id);return e?parseFloat(e.value.replace(/,/g,''))||0:0;};
-  const sv=(id,val)=>{const e=document.getElementById('c'+id);if(e)e.textContent=val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');};
+  const sv=(id,val)=>{const e=document.getElementById('c'+id);if(e)e.textContent=fmFormatNumEspacios(val, 2, 2);};
   
   const c24 = gv('20')+gv('21')+gv('22')+gv('23');
   const c26 = c24 - gv('25');
@@ -10527,25 +10587,25 @@ function renderD101(){
   const dVars = getERVars();
   const e28 = document.getElementById('c28');
   if(e28) {
-    e28.value = dVars.v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+    e28.value = fmFormatNumEspacios(dVars.v, 2, 2);
     e28.classList.add('fd-inp-autofill');
     e28.readOnly = true;
   }
   const e37 = document.getElementById('c37');
   if(e37) {
-    e37.value = dVars.cmv.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+    e37.value = fmFormatNumEspacios(dVars.cmv, 2, 2);
     e37.classList.add('fd-inp-autofill');
     e37.readOnly = true;
   }
   const e41 = document.getElementById('c41');
   if(e41) {
-    e41.value = dVars.go.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+    e41.value = fmFormatNumEspacios(dVars.go, 2, 2);
     e41.classList.add('fd-inp-autofill');
     e41.readOnly = true;
   }
   const e42 = document.getElementById('c42');
   if(e42) {
-    e42.value = (dVars.gastoDeprec || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+    e42.value = fmFormatNumEspacios(dVars.gastoDeprec || 0, 2, 2);
     e42.classList.add('fd-inp-autofill');
     e42.readOnly = true;
   }
@@ -10639,7 +10699,7 @@ function getERVars(){
   }
   gastoIntereses = Math.round(gastoIntereses * 100) / 100;
 
-  const gv = id => { const e = document.getElementById('er_' + id); return e ? parseFloat((e.value !== undefined && e.value !== '' ? e.value : e.textContent).replace(/,/g, '')) || 0 : 0; };
+  const gv = id => { const e = document.getElementById('er_' + id); return e ? fmParseNum(e.value !== undefined && e.value !== '' ? e.value : e.textContent) : 0; };
   const oi = gv('oi');
   let og = gv('og');
   // Precargar intereses calculados si no hay valor manual ingresado
@@ -10660,17 +10720,14 @@ function getERVars(){
 
 // ── ESTADO DE RESULTADOS ──────────────────────────────────────────
 function erBlur(el){
-  let v = parseFloat(el.value.replace(/,/g, '')) || 0;
-  el.value = v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  let v = fmParseNum(el.value);
+  el.value = fmFormatNumEspacios(v, 2, 2);
   erCalc();
 }
 
 function erCalc(){
   const d = getERVars();
-  const fN = (n) => {
-    const num = typeof n === 'number' ? n : (parseFloat(String(n).replace(/,/g, '')) || 0);
-    return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  };
+  const fN = (n) => fmFormatNumEspacios(n, 2, 2);
   const sv = (id, val) => {
     const e = document.getElementById('er_' + id);
     if (e) {
@@ -10746,7 +10803,7 @@ function renderEstRes(){
   const mesStr = (document.getElementById('mesSel') && document.getElementById('mesSel').value) ? document.getElementById('mesSel').value : '';
   const periodoTxt = mesStr ? `${mesStr} de ${anio}` : `Ejercicio Anual ${anio}`;
   const d = getERVars();
-  const fN = (n) => (typeof n === 'number' ? n : (parseFloat(String(n).replace(/,/g, '')) || 0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const fN = (n) => fmFormatNumEspacios(n, 2, 2);
   
   const getP = (id) => (document.getElementById('er_' + id) ? document.getElementById('er_' + id).value : '');
   let v_oi = getP('oi') || fN(0);
@@ -10926,13 +10983,13 @@ function renderEstRes(){
 
 // ── BALANCE GENERAL (ESTADO DE SITUACIÓN FINANCIERA) ────────────────
 function bgBlur(el){
-  let v = parseFloat(el.value.replace(/,/g, '')) || 0;
-  el.value = v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  let v = fmParseNum(el.value);
+  el.value = fmFormatNumEspacios(v, 2, 2);
   bgCalc();
 }
 
 function bgCalc(){
-  const fN = (n) => (typeof n === 'number' ? n : (parseFloat(String(n).replace(/,/g, '')) || 0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const fN = (n) => fmFormatNumEspacios(n, 2, 2);
   const sv = (id, val) => {
     const e = document.getElementById('bg_' + id);
     if (e) {
@@ -11109,7 +11166,7 @@ function renderBalGeneral(){
   const cName = (typeof activeClient !== 'undefined' && activeClient && activeClient.name) ? activeClient.name : 'Empresa Principal';
   const cId = (typeof activeClient !== 'undefined' && activeClient && activeClient.id) ? activeClient.id : '3-101-000000';
   
-  const fN = (n) => (typeof n === 'number' ? n : (parseFloat(String(n).replace(/,/g, '')) || 0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const fN = (n) => fmFormatNumEspacios(n, 2, 2);
 
   // 1. Activos
   let sumCor = 0, sumNoCor = 0, sumIntan = 0, sumDepre = 0;
@@ -11453,8 +11510,8 @@ const FE_MESES_LISTA = [
 ];
 
 function feBlur(el){
-  let v = parseFloat(String(el.value).replace(/,/g, '')) || 0;
-  el.value = (v < 0 ? '- ' : '') + Math.abs(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  let v = fmParseNum(el.value);
+  el.value = fmFormatNumEspacios(v, 2, 2);
   feCalc();
 }
 
@@ -11701,11 +11758,7 @@ function fmInferirDatosFlujoEfectivo(filtroMesOverride = null) {
 }
 
 function feCalc(){
-  const fN = (n) => {
-    const isNeg = n < -0.0001;
-    const formatted = Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return isNeg ? ('- ' + formatted) : formatted;
-  };
+  const fN = (n) => fmFormatNumEspacios(n, 2, 2);
   const gv = id => {
     const e = document.getElementById('fe_' + id);
     if (!e) return 0;
@@ -11840,11 +11893,7 @@ function fmAutoConciliarFlujoEfectivo() {
     const parsed = Math.abs(parseFloat(clean) || 0);
     return isNeg ? -parsed : parsed;
   };
-  const fN = (n) => {
-    const isNeg = n < -0.0001;
-    const formatted = Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return isNeg ? ('- ' + formatted) : formatted;
-  };
+  const fN = (n) => fmFormatNumEspacios(n, 2, 2);
 
   const auto = fmInferirDatosFlujoEfectivo();
   const inc = gv('inc');
@@ -11964,11 +12013,7 @@ function feRenderTabContenido() {
 }
 
 function feRenderTabReporte(container, auto, periodoTxt, cName, cId) {
-  const fN = (n) => {
-    const isNeg = n < -0.0001;
-    const formatted = Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return isNeg ? ('- ' + formatted) : formatted;
-  };
+  const fN = (n) => fmFormatNumEspacios(n, 2, 2);
 
   const getPrev = (id, fallback) => {
     const existing = document.getElementById('fe_' + id);
@@ -12153,7 +12198,7 @@ function feRenderTabMatriz(container) {
   const fN = (n) => {
     if (n === 0) return '—';
     const isNeg = n < -0.0001;
-    const formatted = Math.abs(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const formatted = fmFormatNumEspacios(Math.abs(n), 0, 0);
     return isNeg ? ('- ' + formatted) : formatted;
   };
 
@@ -12431,13 +12476,13 @@ function feRenderTabEvolucion(container) {
   `;
 }
 // ── ESTADO DE CAMBIOS EN EL PATRIMONIO ────────────────────────────
-function cpBlur(el){let v=parseFloat(el.value.replace(/,/g,''))||0;el.value=v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');cpCalc();}
+function cpBlur(el){let v=fmParseNum(el.value);el.value=fmFormatNumEspacios(v,2,2);cpCalc();}
 function cpCalc(){
-  const gv=id=>{const e=document.getElementById('cp_'+id);return e?parseFloat(e.value.replace(/,/g,''))||0:0;};
-  const sv=(id,val)=>{const e=document.getElementById('cp_'+id);if(e)e.textContent=val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');};
+  const gv=id=>{const e=document.getElementById('cp_'+id);return e?fmParseNum(e.value):0;};
+  const sv=(id,val)=>{const e=document.getElementById('cp_'+id);if(e)e.textContent=fmFormatNumEspacios(val, 2, 2);};
   getERVars(); 
   const ut_el = document.getElementById('cp_ut');
-  if(ut_el) ut_el.textContent = utilNetaG.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  if(ut_el) ut_el.textContent = fmFormatNumEspacios(utilNetaG, 2, 2);
   const fin = gv('si') + gv('ap') - gv('ret') + utilNetaG;
   sv('fin', fin);
 }
@@ -12446,8 +12491,8 @@ function renderPatrimonio(){
   const el=document.getElementById('patrimonio-content');if(!el)return;
   const anio = document.getElementById('anioSel').value;
   getERVars();
-  const fN=(n)=>n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
-  const rI = (id,lbl,isRO=false,val='0.00')=>`<div class="fd104-r"><label>${lbl}</label><input class="fd-inp${isRO?' fd-inp-autofill':''}" id="cp_${id}" type="text" value="${val}" ${isRO?'readonly':''} oninput="cpCalc()" onblur="cpBlur(this)"/></div>`;
+  const fN=(n)=>fmFormatNumEspacios(n, 2, 2);
+  const rI = (id,lbl,isRO=false,val='0,00')=>`<div class="fd104-r"><label>${lbl}</label><input class="fd-inp${isRO?' fd-inp-autofill':''}" id="cp_${id}" type="text" value="${val}" ${isRO?'readonly':''} oninput="cpCalc()" onblur="cpBlur(this)"/></div>`;
   const rT = (id,lbl,val='0.00',ext='')=>`<div class="fd104-tot" style="${ext}"><label>${lbl}</label><span class="fd-val" id="cp_${id}">${val}</span></div>`;
   const getPrev = (id)=>(document.getElementById('cp_'+id) ? document.getElementById('cp_'+id).value : '0.00');
   let v_si=fN(0), v_ap=fN(0), v_ret=fN(0);
@@ -14913,7 +14958,7 @@ function fmpAbrirPreview(fila) {
     return parseFloat(s) || 0;
   };
   const fmtInp = v => (!v || isNaN(v) || v === 0) ? '0.00' : Number(v).toFixed(2);
-  const fmtLocal = v => v === 0 ? '0,00' : v.toLocaleString('es-CR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const fmtLocal = v => v === 0 ? '0,00' : fmFormatNumEspacios(v, 2, 2);
 
   const prov  = cleanStr(fila.PROVEEDOR || fila.Proveedor || fila.proveedor) || '';
   let fecha   = cleanStr(fila.FECHA || fila.Fecha || fila.fecha) || '';
@@ -16462,9 +16507,9 @@ document.addEventListener('DOMContentLoaded', () => {
   right: 16px;
   background: #f1f5f9;
   border: 1px solid #cbd5e1;
-  color: #475569;
+  color: #000000;
   font-size: 8.5px;
-  font-weight: 700;
+  font-weight: 800;
   padding: 2px 8px;
   border-radius: 4px;
   text-transform: uppercase;
@@ -16498,8 +16543,8 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 .fm-rep-id {
   font-size: 10px;
-  color: #475569;
-  font-weight: 600;
+  color: #000000 !important;
+  font-weight: 700;
   margin-bottom: 3px;
 }
 .fm-rep-title {
@@ -16512,12 +16557,12 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 .fm-rep-sub {
   font-size: 10.5px;
-  color: #334155;
-  font-weight: 600;
+  color: #000000 !important;
+  font-weight: 700;
 }
 .fm-rep-cur {
   font-size: 8.5px;
-  color: #64748b;
+  color: #000000 !important;
   font-style: italic;
   margin-top: 1px;
 }
@@ -16552,8 +16597,8 @@ document.addEventListener('DOMContentLoaded', () => {
   border-top: 1px solid #cbd5e1;
 }
 .fm-rep-cat {
-  font-weight: 700;
-  color: #1e293b;
+  font-weight: 800;
+  color: #000000 !important;
   font-size: 8px;
   letter-spacing: 0.02em;
   padding: 4px 6px 2px !important;
@@ -16561,7 +16606,7 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 .fm-rep-item {
   padding-left: 14px !important;
-  color: #334155;
+  color: #000000 !important;
 }
 .fm-rep-num {
   text-align: right;
@@ -16616,19 +16661,20 @@ document.addEventListener('DOMContentLoaded', () => {
 .fm-rep-firma-cargo {
   font-size: 9px;
   font-weight: 700;
-  color: #0f172a;
+  color: #000000 !important;
 }
 .fm-rep-firma-sub {
   font-size: 7.5px;
-  color: #64748b;
+  color: #000000 !important;
+  font-weight: 600;
   margin-top: 1px;
 }
 .fm-rep-legal {
   margin-top: 6px;
   padding-top: 4px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #cbd5e1;
   font-size: 7px;
-  color: #94a3b8;
+  color: #000000 !important;
   text-align: center;
   line-height: 1.3;
 }
@@ -16715,7 +16761,7 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 .fm-screen-sheet .fm-rep-cat td {
   font-weight: 800;
-  color: #1e293b;
+  color: #000000 !important;
   font-size: 9.5px;
   letter-spacing: 0.04em;
   padding: 8px 12px 6px !important;
@@ -16725,9 +16771,9 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 .fm-screen-sheet .fm-rep-item {
   padding-left: 22px !important;
-  color: #334155;
+  color: #000000 !important;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
 }
 .fm-screen-sheet .fm-rep-num {
   text-align: right;
@@ -16770,19 +16816,20 @@ document.addEventListener('DOMContentLoaded', () => {
 .fm-screen-sheet .fm-rep-firma-cargo {
   font-size: 11px;
   font-weight: 700;
-  color: #0f172a;
+  color: #000000 !important;
 }
 .fm-screen-sheet .fm-rep-firma-sub {
   font-size: 9.5px;
-  color: #64748b;
+  color: #000000 !important;
+  font-weight: 600;
   margin-top: 2px;
 }
 .fm-screen-sheet .fm-rep-legal {
   margin-top: 16px;
   padding-top: 8px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #cbd5e1;
   font-size: 9px;
-  color: #64748b;
+  color: #000000 !important;
   text-align: center;
   line-height: 1.5;
 }
@@ -16992,9 +17039,9 @@ function fmtCRC(n, forceMinus = false) {
   if (typeof n === 'string' && n.trim() === '-') {
     return '<span class="fm-num-neg" style="color:#dc2626;font-weight:700;">-</span>';
   }
-  const num = typeof n === 'number' ? n : (parseFloat(String(n).replace(/\s/g, '').replace(/,/g, '')) || 0);
+  const num = typeof n === 'number' ? n : fmParseNum(n);
   const isNeg = (num < -0.0001) || forceMinus;
-  const absStr = Math.abs(num).toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const absStr = fmFormatNumEspacios(Math.abs(num), 2, 2);
   if (isNeg && Math.abs(num) > 0.0001) {
     return `<span class="fm-num-neg" style="color:#dc2626;font-weight:700;">- ${absStr}</span>`;
   }
@@ -17236,17 +17283,17 @@ function fmFirmasHTML(cliente, extraLegend = '') {
   return `
     <div class="fm-rep-firmas">
       <div class="fm-rep-firma-box">
-        <div style="font-size:9.5px;font-weight:700;color:#0f172a;margin-bottom:1px;">Lic. ___________________________</div>
-        <div class="fm-rep-firma-cargo">Contador Público / Privado</div>
-        <div class="fm-rep-firma-sub">Carné Profesional CCPCR / CPI</div>
+        <div style="font-size:9.5px;font-weight:800;color:#000000;margin-bottom:1px;">Lic. ___________________________</div>
+        <div class="fm-rep-firma-cargo" style="color:#000000;font-weight:700;">Contador Público / Privado</div>
+        <div class="fm-rep-firma-sub" style="color:#000000;font-weight:600;">Carné Profesional CCPCR / CPI</div>
       </div>
       <div class="fm-rep-firma-box">
-        <div style="font-size:9.5px;font-weight:700;color:#0f172a;margin-bottom:1px;">${cName}</div>
-        <div class="fm-rep-firma-cargo">Representante Legal / Gerencia</div>
-        <div class="fm-rep-firma-sub">Cédula: ${cId}</div>
+        <div style="font-size:9.5px;font-weight:800;color:#000000;margin-bottom:1px;">${cName}</div>
+        <div class="fm-rep-firma-cargo" style="color:#000000;font-weight:700;">Representante Legal / Gerencia</div>
+        <div class="fm-rep-firma-sub" style="color:#000000;font-weight:600;">Cédula: ${cId}</div>
       </div>
     </div>
-    <div class="fm-rep-legal">
+    <div class="fm-rep-legal" style="color:#000000;">
       ${leg}
       <br/>Emitido por FACTURAMI · ${new Date().toLocaleDateString('es-CR')} ${new Date().toLocaleTimeString('es-CR', {hour:'2-digit',minute:'2-digit'})}
     </div>
@@ -17887,10 +17934,10 @@ function fmGenerarHTMLReporte(tipo, data) {
         const tf = (r.tf && r.tf > 0) ? (r.tf * s) : (((r.ns||0) + (r.ex||0)) * s + taxes);
         rowsHTML += `<tr>
           <td style="font-size:8px">${r.fecha || '--'}</td>
-          <td style="font-size:8px;text-align:center"><span style="background:#f1f5f9;color:#334155;padding:1px 4px;border-radius:3px;font-weight:700">${r.tipo || 'FE'}</span></td>
+          <td style="font-size:8px;text-align:center"><span style="background:#f1f5f9;color:#000000;padding:1px 4px;border-radius:3px;font-weight:700">${r.tipo || 'FE'}</span></td>
           <td style="font-size:8px;font-family:monospace">${(r.doc || '').slice(-15) || '--'}</td>
           <td style="font-size:8px">${r.nt || 'Proveedor General'}</td>
-          <td style="font-size:8px;color:#475569">${r.origen_fondos || 'Bancos'}</td>
+          <td style="font-size:8px;color:#000000;font-weight:600;">${r.origen_fondos || 'Bancos'}</td>
           <td class="fm-rep-num" style="font-size:8px">${fmtCRC(taxes)}</td>
           <td class="fm-rep-num" style="font-size:8px;color:#059669">${fmtCRC(iv)}</td>
           <td class="fm-rep-num" style="font-size:8px;font-weight:700">${fmtCRC(tf)}</td>
@@ -18656,7 +18703,7 @@ function fmGenerarHTMLReporte(tipo, data) {
 
       return `
         <tr>
-          <td class="fm-rep-item">${p.descripcion}<br><span style="font-size:7.5px;color:#6b7280">${p.acreedor} · Tasa: ${p.tasa_anual}%</span></td>
+          <td class="fm-rep-item">${p.descripcion}<br><span style="font-size:7.5px;color:#000000;font-weight:600;">${p.acreedor} · Tasa: ${p.tasa_anual}%</span></td>
           <td class="fm-rep-num">${fmtCRC(p.saldo_capital_actual)}</td>
           <td class="fm-rep-num" style="color:#059669; font-weight:600">${fmtCRC(cap12m)}</td>
           <td class="fm-rep-num" style="color:#dc2626">${fmtCRC(int12m)}</td>
@@ -18882,26 +18929,26 @@ function fmImprimirReporteActual() {
         }
         .fm-rep-id {
           font-size: 9.5px;
-          color: #475569;
-          font-weight: 600;
+          color: #000000 !important;
+          font-weight: 700;
           margin-bottom: 2px;
         }
         .fm-rep-title {
           font-size: 11.5px;
           font-weight: 800;
-          color: #0f172a;
+          color: #000000 !important;
           letter-spacing: 0.04em;
           text-transform: uppercase;
           margin: 2px 0 1px;
         }
         .fm-rep-sub {
           font-size: 9.5px;
-          color: #334155;
-          font-weight: 600;
+          color: #000000 !important;
+          font-weight: 700;
         }
         .fm-rep-cur {
           font-size: 8px;
-          color: #64748b;
+          color: #000000 !important;
           font-style: italic;
         }
         .fm-rep-table {
@@ -18935,8 +18982,8 @@ function fmImprimirReporteActual() {
           border-top: 1px solid #cbd5e1;
         }
         .fm-rep-cat {
-          font-weight: 700;
-          color: #1e293b;
+          font-weight: 800;
+          color: #000000 !important;
           font-size: 7.5px;
           letter-spacing: 0.02em;
           padding: 3px 5px 1px !important;
@@ -18944,7 +18991,7 @@ function fmImprimirReporteActual() {
         }
         .fm-rep-item {
           padding-left: 10px !important;
-          color: #334155;
+          color: #000000 !important;
         }
         .fm-rep-num {
           text-align: right;
@@ -18992,19 +19039,20 @@ function fmImprimirReporteActual() {
         .fm-rep-firma-cargo {
           font-size: 8.5px;
           font-weight: 700;
-          color: #0f172a;
+          color: #000000 !important;
         }
         .fm-rep-firma-sub {
           font-size: 7px;
-          color: #64748b;
+          color: #000000 !important;
+          font-weight: 600;
           margin-top: 1px;
         }
         .fm-rep-legal {
           margin-top: 5px;
           padding-top: 3px;
-          border-top: 1px solid #e2e8f0;
+          border-top: 1px solid #cbd5e1;
           font-size: 6.5px;
-          color: #94a3b8;
+          color: #000000 !important;
           text-align: center;
           line-height: 1.25;
         }
