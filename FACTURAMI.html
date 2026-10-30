@@ -102,6 +102,7 @@
 [data-theme="dark"] #pasivoAmortModal,
 [data-theme="dark"] #pg-activos,
 [data-theme="dark"] #pg-pasivos,
+[data-theme="dark"] #pg-estres,
 [data-theme="dark"] #pg-cxp {
   color: var(--ink) !important;
 }
@@ -10284,7 +10285,7 @@ function getERVars(){
   }
   gastoIntereses = Math.round(gastoIntereses * 100) / 100;
 
-  const gv = id => { const e = document.getElementById('er_' + id); return e ? parseFloat(e.value.replace(/,/g, '')) || 0 : 0; };
+  const gv = id => { const e = document.getElementById('er_' + id); return e ? parseFloat((e.value !== undefined && e.value !== '' ? e.value : e.textContent).replace(/,/g, '')) || 0 : 0; };
   const oi = gv('oi');
   let og = gv('og');
   // Precargar intereses calculados si no hay valor manual ingresado
@@ -10304,82 +10305,272 @@ function getERVars(){
 }
 
 // ── ESTADO DE RESULTADOS ──────────────────────────────────────────
-function erBlur(el){let v=parseFloat(el.value.replace(/,/g,''))||0;el.value=v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');erCalc();}
+function erBlur(el){
+  let v = parseFloat(el.value.replace(/,/g, '')) || 0;
+  el.value = v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  erCalc();
+}
+
 function erCalc(){
   const d = getERVars();
-  const sv=(id,val)=>{
-    const e=document.getElementById('er_'+id);
-    if(e) {
-      e.textContent=val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  const fN = (n) => {
+    const num = typeof n === 'number' ? n : (parseFloat(String(n).replace(/,/g, '')) || 0);
+    return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
+  const sv = (id, val) => {
+    const e = document.getElementById('er_' + id);
+    if (e) {
+      if (e.tagName === 'INPUT') e.value = fN(val);
+      else e.textContent = fN(val);
       if (val < -0.0001) {
         e.style.color = '#dc2626';
-        e.style.fontWeight = '700';
+        e.style.fontWeight = '800';
       } else {
-        e.style.color = '';
-        e.style.fontWeight = '';
+        e.style.color = (id === 'un') ? '#10b981' : '';
+        e.style.fontWeight = '800';
       }
     }
   };
-  sv('ub', d.ub); sv('uo', d.uo); sv('uai', d.uai); sv('un', utilNetaG);
-  const depEl = document.getElementById('er_deprec');
-  if (depEl && depEl.tagName === 'INPUT') {
-    depEl.value = d.gastoDeprec.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  sv('ub', d.ub);
+  sv('uo', d.uo);
+  sv('uai', d.uai);
+  sv('un', utilNetaG);
+
+  // Auto-fill and synchronize read-only items
+  const svRO = (id, val) => {
+    const e = document.getElementById('er_' + id);
+    if (e) {
+      if (e.tagName === 'INPUT') e.value = fN(val);
+      else e.textContent = fN(val);
+    }
+  };
+  svRO('ventas', d.v);
+  svRO('cmv', d.cmv);
+  svRO('gastos', d.go);
+  svRO('deprec', d.gastoDeprec);
+
+  // KPI Summary Cards
+  const setKPI = (id, val, isProfit = false) => {
+    const e = document.getElementById(id);
+    if (e) {
+      const isNeg = val < -0.0001;
+      const formatted = (isNeg ? '- ₡' : '₡') + Math.abs(val).toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      e.textContent = formatted;
+      if (isProfit) {
+        e.style.color = isNeg ? '#dc2626' : (val > 0.0001 ? '#10b981' : '#0f172a');
+      }
+    }
+  };
+  setKPI('er_kpi_ventas', d.v);
+  setKPI('er_kpi_ub', d.ub);
+  setKPI('er_kpi_uo', d.uo);
+  setKPI('er_kpi_un', utilNetaG, true);
+
+  // Profit Margins Badges
+  const mb = d.v > 0 ? ((d.ub / d.v) * 100).toFixed(1) : '0.0';
+  const mo = d.v > 0 ? ((d.uo / d.v) * 100).toFixed(1) : '0.0';
+  const mn = d.v > 0 ? ((utilNetaG / d.v) * 100).toFixed(1) : '0.0';
+  
+  const elMb = document.getElementById('er_kpi_mb'); if (elMb) elMb.textContent = 'MB: ' + mb + '%';
+  const elMo = document.getElementById('er_kpi_mo'); if (elMo) elMo.textContent = 'MO: ' + mo + '%';
+  const elMn = document.getElementById('er_kpi_mn');
+  if (elMn) {
+    elMn.textContent = 'MN: ' + mn + '%';
+    elMn.style.background = utilNetaG >= 0 ? '#dcfce7' : '#fee2e2';
+    elMn.style.color = utilNetaG >= 0 ? '#15803d' : '#b91c1c';
   }
-  if(document.getElementById('bg_ut')) bgCalc();
-  if(document.getElementById('fe_ut')) feCalc();
-  if(document.getElementById('cp_ut')) cpCalc();
-  if(document.getElementById('pat_kpi_utilidad_periodo') && typeof patRenderKPIs === 'function') patRenderKPIs();
+
+  if (document.getElementById('bg_ut')) bgCalc();
+  if (document.getElementById('fe_ut')) feCalc();
+  if (document.getElementById('cp_ut')) cpCalc();
+  if (document.getElementById('pat_kpi_utilidad_periodo') && typeof patRenderKPIs === 'function') patRenderKPIs();
 }
 
 function renderEstRes(){
-  const el=document.getElementById('estres-content');if(!el)return;
+  const el = document.getElementById('estres-content'); if(!el) return;
   const anio = (document.getElementById('anioSel') && document.getElementById('anioSel').value) ? document.getElementById('anioSel').value : new Date().getFullYear().toString();
   const mesStr = (document.getElementById('mesSel') && document.getElementById('mesSel').value) ? document.getElementById('mesSel').value : '';
-  const periodoTxt = mesStr ? `${mesStr} ${anio}` : `Año ${anio}`;
+  const periodoTxt = mesStr ? `${mesStr} de ${anio}` : `Ejercicio Anual ${anio}`;
   const d = getERVars();
-  const fN=(n)=>n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
-  const rT = (id,lbl,val='0.00',ext='')=>`<div class="fd104-tot" style="${ext}"><label>${lbl}</label><span class="fd-val" id="er_${id}">${val}</span></div>`;
-  const rI = (id,lbl,isRO=false,val='0.00')=>`<div class="fd104-r"><label>${lbl}</label><input class="fd-inp${isRO?' fd-inp-autofill':''}" id="er_${id}" type="text" value="${val}" ${isRO?'readonly':''} oninput="erCalc()" onblur="erBlur(this)"/></div>`;
+  const fN = (n) => (typeof n === 'number' ? n : (parseFloat(String(n).replace(/,/g, '')) || 0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   
-  const getP = (id)=>(document.getElementById('er_'+id) ? document.getElementById('er_'+id).value : '');
+  const getP = (id) => (document.getElementById('er_' + id) ? document.getElementById('er_' + id).value : '');
   let v_oi = getP('oi') || fN(0);
-  let v_og = getP('og') || fN(d.gastoIntereses || 0);
+  let v_og = getP('og');
+  if (!v_og || v_og === '0.00') {
+    v_og = fN(d.gastoIntereses || 0);
+  }
   let v_imp = getP('imp') || fN(0);
 
-  el.innerHTML=`<div class="fd104" style="max-width:800px">
-    <div style="background:var(--white);border:1px solid var(--cream3);border-radius:var(--r2);overflow:hidden;margin-bottom:16px;box-shadow:var(--shadow)">
-      <div class="d150-head"><div>
-        <div style="font-size:11px;font-weight:500;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Estado Financiero</div>
-        <div style="font-family:var(--ff);font-size:18px;font-weight:600">Estado de Resultados</div>
-        <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:3px">Pérdidas y Ganancias Operativas · ${periodoTxt}</div>
+  const cName = (typeof activeClient !== 'undefined' && activeClient && activeClient.name) ? activeClient.name : 'Empresa Principal';
+  const cId = (typeof activeClient !== 'undefined' && activeClient && activeClient.id) ? activeClient.id : '3-101-000000';
+
+  const mbVal = d.v > 0 ? ((d.ub / d.v) * 100).toFixed(1) : '0.0';
+  const moVal = d.v > 0 ? ((d.uo / d.v) * 100).toFixed(1) : '0.0';
+  const mnVal = d.v > 0 ? ((utilNetaG / d.v) * 100).toFixed(1) : '0.0';
+
+  el.innerHTML = `
+    <div style="max-width:920px; margin:0 auto; padding-bottom:40px;">
+      <!-- 1. Barra de Control Ejecutivo y Acciones -->
+      <div style="background:linear-gradient(135deg, #0f2744 0%, #1e3a5f 100%); border-radius:12px; padding:20px 26px; color:#fff; margin-bottom:18px; box-shadow:0 4px 20px rgba(0,0,0,0.1); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
+        <div>
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+            <span style="font-size:10px; font-weight:700; background:rgba(255,255,255,0.15); padding:3px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.08em;">ESTADO FINANCIERO · NIIF / NIC 1</span>
+            <span style="font-size:11px; opacity:0.75;">(Pérdidas y Ganancias)</span>
+          </div>
+          <h2 style="margin:0; font-size:20px; font-weight:800; letter-spacing:-0.02em;">Estado de Resultados Integral</h2>
+          <div style="font-size:12px; opacity:0.85; margin-top:3px;">Estructura de ingresos, costos, gastos y rentabilidad · <span style="font-weight:700; color:#93c5fd;">${periodoTxt}</span></div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <button type="button" onclick="erCalc()" class="btn btn-sm" style="background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.25); font-weight:700; border-radius:8px; padding:7px 13px; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+            🔄 Recalcular
+          </button>
+          <button type="button" onclick="fmAbrirReporteFinanciero('estres')" class="btn btn-blue btn-sm" style="background:#2563eb; color:#fff; font-weight:700; border-radius:8px; padding:7px 16px; font-size:12px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 14px rgba(37,99,235,0.35);">
+            🖨️ Imprimir Reporte Oficial (PDF)
+          </button>
+        </div>
       </div>
-      <div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end">
-        <div><div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.09em">Empresa</div><div style="font-size:14px;font-weight:600">${activeClient.name}</div></div>
-        <button class="btn btn-blue btn-sm" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(37,99,235,0.3)" onclick="fmAbrirReporteFinanciero('estres')">🖨 Imprimir Reporte</button>
-      </div></div>
-      <div class="d150-stripe"></div>
+
+      <!-- 2. Tarjetas KPI de Ratios y Métricas Financieras Clave -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:20px;">
+        <!-- KPI 1: Ventas Totales -->
+        <div class="dr-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:15px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <span style="font-size:10px; font-weight:700; color:#64748b; letter-spacing:0.05em; text-transform:uppercase;">Ventas Totales Brutas</span>
+            <span style="font-size:13px;">📈</span>
+          </div>
+          <div id="er_kpi_ventas" style="font-family:'Roboto Mono',monospace; font-size:19px; font-weight:800; color:#0f172a;">₡${fN(d.v)}</div>
+          <div style="font-size:10.5px; color:#64748b; margin-top:3px;">Facturación y servicios acumulados</div>
+        </div>
+
+        <!-- KPI 2: Utilidad Bruta -->
+        <div class="dr-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:15px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <span style="font-size:10px; font-weight:700; color:#64748b; letter-spacing:0.05em; text-transform:uppercase;">Utilidad Bruta</span>
+            <span style="font-size:9.5px; font-weight:700; background:#e0f2fe; color:#0284c7; padding:2px 6px; border-radius:4px;" id="er_kpi_mb">MB: ${mbVal}%</span>
+          </div>
+          <div id="er_kpi_ub" style="font-family:'Roboto Mono',monospace; font-size:19px; font-weight:800; color:#0284c7;">₡${fN(d.ub)}</div>
+          <div style="font-size:10.5px; color:#64748b; margin-top:3px;">Margen bruto sobre ventas</div>
+        </div>
+
+        <!-- KPI 3: Utilidad de Operación -->
+        <div class="dr-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:15px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <span style="font-size:10px; font-weight:700; color:#64748b; letter-spacing:0.05em; text-transform:uppercase;">Utilidad Operativa</span>
+            <span style="font-size:9.5px; font-weight:700; background:#ede9fe; color:#7c3aed; padding:2px 6px; border-radius:4px;" id="er_kpi_mo">MO: ${moVal}%</span>
+          </div>
+          <div id="er_kpi_uo" style="font-family:'Roboto Mono',monospace; font-size:19px; font-weight:800; color:#7c3aed;">₡${fN(d.uo)}</div>
+          <div style="font-size:10.5px; color:#64748b; margin-top:3px;">Rendimiento del negocio (EBIT)</div>
+        </div>
+
+        <!-- KPI 4: Utilidad Neta -->
+        <div class="dr-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:15px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <span style="font-size:10px; font-weight:700; color:#64748b; letter-spacing:0.05em; text-transform:uppercase;">Utilidad Neta</span>
+            <span style="font-size:9.5px; font-weight:700; background:${utilNetaG >= 0 ? '#dcfce7' : '#fee2e2'}; color:${utilNetaG >= 0 ? '#15803d' : '#b91c1c'}; padding:2px 6px; border-radius:4px;" id="er_kpi_mn">MN: ${mnVal}%</span>
+          </div>
+          <div id="er_kpi_un" style="font-family:'Roboto Mono',monospace; font-size:19px; font-weight:800; color:${utilNetaG >= 0 ? '#10b981' : '#dc2626'};">₡${fN(utilNetaG)}</div>
+          <div style="font-size:10.5px; color:#64748b; margin-top:3px;">Resultado transferido a patrimonio</div>
+        </div>
+      </div>
+
+      <!-- 3. Documento Ejecutivo: Hoja de Estado de Resultados en Pantalla (Idéntica al Reporte Oficial) -->
+      <div class="fm-screen-sheet">
+        <div class="fm-screen-badge">Formato Oficial NIIF · Vista Ejecutiva</div>
+
+        <!-- Cabecera Institucional del Reporte -->
+        <div class="fm-rep-header">
+          <div class="fm-rep-brand">FACTURAMI · SISTEMA CONTABLE PROFESIONAL DE COSTA RICA</div>
+          <div class="fm-rep-empresa">${cName}</div>
+          <div class="fm-rep-id">Cédula / Identificación: ${cId}</div>
+          <div class="fm-rep-title">ESTADO DE RESULTADOS INTEGRAL</div>
+          <div class="fm-rep-sub">Para el período terminado al ${periodoTxt}</div>
+          <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡ · Normas NIIF / NIC 1)</div>
+        </div>
+
+        <!-- Tabla Financiera Estructurada -->
+        <table class="fm-rep-table">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Concepto y Rubros Operativos</th>
+              <th style="text-align:right; width:180px;">Monto (₡)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- SECCIÓN 1: INGRESOS -->
+            <tr class="fm-rep-cat"><td colspan="2">INGRESOS DE ACTIVIDADES ORDINARIAS</td></tr>
+            <tr>
+              <td class="fm-rep-item">Ventas brutas / Ingresos por servicios</td>
+              <td class="fm-rep-num"><span id="er_ventas">${fN(d.v)}</span></td>
+            </tr>
+
+            <!-- SECCIÓN 2: COSTO DE VENTAS -->
+            <tr class="fm-rep-cat"><td colspan="2">COSTO DE VENTAS Y PRODUCCIÓN</td></tr>
+            <tr>
+              <td class="fm-rep-item">Costo de ventas (Compras y costos directos de obra)</td>
+              <td class="fm-rep-num"><span id="er_cmv">${fN(d.cmv)}</span></td>
+            </tr>
+            <tr class="fm-rep-subtot">
+              <td>UTILIDAD BRUTA</td>
+              <td class="fm-rep-num"><span id="er_ub">${fN(d.ub)}</span></td>
+            </tr>
+
+            <!-- SECCIÓN 3: GASTOS DE OPERACIÓN -->
+            <tr class="fm-rep-cat"><td colspan="2">GASTOS DE OPERACIÓN</td></tr>
+            <tr>
+              <td class="fm-rep-item">Gastos administrativos y de comercialización</td>
+              <td class="fm-rep-num"><span id="er_gastos">${fN(d.go)}</span></td>
+            </tr>
+            <tr>
+              <td class="fm-rep-item">Gasto por Depreciación y Amortización de Activos (NIIF Secc. 17 / NIC 38)</td>
+              <td class="fm-rep-num"><span id="er_deprec">${fN(d.gastoDeprec)}</span></td>
+            </tr>
+            <tr class="fm-rep-subtot">
+              <td>UTILIDAD DE OPERACIÓN</td>
+              <td class="fm-rep-num"><span id="er_uo">${fN(d.uo)}</span></td>
+            </tr>
+
+            <!-- SECCIÓN 4: OTROS INGRESOS Y GASTOS (NO OPERACIONALES) -->
+            <tr class="fm-rep-cat"><td colspan="2">OTROS INGRESOS Y GASTOS (NO OPERACIONALES)</td></tr>
+            <tr>
+              <td class="fm-rep-item">Otros ingresos financieros y extraordinarios</td>
+              <td class="fm-rep-num">
+                <input class="fm-screen-inp" id="er_oi" type="text" value="${v_oi}" oninput="erCalc()" onblur="erBlur(this)"/>
+              </td>
+            </tr>
+            <tr>
+              <td class="fm-rep-item">Otros gastos financieros (Intereses de préstamos / pasivos)</td>
+              <td class="fm-rep-num">
+                <input class="fm-screen-inp" id="er_og" type="text" value="${v_og}" oninput="erCalc()" onblur="erBlur(this)"/>
+              </td>
+            </tr>
+            <tr class="fm-rep-subtot">
+              <td>UTILIDAD ANTES DEL IMPUESTO SOBRE LA RENTA</td>
+              <td class="fm-rep-num"><span id="er_uai">${fN(d.uai)}</span></td>
+            </tr>
+
+            <!-- SECCIÓN 5: IMPUESTO SOBRE LA RENTA -->
+            <tr class="fm-rep-cat"><td colspan="2">IMPUESTO SOBRE LA RENTA</td></tr>
+            <tr>
+              <td class="fm-rep-item">Estimación del impuesto sobre la renta</td>
+              <td class="fm-rep-num">
+                <input class="fm-screen-inp" id="er_imp" type="text" value="${v_imp}" oninput="erCalc()" onblur="erBlur(this)"/>
+              </td>
+            </tr>
+            <tr class="fm-rep-grandtot">
+              <td>UTILIDAD (O PÉRDIDA) NETA DEL EJERCICIO</td>
+              <td class="fm-rep-num"><span id="er_un">${fN(utilNetaG)}</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Firmas Oficiales y Leyenda Legal NIIF -->
+        <div>
+          ${(typeof fmFirmasHTML === 'function') ? fmFirmasHTML(activeClient) : ''}
+        </div>
+      </div>
     </div>
-    <div class="fd104-sec">
-      <div class="fd104-hd">Ingresos y Costos de Operación</div>
-      ${rI('ventas','Ventas brutas / Ingresos (Autocompletado)',true,fN(d.v))}
-      ${rI('cmv','Costo de Ventas (Compras + Costos)',true,fN(d.cmv))}
-      ${rT('ub','UTILIDAD BRUTA (Ventas - Costos)',fN(d.ub),'background:var(--cream)')}
-      
-      <div class="fd104-hd" style="margin-top:20px;border-top:1px solid var(--cream2);padding-top:20px">Gastos de Operación</div>
-      ${rI('gastos','Gastos Administrativos / Ventas',true,fN(d.go))}
-      ${rI('deprec','(-) Gasto por Depreciación y Amortización (NIIF)',true,fN(d.gastoDeprec))}
-      ${rT('uo','UTILIDAD DE OPERACIÓN',fN(d.uo),'background:var(--cream)')}
-      
-      <div class="fd104-hd" style="margin-top:20px;border-top:1px solid var(--cream2);padding-top:20px">Otros Ingresos y Egresos Netos</div>
-      ${rI('oi','Otros Ingresos (Intereses ganado, etc.)',false,v_oi)}
-      ${rI('og','Otros Gastos Financieros (Intereses de préstamos/pasivos)',false,v_og)}
-      ${rT('uai','UTILIDAD ANTES DE IMPUESTOS',fN(d.uai))}
-      
-      <div class="fd104-hd" style="margin-top:20px;border-top:1px solid var(--cream2);padding-top:20px">Impuestos</div>
-      ${rI('imp','Impuesto sobre la Renta',false,v_imp)}
-      ${rT('un','UTILIDAD O PÉRDIDA NETA',fN(utilNetaG),'background:var(--blue-l);color:var(--blue)')}
-    </div>
-  </div>`;
+  `;
   erCalc();
 }
 
@@ -14678,6 +14869,249 @@ document.addEventListener('DOMContentLoaded', () => {
   margin: 0;
   border: none;
 }
+
+/* ── ESTADO DE RESULTADOS ON-SCREEN SHEET (MATCHES PRINTABLE REPORT) ── */
+.fm-screen-sheet {
+  background: #ffffff;
+  color: #0f172a;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 38px 48px 30px 48px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+  position: relative;
+  box-sizing: border-box;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.fm-screen-badge {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.fm-screen-inp {
+  font-family: 'Roboto Mono', 'SF Mono', Consolas, monospace;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: right;
+  width: 140px;
+  padding: 4px 8px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+.fm-screen-inp:focus {
+  background: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+}
+.fm-screen-sheet .fm-rep-header {
+  text-align: center;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1.5px solid #0f172a;
+}
+.fm-screen-sheet .fm-rep-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 24px 0;
+}
+.fm-screen-sheet .fm-rep-table th {
+  border-top: 1.5px solid #0f172a;
+  border-bottom: 1.5px solid #0f172a;
+  padding: 8px 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  background: #f8fafc;
+  color: #0f172a;
+}
+.fm-screen-sheet .fm-rep-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.fm-screen-sheet .fm-rep-cat td {
+  font-weight: 800;
+  color: #1e293b;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  padding: 8px 12px 6px !important;
+  background: rgba(241, 245, 249, 0.7);
+  text-transform: uppercase;
+  border-bottom: 1px solid #e2e8f0;
+}
+.fm-screen-sheet .fm-rep-item {
+  padding-left: 22px !important;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
+}
+.fm-screen-sheet .fm-rep-num {
+  text-align: right;
+  font-family: 'Roboto Mono', 'SF Mono', Consolas, monospace;
+  font-weight: 600;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+.fm-screen-sheet .fm-rep-subtot td {
+  border-top: 1.5px solid #94a3b8;
+  font-weight: 800;
+  color: #0f172a;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+  font-size: 12px;
+  background: rgba(248, 250, 252, 0.7);
+}
+.fm-screen-sheet .fm-rep-grandtot td {
+  border-top: 1.5px solid #0f172a;
+  border-bottom: 3.5px double #0f172a;
+  font-weight: 900;
+  font-size: 13.5px;
+  color: #0f172a;
+  padding-top: 11px !important;
+  padding-bottom: 11px !important;
+  background: rgba(241, 245, 249, 0.5);
+}
+.fm-screen-sheet .fm-rep-firmas {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 24px;
+  padding-top: 16px;
+  text-align: center;
+}
+.fm-screen-sheet .fm-rep-firma-box {
+  width: 250px;
+  border-top: 1.5px solid #0f172a;
+  padding-top: 6px;
+}
+.fm-screen-sheet .fm-rep-firma-cargo {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.fm-screen-sheet .fm-rep-firma-sub {
+  font-size: 9.5px;
+  color: #64748b;
+  margin-top: 2px;
+}
+.fm-screen-sheet .fm-rep-legal {
+  margin-top: 16px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 9px;
+  color: #64748b;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Dark mode for Estado de Resultados Screen Sheet */
+[data-theme="dark"] #pg-estres .dr-card {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] #pg-estres .dr-card div[style*="color: #0f172a"],
+[data-theme="dark"] #pg-estres .dr-card div[style*="color:#0f172a"] {
+  color: #f8fafc !important;
+}
+[data-theme="dark"] .fm-screen-sheet {
+  background: #0f172a !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4) !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-screen-badge {
+  background: #1e293b;
+  border-color: #475569;
+  color: #94a3b8;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-header {
+  border-bottom-color: #334155;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-empresa {
+  color: #f8fafc !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-id {
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-title {
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-sub {
+  color: #cbd5e1 !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-cur {
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-table th {
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-top-color: #475569 !important;
+  border-bottom-color: #475569 !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-table td {
+  border-bottom-color: #1e293b !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-cat td {
+  background: rgba(30, 41, 59, 0.8) !important;
+  color: #93c5fd !important;
+  border-bottom-color: #334155 !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-item {
+  color: #cbd5e1 !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-subtot td {
+  border-top-color: #475569 !important;
+  color: #f8fafc !important;
+  background: rgba(30, 41, 59, 0.4) !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-grandtot td {
+  border-top-color: #64748b !important;
+  border-bottom-color: #64748b !important;
+  color: #f8fafc !important;
+  background: rgba(30, 41, 59, 0.9) !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-screen-inp {
+  background: #1e293b !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-screen-inp:focus {
+  background: #0f172a !important;
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 3px rgba(96,165,250,0.25) !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-firma-box {
+  border-top-color: #475569 !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-firma-box div {
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-firma-cargo {
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-firma-sub {
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] .fm-screen-sheet .fm-rep-legal {
+  border-top-color: #334155 !important;
+  color: #64748b !important;
+}
+
 </style>
 
 <div id="fmReportModal" style="display:none;position:fixed;inset:0;background:rgba(5,9,18,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:999999;align-items:center;justify-content:center;padding:15px;">
@@ -15095,7 +15529,7 @@ function fmGenerarHTMLReporte(tipo, data) {
               
               <tr class="fm-rep-cat"><td colspan="2">GASTOS DE OPERACIÓN</td></tr>
               <tr><td class="fm-rep-item">Gastos administrativos y de comercialización</td><td class="fm-rep-num">${fmtCRC(data.er.go, true)}</td></tr>
-              ${data.er.gastoDeprec > 0 ? `<tr><td class="fm-rep-item">Gasto por Depreciación de Activos (NIIF Secc. 17)</td><td class="fm-rep-num">${fmtCRC(data.er.gastoDeprec, true)}</td></tr>` : ''}
+              ${data.er.gastoDeprec > 0 ? `<tr><td class="fm-rep-item">Gasto por Depreciación y Amortización de Activos (NIIF Secc. 17 / NIC 38)</td><td class="fm-rep-num">${fmtCRC(data.er.gastoDeprec, true)}</td></tr>` : ''}
               <tr class="fm-rep-subtot"><td>UTILIDAD DE OPERACIÓN</td><td class="fm-rep-num">${fmtCRC(data.er.uo)}</td></tr>
               
               <tr class="fm-rep-cat"><td colspan="2">OTROS INGRESOS Y GASTOS (NO OPERACIONALES)</td></tr>
