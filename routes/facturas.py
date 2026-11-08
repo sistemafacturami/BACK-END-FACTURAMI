@@ -198,7 +198,8 @@ def get_factura_pdf(factura_id):
         client_dir = os.path.realpath(os.path.join(storage_root, client_id))
         if client_dir.startswith(storage_root + os.sep):
             for cand_ext, cand_mime in (('.pdf', 'application/pdf'), ('.jpg', 'image/jpeg'),
-                                        ('.png', 'image/png'), ('.webp', 'image/webp')):
+                                        ('.png', 'image/png'), ('.webp', 'image/webp'),
+                                        ('.heic', 'image/heic')):
                 cand_p = os.path.join(client_dir, f"{file_hash}{cand_ext}")
                 if os.path.isfile(cand_p):
                     return send_file(

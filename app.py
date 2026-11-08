@@ -162,11 +162,12 @@ def create_app():
 
     @app.route('/<path:filename>')
     def serve_static_root_files(filename):
-        safe_extensions = ('.png', '.jpg', '.jpeg', '.svg', '.webp', '.ico')
+        safe_extensions = ('.png', '.jpg', '.jpeg', '.svg', '.webp', '.ico', '.heic')
         if any(filename.lower().endswith(ext) for ext in safe_extensions):
-            file_path = os.path.join(BASE_DIR, filename)
-            if os.path.exists(file_path) and os.path.isfile(file_path):
-                return send_file(file_path)
+            real_base = os.path.realpath(BASE_DIR)
+            target = os.path.realpath(os.path.join(real_base, filename))
+            if target.startswith(real_base + os.sep) and os.path.isfile(target):
+                return send_file(target)
         return jsonify({'ok': False, 'error': 'Archivo no encontrado'}), 404
 
     # ── Error handlers globales ────────────────────────────────────────

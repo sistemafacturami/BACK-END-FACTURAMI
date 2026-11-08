@@ -463,6 +463,241 @@ class TestFase1Seguridad(unittest.TestCase):
         body = res.get_json()
         self.assertEqual(body.get('error'), 'Cuenta inactiva')
 
+    # ══════════════════════════════════════════════════════════════════════
+    #  9. Cierre Total: Toda ruta fuera de allowlist DEBE responder 401
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_14_all_routes_require_auth_or_explicit_allowlist(self):
+        """
+        Inspecciona dinámicamente app.url_map y comprueba que toda ruta
+        fuera de la allowlist explícita (login, estáticos, n8n internal) responde 401 sin token.
+        Garantiza que ninguna ruta nueva quede expuesta en el futuro.
+        """
+        # Allowlist explícita de rutas públicas / exentas
+        EXEMPT_PATHS = {
+            '/', '/index.html', '/landing', '/inicio', '/app', '/login', '/sistema',
+            '/FACTURAMI.html', '/faq', '/preguntas', '/preguntas-frecuentes',
+            '/preguntas_frecuentes', '/Preguntas Frecuentes', '/Preguntas%20Frecuentes',
+            '/favicon.ico', '/manifest.json', '/icon-192.png', '/icon-512.png',
+            '/<path:filename>', '/static/<path:filename>',
+            '/api/login',
+            '/api/config/public'
+        }
+
+        # Rutas protegidas por X-N8N-Token (responden 403 sin token n8n)
+        N8N_INTERNAL_PATHS = {
+            '/api/internal/cliente-config/<client_id>',
+            '/api/internal/clientes-config',
+            '/api/internal/resolve-client',
+        }
+
+        fallas = []
+
+        for rule in self.app.url_map.iter_rules():
+            rule_str = rule.rule
+            if rule_str in EXEMPT_PATHS:
+                continue
+
+            # Rutas de n8n internas (exigen token n8n -> 403)
+            if rule_str in N8N_INTERNAL_PATHS:
+                # Probar sin header
+                test_url = rule_str.replace('<client_id>', 'cli_tenant_1')
+                res = self.client.get(test_url)
+                if res.status_code != 403:
+                    fallas.append(f"{rule_str} esperaba 403 sin X-N8N-Token, devolvió {res.status_code}")
+                continue
+
+            # Endpoints con parámetros dinámicos
+            test_url = (rule_str
+                        .replace('<factura_id>', 'factura_q_cli1')
+                        .replace('<username>', 'contador_1')
+                        .replace('<asiento_id>', 'asnt_dummy'))
+
+            for method in rule.methods:
+                if method in ('HEAD', 'OPTIONS'):
+                    continue
+
+                # POST /api/facturas/queue es el endpoint de webhook de n8n (exige X-N8N-Token -> 403)
+                if rule_str == '/api/facturas/queue' and method == 'POST':
+                    res = self.client.post(test_url, json={})
+                    if res.status_code != 403:
+                        fallas.append(f"POST {rule_str} esperaba 403 sin X-N8N-Token, devolvió {res.status_code}")
+                    continue
+
+                if method == 'GET':
+                    res = self.client.get(test_url)
+                elif method == 'POST':
+                    res = self.client.post(test_url, json={})
+                elif method == 'PUT':
+                    res = self.client.put(test_url, json={})
+                elif method == 'DELETE':
+                    res = self.client.delete(test_url)
+                else:
+                    continue
+
+                # Toda ruta de usuario SIN token debe responder 401
+                if res.status_code != 401:
+                    fallas.append(f"{method} {rule_str} respondió {res.status_code} sin token (esperado 401)")
+
+        self.assertEqual(len(fallas), 0, "Rutas no protegidas encontradas:\n" + "\n".join(fallas))
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  10. Cuentas que existen solo en users.json
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_15_users_only_in_users_json_can_operate(self):
+        """Usuarios existentes SOLO en users.json pueden operar si están activos, y son rechazados si active=False."""
+        # Agregar usuario solo en users.json (no en SQLite cuentas)
+        with open(TEST_USERS, 'r', encoding='utf-8') as f:
+            users_list = json.load(f)
+
+        users_list.append({
+            "username": "superadmin_json",
+            "password_hash": "$2b$12$dummy",
+            "role": "admin",
+            "name": "SuperAdmin JSON",
+            "active": True
+        })
+        users_list.append({
+            "username": "contador_solo_json",
+            "password_hash": "$2b$12$dummy",
+            "role": "contador",
+            "name": "Contador Solo JSON",
+            "active": True
+        })
+        users_list.append({
+            "username": "contador_inactivo_json",
+            "password_hash": "$2b$12$dummy",
+            "role": "contador",
+            "name": "Inactivo JSON",
+            "active": False
+        })
+        with open(TEST_USERS, 'w', encoding='utf-8') as f:
+            json.dump(users_list, f)
+
+        with self.app.app_context():
+            tok_admin_json = create_access_token(identity='superadmin_json', additional_claims={'role': 'admin'})
+            tok_c_json = create_access_token(identity='contador_solo_json', additional_claims={'role': 'contador'})
+            tok_inact_json = create_access_token(identity='contador_inactivo_json', additional_claims={'role': 'contador'})
+
+        # Admin solo de users.json puede consultar admin
+        res_adm = self.client.get('/api/admin/contadores', headers=self.auth_h(tok_admin_json))
+        self.assertEqual(res_adm.status_code, 200, "Admin de users.json debe poder operar")
+
+        # Contador solo de users.json puede hacer sync pull
+        res_c = self.client.get('/api/sync/pull', headers=self.auth_h(tok_c_json))
+        self.assertEqual(res_c.status_code, 200, "Contador de users.json debe poder operar")
+        self.assertEqual(res_c.get_json().get('cuenta_id'), 'contador_solo_json')
+
+        # Contador con active=False en users.json debe ser rechazado
+        res_inact = self.client.get('/api/sync/pull', headers=self.auth_h(tok_inact_json))
+        self.assertEqual(res_inact.status_code, 401)
+        self.assertEqual(res_inact.get_json().get('error'), 'Cuenta inactiva')
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  11. sync_push con cliente nuevo
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_16_sync_push_new_client_registers_under_token_account(self):
+        """Un cliente nuevo en f_clients y f_data se registra a nombre del contador del token sin colisión."""
+        new_cid = 'cli_nuevo_total_999'
+        payload = {
+            'f_clients': [{'id': new_cid, 'name': 'Empresa Recién Creada S.A.', 'type': 'PJ'}],
+            'f_data_cli_nuevo_total_999': {
+                'ingresos': {'rows': [{'fecha': '2026-11-01', 'tf': 850000, 'doc': 'F-001'}]}
+            }
+        }
+        res = self.client.post('/api/sync/push', json=payload, headers=self.auth_h(self.token_c1))
+        self.assertEqual(res.status_code, 200)
+
+        # Verificar en base de datos que quedó a nombre de contador_1
+        with database.get_db(TEST_DB) as conn:
+            row = conn.execute("SELECT cuenta_id, nombre FROM clientes WHERE id=?", (new_cid,)).fetchone()
+            self.assertIsNotNone(row)
+            self.assertEqual(row['cuenta_id'], 'contador_1')
+            self.assertEqual(row['nombre'], 'Empresa Recién Creada S.A.')
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  12. Dos contadores con el mismo cliente_id (Colisión de Cédulas)
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_17_two_accountants_same_client_id_conflict(self):
+        """
+        Si un cliente (cédula) ya pertenece a Contador 1, Contador 2 NO puede
+        registrarlo, sobreescribir sus datos contables ni consultar sus transacciones.
+        """
+        # cli_tenant_1 pertenece a contador_1. Contador 2 intenta registrarlo como suyo.
+        malicious_claim = {
+            'f_clients': [{'id': 'cli_tenant_1', 'name': 'Intento de toma de control'}],
+            'f_data_cli_tenant_1': {
+                'ingresos': {'rows': [{'fecha': '2026-01-01', 'tf': 111111}]}
+            }
+        }
+        res = self.client.post('/api/sync/push', json=malicious_claim, headers=self.auth_h(self.token_c2))
+        self.assertEqual(res.status_code, 403, "Contador 2 debe recibir 403 al intentar registrar cliente de Contador 1")
+
+        # Verificar que el cliente NO fue modificado en la BD (sigue perteneciendo a contador_1)
+        with database.get_db(TEST_DB) as conn:
+            row = conn.execute("SELECT cuenta_id, nombre FROM clientes WHERE id='cli_tenant_1'").fetchone()
+            self.assertEqual(row['cuenta_id'], 'contador_1')
+            self.assertNotEqual(row['nombre'], 'Intento de toma de control')
+
+        # Contador 2 tampoco puede consultar facturas ni auditoría de ese cliente
+        res_aud = self.client.get('/api/contabilidad/auditoria?cliente_id=cli_tenant_1', headers=self.auth_h(self.token_c2))
+        self.assertEqual(res_aud.status_code, 403)
+
+        res_q = self.client.get('/api/facturas/queue?client_id=cli_tenant_1', headers=self.auth_h(self.token_c2))
+        self.assertEqual(res_q.status_code, 403)
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  13. Subida de Fotos Celular: HEIC (iPhone) y WEBP
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_18_upload_heic_and_webp_photos(self):
+        """Soporta fotos de iPhone (HEIC contenedor ftypheic) e imágenes WEBP con validación de magic bytes."""
+        # 1. WEBP binario válido
+        webp_bytes = b"RIFF\x1a\x00\x00\x00WEBPVP8 \x0e\x00\x00\x00\x30\x01\x00\x9d\x01\x2a\x01\x00\x01\x00\x02\x00"
+        with patch('requests.post') as mock_post:
+            mock_post.return_value.status_code = 200
+            res = self.client.post(
+                '/api/facturas/upload',
+                data={'client_id': 'cli_tenant_1', 'files': (io.BytesIO(webp_bytes), 'foto_factura.webp')},
+                content_type='multipart/form-data',
+                headers=self.auth_h(self.token_c1)
+            )
+            self.assertEqual(res.status_code, 200)
+            self.assertTrue(res.get_json().get('ok'))
+            post_data = mock_post.call_args[1].get('data', {})
+            self.assertEqual(post_data.get('origen'), 'foto_manual')
+
+        # 2. iPhone HEIC binario válido (ftypheic)
+        heic_bytes = b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00mif1heic" + b"\x00" * 32
+        with patch('requests.post') as mock_post:
+            mock_post.return_value.status_code = 200
+            res = self.client.post(
+                '/api/facturas/upload',
+                data={'client_id': 'cli_tenant_1', 'files': (io.BytesIO(heic_bytes), 'IMG_4021.HEIC')},
+                content_type='multipart/form-data',
+                headers=self.auth_h(self.token_c1)
+            )
+            self.assertEqual(res.status_code, 200)
+            self.assertTrue(res.get_json().get('ok'))
+            post_data = mock_post.call_args[1].get('data', {})
+            self.assertEqual(post_data.get('origen'), 'foto_manual')
+
+        # 3. Archivo con nombre .heic pero contenido falso (ejecutable o texto)
+        fake_heic = b"NO SOY UNA FOTO HEIC DE IPHONE NI TENGO MAGIC BYTES"
+        res_fake = self.client.post(
+            '/api/facturas/upload',
+            data={'client_id': 'cli_tenant_1', 'files': (io.BytesIO(fake_heic), 'fake.heic')},
+            content_type='multipart/form-data',
+            headers=self.auth_h(self.token_c1)
+        )
+        self.assertIn(res_fake.status_code, (200, 207))
+        body = res_fake.get_json()
+        self.assertFalse(body.get('ok'))
+        self.assertTrue(any('Formato no permitido' in d.get('error', '') for d in body.get('detalle', [])))
+
 
 if __name__ == '__main__':
     unittest.main()

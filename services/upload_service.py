@@ -18,6 +18,7 @@ def get_webhook_url():
 def detect_file_type(file_bytes):
     """
     Detecta el tipo de archivo mediante magic bytes (firmas binarias).
+    Soporta documentos PDF e imagenes JPG, PNG, WEBP y fotos de iPhone (HEIC/HEIF).
     Rechaza archivos ejecutables, scripts o con extensiones falsificadas.
     Retorna (ext, content_type) o (None, None).
     """
@@ -31,6 +32,11 @@ def detect_file_type(file_bytes):
         return '.png', 'image/png'
     if file_bytes.startswith(b'RIFF') and len(file_bytes) >= 12 and file_bytes[8:12] == b'WEBP':
         return '.webp', 'image/webp'
+    # Soporte para fotos de camara de iPhone / Apple (contenedor ISOBMFF HEIC/HEIF)
+    if len(file_bytes) >= 12 and file_bytes[4:8] == b'ftyp':
+        brand = file_bytes[8:12].lower()
+        if brand in (b'heic', b'heix', b'hevc', b'hevx', b'mif1', b'msf1'):
+            return '.heic', 'image/heic'
     return None, None
 
 
@@ -38,7 +44,7 @@ def upload_to_n8n(files_list, client_id):
     """
     Valida y envia archivos al webhook de n8n.
     - Rechaza client_id con path traversal o caracteres invalidos.
-    - Valida magic bytes para PDF/JPG/PNG/WEBP.
+    - Valida magic bytes para PDF/JPG/PNG/WEBP/HEIC.
     - Calcula SHA-256 y almacena en carpeta segura del cliente.
     - Envia al webhook con X-N8N-Token.
     """
@@ -85,7 +91,7 @@ def upload_to_n8n(files_list, client_id):
             if not ext:
                 errores.append({
                     'file': fname,
-                    'error': 'Formato no permitido. Solo se aceptan documentos PDF e imagenes JPG, PNG o WEBP'
+                    'error': 'Formato no permitido. Solo se aceptan documentos PDF e imagenes JPG, PNG, WEBP o HEIC'
                 })
                 continue
 
@@ -114,7 +120,7 @@ def upload_to_n8n(files_list, client_id):
             if internal_token:
                 headers['X-N8N-Token'] = internal_token
 
-            es_foto = ext in ('.jpg', '.jpeg', '.png', '.webp')
+            es_foto = ext in ('.jpg', '.jpeg', '.png', '.webp', '.heic')
             post_data = {
                 'client_id': client_id_str,
                 'hash_archivo': file_hash,

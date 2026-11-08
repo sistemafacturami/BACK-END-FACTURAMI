@@ -34,23 +34,47 @@ def _json_error(message, status):
 
 
 def _cuenta_activa(username):
-    """False si la cuenta existe en SQLite y esta suspendida (activo = 0)."""
+    """
+    False si la cuenta no existe o esta suspendida (activo = 0 o active = False).
+    Soporta cuentas tanto en la base de datos SQLite (tabla cuentas) como
+    cuentas definidas exclusivamente en users.json (como cuentas iniciales o superadmin).
+    """
+    if not username:
+        return False
+    u_clean = str(username).strip().lower()
+
+    # 1. Verificar primero en base de datos SQLite
     try:
         with database.get_db() as conn:
             row = conn.execute(
-                "SELECT activo FROM cuentas WHERE username = ?", (username,)
+                "SELECT activo FROM cuentas WHERE LOWER(TRIM(username)) = ?", (u_clean,)
             ).fetchone()
+            if row is not None:
+                return row['activo'] is None or int(row['activo']) != 0
     except Exception:
-        # Si la base no responde, fallar cerrado.
+        # Si la base de datos no responde, fallar cerrado
         return False
-    if row is None:
-        # Cuenta definida solo en users.json: el login ya la valido.
-        return True
-    return row['activo'] is None or int(row['activo']) != 0
+
+    # 2. Si no esta en la tabla cuentas, verificar si existe en users.json
+    try:
+        from services.auth_service import _load_users
+        users = _load_users()
+        u = next((
+            x for x in users
+            if (x.get('username') or '').strip().lower() == u_clean
+            or (x.get('email') and x.get('email').strip().lower() == u_clean)
+        ), None)
+        if u is not None:
+            return bool(u.get('active', True))
+    except Exception:
+        return False
+
+    # Si no existe en ningun registro, rechazar acceso
+    return False
 
 
 def auth_required(fn):
-    """401 si falta el token, es invalido o la cuenta esta suspendida."""
+    """401 si falta el token, es invalido o la cuenta esta inactiva/no existe."""
     @wraps(fn)
     def wrapper(*args, **kwargs):
         verify_jwt_in_request()
@@ -112,4 +136,3 @@ def deny_unless_cliente(cliente_id):
     if not can_access_cliente(cliente_id):
         return _json_error('Acceso denegado al cliente', 403)
     return None
-
