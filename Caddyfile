@@ -1,75 +1,43 @@
 {
-    # Correo para registro y notificaciones de certificados SSL automáticos Let's Encrypt
+    # Correo para registro y notificaciones de certificados SSL automaticos Let's Encrypt
     email {$ACME_EMAIL:soporte@facturami.app}
 }
 
-# ── Acceso directo por IP sin forzar SSL (HTTP directo) ───────────────
-http://2.31.84.149, http://localhost {
-    encode zstd gzip
-
-    handle /webhook/* {
-        reverse_proxy n8n:5678 {
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
-        }
-    }
-
-    handle {
-        reverse_proxy app:5001 {
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
-        }
-    }
-}
-
-# ── Acceso por IP con HTTPS (Certificado Interno) ─────────────────────
-https://2.31.84.149 {
+# ── Redireccion de acceso directo por IP al dominio canonico ───────────────
+http://2.31.84.149, https://2.31.84.149 {
     tls internal
-    encode zstd gzip
-
-    handle /webhook/* {
-        reverse_proxy n8n:5678 {
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
-        }
-    }
-
-    handle {
-        reverse_proxy app:5001 {
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
-        }
-    }
+    redir https://{$DOMAIN_NAME:facturami.app}{uri} permanent
 }
 
 # ── Dominio Principal: FACTURAMI (Web App + Backend API con Let's Encrypt) ─
 {$DOMAIN_NAME:facturami.app}, www.{$DOMAIN_NAME:facturami.app} {
     encode zstd gzip
 
-    # Encabezados de seguridad recomendados
+    # Encabezados de seguridad
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Content-Type-Options "nosniff"
-        X-Frame-Options "DENY"
+        X-Frame-Options "SAMEORIGIN"
         X-XSS-Protection "1; mode=block"
         Referrer-Policy "strict-origin-when-cross-origin"
         Permissions-Policy "display-capture=(), camera=(), microphone=(), geolocation=()"
     }
 
-    # Redirección de webhooks de n8n si se usan desde el mismo dominio
+    # Bloqueo de rutas internas desde el exterior (n8n llama a app:5001 por red interna Docker)
+    @interno path /api/internal/*
+    handle @interno {
+        respond "Not found" 404
+    }
+
+    # Redireccion de webhooks de n8n si se usan desde el mismo dominio
     handle /webhook/* {
         reverse_proxy n8n:5678 {
-            header_up X-Real-IP {remote_host}
             header_up X-Forwarded-For {remote_host}
             header_up X-Forwarded-Proto {scheme}
         }
     }
 
-    # Todo el tráfico principal hacia FACTURAMI
+    # Todo el trafico principal hacia FACTURAMI
     handle {
         reverse_proxy app:5001 {
             header_up X-Real-IP {remote_host}
@@ -79,12 +47,11 @@ https://2.31.84.149 {
     }
 }
 
-# ── Subdominio opcional: Interfaz de Gestión n8n ─────────────────────
+# ── Subdominio opcional: Interfaz de Gestion n8n ─────────────────────
 {$N8N_DOMAIN:n8n.facturami.app} {
     encode zstd gzip
 
     reverse_proxy n8n:5678 {
-        # Necesario para eventos Server-Sent (SSE) y WebSockets de n8n
         flush_interval -1
         header_up X-Real-IP {remote_host}
         header_up X-Forwarded-For {remote_host}

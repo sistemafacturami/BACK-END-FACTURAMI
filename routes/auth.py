@@ -58,8 +58,13 @@ def login():
     # Login exitoso: limpiar historial de intentos fallidos
     _FAILED_LOGINS.pop(ip, None)
 
-    if isinstance(user, dict) and user.get('error') == 'CUENTA_SUSPENDIDA':
-        return error('Tu cuenta ha sido pausada o suspendida. Por favor contacta al administrador.', 403)
+    if isinstance(user, dict):
+        if user.get('error') == 'CUENTA_SUSPENDIDA':
+            return error('Tu cuenta ha sido pausada o suspendida. Por favor contacta al administrador.', 403)
+        if user.get('error') == 'SUSCRIPCION_VENCIDA':
+            fv = user.get('fecha_vencimiento', '')
+            msg = f'Tu suscripción ha vencido{(" el " + fv) if fv else ""}. Por favor contacta al administrador para renovar o habilitar tu acceso.'
+            return error(msg, 403)
 
     token = create_access_token(
         identity=user['username'],

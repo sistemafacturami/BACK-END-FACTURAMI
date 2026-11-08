@@ -6,7 +6,7 @@ import os, json
 import db as database
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-USB_JSON = os.path.join(BASE_DIR, 'usb_database.json')
+USB_JSON = os.environ.get('FACTURAMI_USB_JSON') or os.path.join(BASE_DIR, 'usb_database.json')
 
 def pull(cuenta_id=None):
     """

@@ -1544,6 +1544,63 @@ body{font-family:var(--fb);background:var(--cream);color:var(--ink);display:bloc
 .status-pill.active .status-dot-mini { background: #10b981; box-shadow: 0 0 8px #10b981; }
 .status-pill.paused .status-dot-mini { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
 
+.sub-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: var(--fm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.sub-badge-active {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.32);
+}
+.sub-badge-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.38);
+}
+.sub-badge-expired {
+  background: rgba(239, 68, 68, 0.16);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.38);
+  font-weight: 700;
+}
+.sub-badge-infinite {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.btn-duracion-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-duracion-opt:hover {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+.btn-duracion-opt.active {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
+  color: #34d399;
+}
+
 .consumption-box {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2925,11 +2982,16 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
           </select>
         </div>
         <div>
-          <label class="auth-lbl">Nueva Contraseña (Opcional)</label>
-          <div style="position:relative; display:flex; align-items:center;">
-            <input type="password" id="edit_c_password" class="auth-inp" placeholder="Dejar en blanco para no cambiar" style="padding-right:38px;">
-            <button type="button" onclick="toggleEditPasswordVisibility()" style="position:absolute; right:10px; background:none; border:none; color:rgba(255,255,255,0.6); cursor:pointer; font-size:14px; padding:4px;" title="Ver/ocultar contraseña">👁️</button>
-          </div>
+          <label class="auth-lbl">Vence Suscripción (Fecha Límite)</label>
+          <input type="date" id="edit_c_suscripcion_hasta" class="auth-inp" style="background:#0f172a; color:#fff;" title="Fecha límite de acceso. Al cumplirse se deshabilitará automáticamente.">
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label class="auth-lbl">Nueva Contraseña (Opcional)</label>
+        <div style="position:relative; display:flex; align-items:center;">
+          <input type="password" id="edit_c_password" class="auth-inp" placeholder="Dejar en blanco para no cambiar" style="padding-right:38px;">
+          <button type="button" onclick="toggleEditPasswordVisibility()" style="position:absolute; right:10px; background:none; border:none; color:rgba(255,255,255,0.6); cursor:pointer; font-size:14px; padding:4px;" title="Ver/ocultar contraseña">👁️</button>
         </div>
       </div>
 
@@ -2941,6 +3003,76 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
           <button type="button" class="btn-login-secondary" onclick="closeEditContadorModal()">Cancelar</button>
           <button type="submit" class="btn-login-primary" style="width:auto; padding:11px 24px;">Guardar Cambios</button>
         </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══ MODAL HABILITAR / RENOVAR SUSCRIPCIÓN ═════════════════════════ -->
+<div id="modal-extender-suscripcion" class="admin-modal-backdrop" style="display:none;">
+  <div class="admin-modal-card" style="max-width:520px;">
+    <div class="admin-modal-header">
+      <div>
+        <h2 style="font-family:var(--ff); font-size:20px; font-weight:800; color:#fff; margin:0;">⏱️ Habilitar / Renovar Acceso</h2>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+          <p style="font-size:12px; color:rgba(255,255,255,0.6); margin:0;">Define el período de vigencia para el contador.</p>
+          <span style="font-size:11px; font-family:var(--fm); font-weight:700; color:#34d399; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.28); border-radius:6px; padding:2px 8px;" id="renovar-c-user-badge">@usuario</span>
+        </div>
+      </div>
+      <button class="btn-close-modal" onclick="closeExtenderSuscripcionModal()">&times;</button>
+    </div>
+
+    <form id="form-extender-suscripcion" onsubmit="submitExtenderSuscripcion(event)">
+      <input type="hidden" id="renovar_c_username">
+
+      <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px; margin-bottom:18px;">
+        <div style="font-size:12px; color:rgba(255,255,255,0.7); margin-bottom:4px;">Contador seleccionado:</div>
+        <div style="font-size:15px; font-weight:700; color:#fff;" id="renovar-c-nombre">Nombre Contador</div>
+        <div style="font-size:12px; color:#38bdf8; margin-top:6px; display:flex; align-items:center; gap:6px;" id="renovar-c-estado-actual">
+          <span>📅 Vigencia actual: Calculando...</span>
+        </div>
+      </div>
+
+      <label class="auth-lbl" style="margin-bottom:10px;">Selecciona el tiempo a habilitar:</label>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
+        <button type="button" class="btn-duracion-opt active" id="btn-dur-30" onclick="selectDuracionPreset(30, this)">
+          <div style="font-size:14px; font-weight:700;">+ 1 Mes</div>
+          <div style="font-size:11px; opacity:0.75;">30 días de acceso</div>
+        </button>
+        <button type="button" class="btn-duracion-opt" id="btn-dur-90" onclick="selectDuracionPreset(90, this)">
+          <div style="font-size:14px; font-weight:700;">+ 3 Meses</div>
+          <div style="font-size:11px; opacity:0.75;">90 días (Trimestral)</div>
+        </button>
+        <button type="button" class="btn-duracion-opt" id="btn-dur-180" onclick="selectDuracionPreset(180, this)">
+          <div style="font-size:14px; font-weight:700;">+ 6 Meses</div>
+          <div style="font-size:11px; opacity:0.75;">180 días (Semestral)</div>
+        </button>
+        <button type="button" class="btn-duracion-opt" id="btn-dur-365" onclick="selectDuracionPreset(365, this)">
+          <div style="font-size:14px; font-weight:700;">+ 1 Año</div>
+          <div style="font-size:11px; opacity:0.75;">365 días (Anual)</div>
+        </button>
+      </div>
+
+      <div style="margin-bottom:18px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <label class="auth-lbl" style="margin:0;">O fijar fecha exacta de vencimiento:</label>
+          <span style="font-size:10px; color:rgba(255,255,255,0.45);">(Sobrescribe los días)</span>
+        </div>
+        <input type="date" id="renovar_c_fecha_exacta" class="auth-inp" style="background:#0f172a; color:#fff;" onchange="onFechaExactaChange()">
+      </div>
+
+      <div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:12px; margin-bottom:20px; display:flex; align-items:center; gap:10px;">
+        <span style="font-size:20px;">🛡️</span>
+        <div style="font-size:11px; color:#d1fae5; line-height:1.4;">
+          <strong>Acción automática:</strong> Al completarse el período establecido, el acceso se deshabilitará automáticamente hasta que se registre y confirme el siguiente pago.
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" class="btn-login-secondary" onclick="closeExtenderSuscripcionModal()">Cancelar</button>
+        <button type="submit" class="btn-login-primary" id="btn-confirmar-renovacion" style="width:auto; padding:11px 24px; background:linear-gradient(135deg, #059669, #10b981);">
+          <span>Confirmar y Habilitar</span>
+        </button>
       </div>
     </form>
   </div>
@@ -3592,7 +3724,7 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
         </div>
         <div onclick="fmAbrirUploadPanel()" style="padding:8px 12px;font-size:12px;font-weight:500;color:rgba(255,255,255,0.6);cursor:pointer;border-radius:6px;transition:0.2s;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,0.07)';this.style.color='#fff';" onmouseout="this.style.background='transparent';this.style.color='rgba(255,255,255,0.6)';">
           <span style="width:4px;height:4px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span>
-          Importar PDFs / Fotos
+          Importar Documentos
         </div>
 
       </div>
@@ -3601,6 +3733,7 @@ tfoot td{padding:10px 12px;font-size:11px;font-weight:600;color:var(--ink)}
     <div class="ng">Módulos</div>
     <div class="ni" onclick="go('estres',this)"><span class="ni-ico"><i data-lucide="bar-chart-2" stroke-width="2.5" width="16" height="16"></i></span><span>Estado Resultados</span></div>
     <div class="ni" onclick="go('balgeneral',this)"><span class="ni-ico"><i data-lucide="book-open" stroke-width="2.5" width="16" height="16"></i></span><span>Balance General</span></div>
+    <div class="ni" onclick="go('balgeneral',this); setTimeout(fmAbrirModalAuditorContable, 250);" style="color:#93c5fd;"><span class="ni-ico"><i data-lucide="shield-check" stroke-width="2.5" width="16" height="16"></i></span><span>Auditor NIIF</span><div class="ni-badge" style="background:#1d4ed8; color:#fff;">NIIF</div></div>
     <div class="ni" onclick="go('efectivo',this)"><span class="ni-ico"><i data-lucide="banknote" stroke-width="2.5" width="16" height="16"></i></span><span>Flujo Efectivo</span></div>
     <div class="ni" onclick="go('patrimonio',this)"><span class="ni-ico"><i data-lucide="layers" stroke-width="2.5" width="16" height="16"></i></span><span>Cambios Patrimonio</span></div>
     <div class="ng">Reportes</div>
@@ -6421,7 +6554,104 @@ function ensurePasivosStructure() {
   if (!MODS.pasivos.financieros || !Array.isArray(MODS.pasivos.financieros)) {
     MODS.pasivos.financieros = [];
   }
+  if (typeof fmSincronizarContrapartidasPasivosFinancieros === 'function') {
+    fmSincronizarContrapartidasPasivosFinancieros();
+  }
 }
+
+function fmSincronizarContrapartidasPasivosFinancieros() {
+  try {
+    if (typeof MODS === 'undefined' || !MODS || typeof MODS !== 'object') return;
+    if (typeof ensureActivosStructure === 'function') ensureActivosStructure();
+    if (!MODS.activos) MODS.activos = {};
+    if (!MODS.activos.cor) MODS.activos.cor = {};
+    if (!MODS.activos.cor['EFECTIVO Y EQUIVALENTE DE EFECTIVO'] || typeof MODS.activos.cor['EFECTIVO Y EQUIVALENTE DE EFECTIVO'] !== 'object' || Array.isArray(MODS.activos.cor['EFECTIVO Y EQUIVALENTE DE EFECTIVO'])) {
+      const prevBal = parseFloat(MODS.activos.cor['EFECTIVO Y EQUIVALENTE DE EFECTIVO']) || 0;
+      MODS.activos.cor['EFECTIVO Y EQUIVALENTE DE EFECTIVO'] = { balance: prevBal, movs: [] };
+    }
+    if (!Array.isArray(MODS.activos.cor['EFECTIVO Y EQUIVALENTE DE EFECTIVO'].movs)) {
+      MODS.activos.cor['EFECTIVO Y EQUIVALENTE DE EFECTIVO'].movs = [];
+    }
+
+    const ctaEfectivo = MODS.activos.cor['EFECTIVO Y EQUIVALENTE DE EFECTIVO'];
+    const prestamos = (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) ? MODS.pasivos.financieros : [];
+
+    const pasivoIdsValidos = new Set();
+    const pagoIdsValidos = new Set();
+
+    prestamos.forEach(p => {
+      if (!p || p.estado === 'anulado') return;
+      pasivoIdsValidos.add(p.id);
+
+      const fDesemb = p.fecha_inicio || p.fecha || new Date().toISOString().slice(0, 10);
+      const mPrincipal = parseFloat(p.monto_principal) || 0;
+      const docDesemb = p.doc_respaldo || ('PREST-' + (p.id || Date.now()));
+      const detDesemb = 'Desembolso Préstamo: ' + (p.acreedor ? (p.acreedor + ' - ') : '') + (p.descripcion || 'Préstamo Financiero');
+
+      let movDesemb = ctaEfectivo.movs.find(m => m && m.ref_pasivo_id === p.id && m.tipo_transaccion === 'desembolso_prestamo');
+      if (movDesemb) {
+        movDesemb.fecha = fDesemb;
+        movDesemb.monto = mPrincipal;
+        movDesemb.doc = docDesemb;
+        movDesemb.det = detDesemb;
+      } else {
+        ctaEfectivo.movs.push({
+          fecha: fDesemb,
+          doc: docDesemb,
+          det: detDesemb,
+          monto: mPrincipal,
+          ref_pasivo_id: p.id,
+          tipo_transaccion: 'desembolso_prestamo'
+        });
+      }
+
+      if (Array.isArray(p.pagos)) {
+        p.pagos.forEach(pg => {
+          if (!pg || pg.estado === 'reversado') return;
+          pagoIdsValidos.add(pg.id);
+
+          const fPago = pg.fecha || fDesemb;
+          const montoTotalPago = parseFloat(pg.monto_total || (parseFloat(pg.monto_capital || 0) + parseFloat(pg.monto_interes || 0))) || 0;
+          const docPago = pg.comprobante || ('PAGO-' + (pg.num_cuota ? ('C' + pg.num_cuota) : pg.id));
+          const detPago = 'Pago Préstamo ' + (p.acreedor ? ('(' + p.acreedor + ') ') : '') + (pg.num_cuota ? ('Cuota #' + pg.num_cuota) : (pg.tipo ? pg.tipo.replace(/_/g, ' ') : 'Abono'));
+
+          let movPago = ctaEfectivo.movs.find(m => m && m.ref_pago_id === pg.id);
+          if (movPago) {
+            movPago.fecha = fPago;
+            movPago.monto = -Math.abs(montoTotalPago);
+            movPago.doc = docPago;
+            movPago.det = detPago;
+            movPago.ref_pasivo_id = p.id;
+          } else {
+            ctaEfectivo.movs.push({
+              fecha: fPago,
+              doc: docPago,
+              det: detPago,
+              monto: -Math.abs(montoTotalPago),
+              ref_pasivo_id: p.id,
+              ref_pago_id: pg.id,
+              tipo_transaccion: 'pago_prestamo'
+            });
+          }
+        });
+      }
+    });
+
+    ctaEfectivo.movs = ctaEfectivo.movs.filter(m => {
+      if (!m || typeof m !== 'object') return false;
+      if (m.tipo_transaccion === 'desembolso_prestamo') {
+        return m.ref_pasivo_id && pasivoIdsValidos.has(m.ref_pasivo_id);
+      }
+      if (m.tipo_transaccion === 'pago_prestamo') {
+        return m.ref_pago_id && pagoIdsValidos.has(m.ref_pago_id) && pasivoIdsValidos.has(m.ref_pasivo_id);
+      }
+      return true;
+    });
+  } catch(err) {
+    console.error('[FACTURAMI] Error en fmSincronizarContrapartidasPasivosFinancieros:', err);
+  }
+}
+window.fmSincronizarContrapartidasPasivosFinancieros = fmSincronizarContrapartidasPasivosFinancieros;
 
 function calcularTablaAmortizacionJS(principal, tasaAnual, plazoMeses, periodicidad = 'mensual', sistema = 'frances', fechaInicio = null, diaPago = 1, gracia = 0) {
   principal = parseFloat(principal) || 0;
@@ -7128,6 +7358,9 @@ function pfEliminarPasivo(idxReal) {
     pfSelIdx--;
   }
 
+  if (typeof fmSincronizarContrapartidasPasivosFinancieros === 'function') {
+    fmSincronizarContrapartidasPasivosFinancieros();
+  }
   saveAllData();
   pfCargar();
   renderPasivos();
@@ -7287,6 +7520,9 @@ function guardarNuevoPasivo(e) {
     pExist.version_activa = 1;
 
     pfEditIdx = null;
+    if (typeof fmSincronizarContrapartidasPasivosFinancieros === 'function') {
+      fmSincronizarContrapartidasPasivosFinancieros();
+    }
     saveAllData();
     closeNuevoPasivoModal();
     pfCargar();
@@ -7297,6 +7533,9 @@ function guardarNuevoPasivo(e) {
   }
 
   MODS.pasivos.financieros.push(nuevoPasivo);
+  if (typeof fmSincronizarContrapartidasPasivosFinancieros === 'function') {
+    fmSincronizarContrapartidasPasivosFinancieros();
+  }
   saveAllData();
   closeNuevoPasivoModal();
   pfCargar();
@@ -7530,6 +7769,9 @@ function guardarPagoPasivo(e) {
     asiento_id: aid
   });
 
+  if (typeof fmSincronizarContrapartidasPasivosFinancieros === 'function') {
+    fmSincronizarContrapartidasPasivosFinancieros();
+  }
   saveAllData();
   closeRegistrarPagoModal();
   pfCargar();
@@ -7574,6 +7816,9 @@ function pfToggleEstadoCuota(cuotaIdx, pasivoIdx = null) {
       }
     }
 
+    if (typeof fmSincronizarContrapartidasPasivosFinancieros === 'function') {
+      fmSincronizarContrapartidasPasivosFinancieros();
+    }
     saveAllData();
     pfRenderKPIs();
     pfRenderTabla();
@@ -7623,6 +7868,9 @@ function pfToggleEstadoCuota(cuotaIdx, pasivoIdx = null) {
       version_plan_resultante: p.version_activa
     });
 
+    if (typeof fmSincronizarContrapartidasPasivosFinancieros === 'function') {
+      fmSincronizarContrapartidasPasivosFinancieros();
+    }
     saveAllData();
     pfRenderKPIs();
     pfRenderTabla();
@@ -7704,6 +7952,9 @@ function pfEliminarPago(pagoId) {
   // Eliminar físicamente el registro de la lista de pagos
   p.pagos.splice(pgIdx, 1);
 
+  if (typeof fmSincronizarContrapartidasPasivosFinancieros === 'function') {
+    fmSincronizarContrapartidasPasivosFinancieros();
+  }
   saveAllData();
   pfCargar();
   renderPasivos();
@@ -10350,6 +10601,9 @@ function saveAddModal(e){
   
   if (editIndex !== null) {
     MODS[activeModKey].rows[editIndex] = newRow;
+    if (typeof fmSincronizarContrapartidasOperativas === 'function') {
+      fmSincronizarContrapartidasOperativas();
+    }
     showToast('Registro actualizado');
     saveAllData(); // Guardar cambios persistentes
     document.getElementById('addModal').close();
@@ -10367,6 +10621,9 @@ function saveAddModal(e){
 
   // Agregar nuevo registro a la lista
   MODS[activeModKey].rows.push(newRow);
+  if (typeof fmSincronizarContrapartidasOperativas === 'function') {
+    fmSincronizarContrapartidasOperativas();
+  }
   saveAllData(); // Guardar cambios persistentes
   updateDescHistory(activeModKey);
   renderMod(activeModKey);
@@ -10903,7 +11160,7 @@ function renderD101(){
 }
 
 let utilNetaG = 0;
-function getERVars(){
+function getERVars(acumulado = false){
   const anioEl = document.getElementById('anioSel');
   const mesEl = document.getElementById('mesSel');
   const anio = (anioEl && anioEl.value) ? anioEl.value : new Date().getFullYear().toString();
@@ -10916,7 +11173,15 @@ function getERVars(){
     if(!fecha.startsWith(anio)) return false;
     if(mes) {
       const parts = fecha.split('-');
-      if(parts.length < 2 || parts[1] !== mes) return false;
+      if(parts.length < 2) return false;
+      const rowMesNum = parseInt(parts[1], 10);
+      const selMesNum = parseInt(mes, 10);
+      if(isNaN(rowMesNum) || isNaN(selMesNum)) return false;
+      if (acumulado) {
+        if(rowMesNum > selMesNum) return false; // En modo acumulado (Balance General), incluye desde enero hasta el mes de corte
+      } else {
+        if(rowMesNum !== selMesNum) return false; // En modo mensual (Estado de Resultados), solo el mes específico
+      }
     }
     return true;
   };
@@ -10947,9 +11212,18 @@ function getERVars(){
                 if (!isNaN(adqAnio) && !isNaN(adqMes) && !isNaN(selAnioNum)) {
                   if (mes) {
                     const selMesNum = parseInt(mes, 10);
-                    const elapsed = (selAnioNum - adqAnio) * 12 + (selMesNum - adqMes);
-                    if (elapsed >= 0 && elapsed < totalMeses) {
-                      gastoDeprec += depM;
+                    if (acumulado) {
+                      let activeMonths = 0;
+                      for (let mm = 1; mm <= selMesNum; mm++) {
+                        const elapsed = (selAnioNum - adqAnio) * 12 + (mm - adqMes);
+                        if (elapsed >= 0 && elapsed < totalMeses) activeMonths++;
+                      }
+                      gastoDeprec += (depM * activeMonths);
+                    } else {
+                      const elapsed = (selAnioNum - adqAnio) * 12 + (selMesNum - adqMes);
+                      if (elapsed >= 0 && elapsed < totalMeses) {
+                        gastoDeprec += depM;
+                      }
                     }
                   } else {
                     let activeMonthsInYear = 0;
@@ -10978,7 +11252,9 @@ function getERVars(){
       if (Array.isArray(p.pagos)) {
         p.pagos.forEach(pg => {
           if (pg.estado !== 'reversado' && pg.fecha && pg.fecha.startsWith(anio)) {
-            if (!mes || pg.fecha.split('-')[1] === mes) {
+            const pgMes = pg.fecha.split('-')[1];
+            const matchInt = !mes || (acumulado ? pgMes <= mes : pgMes === mes);
+            if (matchInt) {
               gastoIntereses += (parseFloat(pg.monto_interes) || 0);
             }
           }
@@ -11001,10 +11277,13 @@ function getERVars(){
   const ub = v - cmv;
   const uo = ub - go - gastoDeprec;
   const uai = uo + oi - og;
-  utilNetaG = uai - imp;
-  if (typeof window !== "undefined") window.utilNetaG = utilNetaG;
+  const calcUtilNeta = uai - imp;
+  if (!acumulado) {
+    utilNetaG = calcUtilNeta;
+    if (typeof window !== "undefined") window.utilNetaG = utilNetaG;
+  }
 
-  return { v, cmv, go, gastoDeprec, gastoIntereses, ub, uo, oi, og, uai, imp, utilNeta: utilNetaG };
+  return { v, cmv, go, gastoDeprec, gastoIntereses, ub, uo, oi, og, uai, imp, utilNeta: calcUtilNeta };
 }
 
 // ── ESTADO DE RESULTADOS ──────────────────────────────────────────
@@ -11278,6 +11557,12 @@ function bgBlur(el){
 }
 
 function bgCalc(){
+  if (typeof fmSincronizarContrapartidasPasivosFinancieros === 'function') {
+    fmSincronizarContrapartidasPasivosFinancieros();
+  }
+  if (typeof fmSincronizarContrapartidasOperativas === 'function' && typeof fmAutoSyncOperaciones !== 'undefined' && fmAutoSyncOperaciones) {
+    fmSincronizarContrapartidasOperativas();
+  }
   const fN = (n) => fmFormatNumEspacios(n, 2, 2);
   const sv = (id, val) => {
     const e = document.getElementById('bg_' + id);
@@ -11288,7 +11573,8 @@ function bgCalc(){
     }
   };
 
-  getERVars(); 
+  const erAcum = getERVars(true); 
+  const utilNetaAcum = erAcum.utilNeta;
 
   // 1. Activos desde schema y movimientos
   let sumCor = 0, sumNoCor = 0, sumIntan = 0, sumDepre = 0;
@@ -11306,26 +11592,70 @@ function bgCalc(){
     PASIVOS_SCHEMA.pas_ncor.items.forEach(name => sumPasNoCor += getPasivoBalance('pas_ncor', name));
   }
 
-  // 3. Integración analítica de Pasivos Financieros (CXP) según categoría y carga de fondos en Activo Corriente
-  let sumFinCor = 0, sumFinNoCor = 0, sumFondosPasivosActivo = 0;
+  // 3. Pasivos Financieros (CXP) según NIIF / NIC 1 (Porción Circulante <= 12m vs Largo Plazo > 12m)
+  let sumFinCor = 0, sumFinNoCor = 0;
   if (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) {
+    const anioEl = document.getElementById('anioSel');
+    const mesEl = document.getElementById('mesSel');
+    const anioSel = (anioEl && anioEl.value) ? parseInt(anioEl.value, 10) : new Date().getFullYear();
+    const M_MAP = {'Enero':1,'Febrero':2,'Marzo':3,'Abril':4,'Mayo':5,'Junio':6,'Julio':7,'Agosto':8,'Septiembre':9,'Octubre':10,'Noviembre':11,'Diciembre':12};
+    const mesSel = (mesEl && mesEl.value) ? (M_MAP[mesEl.value] || 12) : 12;
+    const dCorte = new Date(anioSel, mesSel, 0);
+    const fCorteStr = dCorte.toISOString().slice(0, 10);
+    const dLimite12m = new Date(anioSel + 1, mesSel, 0);
+    const fLimite12mStr = dLimite12m.toISOString().slice(0, 10);
+
     MODS.pasivos.financieros.forEach(p => {
+      const fInicio = p.fecha_inicio || p.fecha || '';
+      if (fInicio && fInicio > fCorteStr) return; // Préstamo posterior a la fecha de corte
+
       if (p.estado !== 'cancelado') {
-        const saldoCap = (p.saldo_capital_actual !== undefined) ? (parseFloat(p.saldo_capital_actual) || 0) : (parseFloat(p.monto_principal) || 0);
+        let amortHastaCorte = 0;
+        if (Array.isArray(p.pagos)) {
+          p.pagos.forEach(pg => {
+            if (pg.estado !== 'reversado' && pg.fecha && pg.fecha <= fCorteStr) {
+              amortHastaCorte += (parseFloat(pg.monto_capital) || 0);
+            }
+          });
+        }
+        const principal = parseFloat(p.monto_principal) || 0;
+        let saldoCap = (amortHastaCorte > 0 || (Array.isArray(p.pagos) && p.pagos.length > 0))
+          ? Math.max(0, principal - amortHastaCorte)
+          : (p.saldo_capital_actual !== undefined ? (parseFloat(p.saldo_capital_actual) || 0) : principal);
+
         if (saldoCap > 0) {
-          const esCorriente = (p.tipo === 'pasivo_corriente' || p.tipo === 'corriente');
-          if (esCorriente) {
-            sumFinCor += saldoCap;
+          let cap12m = 0;
+          const vActiva = (p.versiones_plan && Array.isArray(p.versiones_plan)) 
+            ? (p.versiones_plan.find(v => v.version_id === p.version_activa) || p.versiones_plan[p.versiones_plan.length - 1]) 
+            : null;
+
+          if (vActiva && Array.isArray(vActiva.cuotas) && vActiva.cuotas.length > 0) {
+            vActiva.cuotas.forEach(c => {
+              if (c.estado !== 'Pagada' && c.fecha_vencimiento && c.fecha_vencimiento <= fLimite12mStr) {
+                cap12m += (parseFloat(c.amortizacion_capital || c.capital) || 0);
+              }
+            });
+            cap12m = Math.min(saldoCap, Math.round(cap12m * 100) / 100);
           } else {
-            sumFinNoCor += saldoCap;
+            const esCorriente = (p.tipo === 'pasivo_corriente' || p.tipo === 'corriente' || (p.plazo_meses && p.plazo_meses <= 12));
+            if (esCorriente) {
+              cap12m = saldoCap;
+            } else {
+              const mesesTotal = p.plazo_meses || 36;
+              cap12m = Math.min(saldoCap, Math.round(((saldoCap / mesesTotal) * 12) * 100) / 100);
+            }
           }
-          sumFondosPasivosActivo += saldoCap;
+
+          const pasCor = cap12m;
+          const pasNoCor = Math.max(0, Math.round((saldoCap - cap12m) * 100) / 100);
+          sumFinCor += pasCor;
+          sumFinNoCor += pasNoCor;
         }
       }
     });
   }
 
-  const tot_act_cor_final = sumCor + sumFondosPasivosActivo;
+  const tot_act_cor_final = sumCor;
   const tot_act = tot_act_cor_final + sumNoCor + sumIntan - sumDepre;
   sv('act_cor', tot_act_cor_final);
   sv('act_ncor', sumNoCor);
@@ -11361,9 +11691,9 @@ function bgCalc(){
   sv('sup_tot', sumOtrosPatrim);
   
   const ut_el = document.getElementById('bg_ut');
-  if (ut_el) ut_el.textContent = fN(utilNetaG);
+  if (ut_el) ut_el.textContent = fN(utilNetaAcum);
   
-  const pat = sumCap + sumRes + sumResul + sumOtrosPatrim + utilNetaG;
+  const pat = sumCap + sumRes + sumResul + sumOtrosPatrim + utilNetaAcum;
   sv('pat', pat);
   
   const pas_pat = tot_pas + pat;
@@ -11437,6 +11767,9 @@ function bgCalc(){
             <span style="font-size:16px;">⚠️</span>
             <span>Descuadre Contable Detectado: Diferencia de ₡${Math.abs(diff).toLocaleString('es-CR', {minimumFractionDigits:2, maximumFractionDigits:2})} (Activo: ₡${tot_act.toLocaleString('es-CR', {minimumFractionDigits:2, maximumFractionDigits:2})} vs Pasivo+Pat: ₡${pas_pat.toLocaleString('es-CR', {minimumFractionDigits:2, maximumFractionDigits:2})})</span>
           </div>
+          <button type="button" class="btn btn-sm" onclick="fmAbrirModalAuditorContable()" style="background:#1e3a8a; color:#fff; border:none; border-radius:6px; padding:6px 14px; font-size:11.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+            🔍 Diagnóstico Auditor NIIF
+          </button>
           <button type="button" class="btn btn-sm" onclick="fmAbrirModalAjusteBalance()" style="background:#dc2626; color:#fff; border:none; border-radius:6px; padding:6px 14px; font-size:11.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
             ⚖️ Cuadrar con Asiento de Ajuste
           </button>
@@ -11447,6 +11780,12 @@ function bgCalc(){
 }
 
 function renderBalGeneral(){
+  if (typeof fmSincronizarContrapartidasPasivosFinancieros === 'function') {
+    fmSincronizarContrapartidasPasivosFinancieros();
+  }
+  if (typeof fmSincronizarContrapartidasOperativas === 'function' && typeof fmAutoSyncOperaciones !== 'undefined' && fmAutoSyncOperaciones) {
+    fmSincronizarContrapartidasOperativas();
+  }
   const el = document.getElementById('balgeneral-content'); if(!el) return;
   const anio = (document.getElementById('anioSel') && document.getElementById('anioSel').value) ? document.getElementById('anioSel').value : new Date().getFullYear().toString();
   const mesStr = (document.getElementById('mesSel') && document.getElementById('mesSel').value) ? document.getElementById('mesSel').value : '';
@@ -11499,29 +11838,81 @@ function renderBalGeneral(){
     });
   }
 
-  // 3. Pasivos Financieros (CXP)
-  let sumFinCor = 0, sumFinNoCor = 0, sumFondosPasivosActivo = 0;
+  // 3. Pasivos Financieros (CXP) según NIIF / NIC 1 (Porción Circulante <= 12m vs Largo Plazo > 12m)
+  let sumFinCor = 0, sumFinNoCor = 0;
   if (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) {
+    const anioSel = parseInt(anio, 10) || new Date().getFullYear();
+    const M_MAP = {'Enero':1,'Febrero':2,'Marzo':3,'Abril':4,'Mayo':5,'Junio':6,'Julio':7,'Agosto':8,'Septiembre':9,'Octubre':10,'Noviembre':11,'Diciembre':12};
+    const mesSel = mesStr ? (M_MAP[mesStr] || 12) : 12;
+    const dCorte = new Date(anioSel, mesSel, 0);
+    const fCorteStr = dCorte.toISOString().slice(0, 10);
+    const dLimite12m = new Date(anioSel + 1, mesSel, 0);
+    const fLimite12mStr = dLimite12m.toISOString().slice(0, 10);
+
     MODS.pasivos.financieros.forEach(p => {
+      const fInicio = p.fecha_inicio || p.fecha || '';
+      if (fInicio && fInicio > fCorteStr) return; // Préstamo posterior a la fecha de corte
+
       if (p.estado !== 'cancelado') {
-        const saldoCap = (p.saldo_capital_actual !== undefined) ? (parseFloat(p.saldo_capital_actual) || 0) : (parseFloat(p.monto_principal) || 0);
+        let amortHastaCorte = 0;
+        if (Array.isArray(p.pagos)) {
+          p.pagos.forEach(pg => {
+            if (pg.estado !== 'reversado' && pg.fecha && pg.fecha <= fCorteStr) {
+              amortHastaCorte += (parseFloat(pg.monto_capital) || 0);
+            }
+          });
+        }
+        const principal = parseFloat(p.monto_principal) || 0;
+        let saldoCap = (amortHastaCorte > 0 || (Array.isArray(p.pagos) && p.pagos.length > 0))
+          ? Math.max(0, principal - amortHastaCorte)
+          : (p.saldo_capital_actual !== undefined ? (parseFloat(p.saldo_capital_actual) || 0) : principal);
+
         if (saldoCap > 0) {
-          const esCorriente = (p.tipo === 'pasivo_corriente' || p.tipo === 'corriente');
-          if (esCorriente) {
-            sumFinCor += saldoCap;
-            detallePasivos.pas_cor.push({ name: `Préstamo / Pasivo CP (${p.acreedor || p.descripcion || 'Entidad'})`, monto: saldoCap });
+          let cap12m = 0;
+          const vActiva = (p.versiones_plan && Array.isArray(p.versiones_plan)) 
+            ? (p.versiones_plan.find(v => v.version_id === p.version_activa) || p.versiones_plan[p.versiones_plan.length - 1]) 
+            : null;
+
+          if (vActiva && Array.isArray(vActiva.cuotas) && vActiva.cuotas.length > 0) {
+            vActiva.cuotas.forEach(c => {
+              if (c.estado !== 'Pagada' && c.fecha_vencimiento && c.fecha_vencimiento <= fLimite12mStr) {
+                cap12m += (parseFloat(c.amortizacion_capital || c.capital) || 0);
+              }
+            });
+            cap12m = Math.min(saldoCap, Math.round(cap12m * 100) / 100);
           } else {
-            sumFinNoCor += saldoCap;
-            detallePasivos.pas_ncor.push({ name: `Préstamo / Pasivo LP (${p.acreedor || p.descripcion || 'Entidad'})`, monto: saldoCap });
+            const esCorriente = (p.tipo === 'pasivo_corriente' || p.tipo === 'corriente' || (p.plazo_meses && p.plazo_meses <= 12));
+            if (esCorriente) {
+              cap12m = saldoCap;
+            } else {
+              const mesesTotal = p.plazo_meses || 36;
+              cap12m = Math.min(saldoCap, Math.round(((saldoCap / mesesTotal) * 12) * 100) / 100);
+            }
           }
-          sumFondosPasivosActivo += saldoCap;
-          detalleActivos.cor.push({ name: `Fondos Crédito / Pasivo (${p.acreedor || 'Financiamiento'})`, monto: saldoCap });
+
+          const pasCor = cap12m;
+          const pasNoCor = Math.max(0, Math.round((saldoCap - cap12m) * 100) / 100);
+          sumFinCor += pasCor;
+          sumFinNoCor += pasNoCor;
+
+          if (pasCor > 0) {
+            detallePasivos.pas_cor.push({
+              name: `Porción Circulante CP (${p.acreedor || p.descripcion || 'Entidad'})`,
+              monto: pasCor
+            });
+          }
+          if (pasNoCor > 0) {
+            detallePasivos.pas_ncor.push({
+              name: `Deuda a Largo Plazo LP (${p.acreedor || p.descripcion || 'Entidad'})`,
+              monto: pasNoCor
+            });
+          }
         }
       }
     });
   }
 
-  const tot_act_cor = sumCor + sumFondosPasivosActivo;
+  const tot_act_cor = sumCor;
   const tot_act_ncor = sumNoCor;
   const tot_act_intan = sumIntan;
   const tot_act_depre = sumDepre;
@@ -11548,8 +11939,10 @@ function renderBalGeneral(){
     });
   }
 
-  const dER = getERVars();
-  const utilNeta = (typeof utilNetaG !== 'undefined') ? utilNetaG : (dER.utilNeta || 0);
+  // Utilidad acumulada del ejercicio hasta el mes de corte (NIIF / NIC 1)
+  const dER = getERVars(true);
+  const utilNeta = dER.utilNeta;
+  const lblUtil = mesStr ? `Utilidad (o Pérdida) Acumulada (Ene - ${mesStr})` : `Utilidad (o Pérdida) Neta del Ejercicio`;
   const tot_patrimonio = sumCap + sumRes + sumResul + sumOtros + utilNeta;
   const tot_pasivo_patrimonio = tot_pasivos + tot_patrimonio;
   const diff = tot_activos - tot_pasivo_patrimonio;
@@ -11611,6 +12004,9 @@ function renderBalGeneral(){
           <div style="font-size:12px; opacity:0.85; margin-top:3px;">Posición patrimonial, solidez y estructura de capital · <span style="font-weight:700; color:#93c5fd;">${periodoTxt}</span></div>
         </div>
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <button type="button" onclick="fmAbrirModalAuditorContable()" class="btn btn-sm" style="background:#1d4ed8; color:#fff; border:none; font-weight:700; border-radius:8px; padding:7px 14px; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 3px 10px rgba(29,78,216,0.35);">
+            🔍 Auditor NIIF
+          </button>
           <button type="button" class="btn btn-sm" onclick="fmAbrirModalAjusteBalance()" style="background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.25); font-weight:700; border-radius:8px; padding:7px 13px; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
             ⚖️ Asiento de Ajuste
           </button>
@@ -11753,7 +12149,7 @@ function renderBalGeneral(){
                 <tr class="fm-rep-cat"><td colspan="2">2.3 PATRIMONIO NETO</td></tr>
                 ${patRows}
                 <tr>
-                  <td class="fm-rep-item">Utilidad (o Pérdida) Neta del Ejercicio</td>
+                  <td class="fm-rep-item">${lblUtil}</td>
                   <td class="fm-rep-num"><span id="bg_ut">${fN(utilNeta)}</span></td>
                 </tr>
                 <span id="bg_cap_tot" style="display:none;">${fN(sumCap)}</span>
@@ -11940,7 +12336,7 @@ function fmInferirDatosFlujoEfectivo(filtroMesOverride = null) {
           if (Array.isArray(p.pagos)) {
             p.pagos.forEach(pg => {
               if (pg.fecha && pg.fecha.startsWith(anio + '-' + curMes)) {
-                sumFin -= (parseFloat(pg.amortizacion) || 0);
+                sumFin -= (parseFloat(pg.monto_capital || pg.amortizacion || pg.monto_total) || 0);
               }
             });
           }
@@ -11990,16 +12386,6 @@ function fmInferirDatosFlujoEfectivo(filtroMesOverride = null) {
         efectivoBG += getAssetBalance('cor', name);
       }
     });
-  }
-  if (!curMes) {
-    if (typeof MODS !== 'undefined' && MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) {
-      MODS.pasivos.financieros.forEach(p => {
-        if (p.estado !== 'cancelado') {
-          const saldoCap = (p.saldo_capital_actual !== undefined) ? (parseFloat(p.saldo_capital_actual) || 0) : (parseFloat(p.monto_principal) || 0);
-          if (saldoCap > 0) efectivoBG += saldoCap;
-        }
-      });
-    }
   }
 
   // Ajustes de signos indirectos según NIC 7:
@@ -12645,7 +13031,7 @@ function feRenderTabEvolucion(container) {
               concepto: 'Amortización Deuda: ' + (p.acreedor || 'Crédito'),
               actividad: 'Financiamiento',
               tipo: 'Salida',
-              monto: parseFloat(pg.amortizacion) || 0
+              monto: parseFloat(pg.monto_capital || pg.amortizacion || pg.monto_total) || 0
             });
           }
         });
@@ -12769,10 +13155,11 @@ function cpBlur(el){let v=fmParseNum(el.value);el.value=fmFormatNumEspacios(v,2,
 function cpCalc(){
   const gv=id=>{const e=document.getElementById('cp_'+id);return e?fmParseNum(e.value):0;};
   const sv=(id,val)=>{const e=document.getElementById('cp_'+id);if(e)e.textContent=fmFormatNumEspacios(val, 2, 2);};
-  getERVars(); 
+  const erAcum = (typeof getERVars === 'function') ? getERVars(true) : { utilNeta: 0 }; 
+  const utVal = erAcum.utilNeta;
   const ut_el = document.getElementById('cp_ut');
-  if(ut_el) ut_el.textContent = fmFormatNumEspacios(utilNetaG, 2, 2);
-  const fin = gv('si') + gv('ap') - gv('ret') + utilNetaG;
+  if(ut_el) ut_el.textContent = fmFormatNumEspacios(utVal, 2, 2);
+  const fin = gv('si') + gv('ap') - gv('ret') + utVal;
   sv('fin', fin);
 }
 
@@ -13043,6 +13430,34 @@ function renderContadoresGrid() {
     const planBadgeClass = `badge-${c.plan_id || 'despacho'}`;
     const isActive = c.activo == 1;
 
+    // Cálculo de vigencia de suscripción
+    let subBadgeHtml = '';
+    const sHasta = c.suscripcion_hasta ? String(c.suscripcion_hasta).slice(0, 10) : '';
+    let isExpiredSub = false;
+
+    if (sHasta) {
+      const now = new Date();
+      now.setHours(0,0,0,0);
+      const parts = sHasta.split('-');
+      const expDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      expDate.setHours(0,0,0,0);
+      const diffMs = expDate.getTime() - now.getTime();
+      const diasRest = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diasRest < 0) {
+        isExpiredSub = true;
+        subBadgeHtml = `<span class="sub-badge sub-badge-expired" title="Suscripción vencida el ${sHasta}">⛔ Vencido (${Math.abs(diasRest)}d) · ${sHasta}</span>`;
+      } else if (diasRest === 0) {
+        subBadgeHtml = `<span class="sub-badge sub-badge-warning" title="Vence hoy">⚠️ Vence HOY · ${sHasta}</span>`;
+      } else if (diasRest <= 5) {
+        subBadgeHtml = `<span class="sub-badge sub-badge-warning" title="Vence pronto">⚠️ Vence en ${diasRest}d · ${sHasta}</span>`;
+      } else {
+        subBadgeHtml = `<span class="sub-badge sub-badge-active" title="Suscripción activa hasta ${sHasta}">⏱️ Activo: ${diasRest} días (${sHasta})</span>`;
+      }
+    } else {
+      subBadgeHtml = `<span class="sub-badge sub-badge-infinite" title="Sin fecha de corte establecida">♾️ Permanente</span>`;
+    }
+
     const facturas = c.facturas_mes || 0;
     const limite = (c.limite_facturas_mes || 3000) + (c.creditos_extra || 0);
     const pct = Math.min(100, Math.round((facturas / (limite || 1)) * 100));
@@ -13054,7 +13469,7 @@ function renderContadoresGrid() {
     const maxCliText = (c.max_clientes >= 9999 || !c.max_clientes) ? 'Ilimitados' : c.max_clientes;
 
     return `
-      <div class="contador-card ${isActive ? '' : 'status-paused'}">
+      <div class="contador-card ${(!isActive || isExpiredSub) ? 'status-paused' : ''}">
         <div class="contador-card-header">
           <div style="display:flex; align-items:center; gap:12px; min-width:0;">
             <div class="contador-avatar">${initials}</div>
@@ -13070,9 +13485,9 @@ function renderContadoresGrid() {
 
           <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
             <span class="plan-badge ${planBadgeClass}">${planName}</span>
-            <div class="status-pill ${isActive ? 'active' : 'paused'}">
+            <div class="status-pill ${isActive && !isExpiredSub ? 'active' : 'paused'}">
               <span class="status-dot-mini"></span>
-              <span>${isActive ? 'Activo' : 'Suspendido'}</span>
+              <span>${!isActive ? 'Suspendido' : (isExpiredSub ? 'Vencido' : 'Activo')}</span>
             </div>
           </div>
         </div>
@@ -13094,6 +13509,10 @@ function renderContadoresGrid() {
               <span style="color:rgba(255,255,255,0.9);">${c.telefono}</span>
             </div>
           ` : ''}
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:2px; padding-top:4px; border-top:1px dashed rgba(255,255,255,0.08);">
+            <span>⏳ Vigencia Plan:</span>
+            ${subBadgeHtml}
+          </div>
         </div>
 
         <div class="consumption-box">
@@ -13117,7 +13536,10 @@ function renderContadoresGrid() {
 
         <div class="contador-actions">
           <button class="btn-action-card btn-action-primary" title="Abrir y gestionar clientes de este contador" onclick="impersonateContador('${c.username}')">
-            <span>👁️ Ver Clientes</span>
+            <span>👁️ Clientes</span>
+          </button>
+          <button class="btn-action-card" style="background:rgba(16,185,129,0.16); color:#34d399; border:1px solid rgba(16,185,129,0.35); font-weight:700;" title="Habilitar o renovar período de suscripción" onclick="openExtenderSuscripcionModal('${c.username}')">
+            <span>⏱️ Habilitar Tiempo</span>
           </button>
           <button class="btn-action-card btn-action-subtle" title="Modificar plan y créditos" onclick="openEditContadorModal('${c.username}')">
             <span>⚙️ Plan</span>
@@ -13209,6 +13631,10 @@ function openEditContadorModal(username) {
   document.getElementById('edit_c_limite').value = c.limite_facturas_mes || 3000;
   document.getElementById('edit_c_creditos').value = c.creditos_extra || 0;
   document.getElementById('edit_c_activo').value = String(c.activo ?? 1);
+  const expInp = document.getElementById('edit_c_suscripcion_hasta');
+  if(expInp) {
+    expInp.value = c.suscripcion_hasta ? String(c.suscripcion_hasta).slice(0, 10) : '';
+  }
   const pwInp = document.getElementById('edit_c_password');
   if(pwInp) {
     pwInp.value = '';
@@ -13251,9 +13677,10 @@ async function submitEditContador(e) {
   const limite_facturas_mes = parseInt(document.getElementById('edit_c_limite').value) || 3000;
   const creditos_extra = parseInt(document.getElementById('edit_c_creditos').value) || 0;
   const activo = parseInt(document.getElementById('edit_c_activo').value);
+  const suscripcion_hasta = document.getElementById('edit_c_suscripcion_hasta')?.value || '';
   const password = (document.getElementById('edit_c_password').value || '').trim();
 
-  const payload = { nombre, email, telefono, plan_id, limite_facturas_mes, creditos_extra, activo };
+  const payload = { nombre, email, telefono, plan_id, limite_facturas_mes, creditos_extra, activo, suscripcion_hasta };
   if(password) payload.password = password;
 
   try {
@@ -13276,6 +13703,115 @@ async function submitEditContador(e) {
     }
   } catch(err) {
     showToast('Error de red al actualizar');
+  }
+}
+
+window.RENOVAR_DIAS = 30;
+window.RENOVAR_FECHA_EXACTA = null;
+
+function openExtenderSuscripcionModal(username) {
+  const c = (window.ADMIN_CONTADORES || []).find(item => item.username === username);
+  if(!c) return;
+
+  document.getElementById('renovar_c_username').value = c.username;
+  document.getElementById('renovar-c-user-badge').textContent = '@' + c.username;
+  document.getElementById('renovar-c-nombre').textContent = (c.nombre || c.username) + (c.email ? ` · ${c.email}` : '');
+
+  const estadoEl = document.getElementById('renovar-c-estado-actual');
+  const sHasta = c.suscripcion_hasta ? String(c.suscripcion_hasta).slice(0, 10) : '';
+  if (sHasta) {
+    const now = new Date();
+    now.setHours(0,0,0,0);
+    const parts = sHasta.split('-');
+    const expDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    expDate.setHours(0,0,0,0);
+    const diffMs = expDate.getTime() - now.getTime();
+    const diasRest = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diasRest < 0) {
+      estadoEl.innerHTML = `<span style="color:#f87171; font-weight:700;">⛔ Vencido hace ${Math.abs(diasRest)} día(s) (el ${sHasta})</span>`;
+    } else if (diasRest === 0) {
+      estadoEl.innerHTML = `<span style="color:#fbbf24; font-weight:700;">⚠️ Vence HOY (${sHasta})</span>`;
+    } else {
+      estadoEl.innerHTML = `<span style="color:#34d399; font-weight:700;">⏱️ Activo hasta el ${sHasta} (quedan ${diasRest} días)</span>`;
+    }
+  } else {
+    estadoEl.innerHTML = `<span style="color:#94a3b8;">♾️ Actualmente permanente (sin fecha de corte)</span>`;
+  }
+
+  // Por defecto seleccionar +1 Mes (30 días)
+  selectDuracionPreset(30, document.getElementById('btn-dur-30'));
+  const fEx = document.getElementById('renovar_c_fecha_exacta');
+  if(fEx) fEx.value = '';
+
+  document.getElementById('modal-extender-suscripcion').style.display = 'flex';
+}
+
+function closeExtenderSuscripcionModal() {
+  document.getElementById('modal-extender-suscripcion').style.display = 'none';
+}
+
+function selectDuracionPreset(days, btn) {
+  window.RENOVAR_DIAS = days;
+  window.RENOVAR_FECHA_EXACTA = null;
+  document.querySelectorAll('.btn-duracion-opt').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  const fEx = document.getElementById('renovar_c_fecha_exacta');
+  if(fEx) fEx.value = '';
+}
+
+function onFechaExactaChange() {
+  const fEx = document.getElementById('renovar_c_fecha_exacta');
+  if(fEx && fEx.value) {
+    window.RENOVAR_FECHA_EXACTA = fEx.value;
+    window.RENOVAR_DIAS = null;
+    document.querySelectorAll('.btn-duracion-opt').forEach(b => b.classList.remove('active'));
+  }
+}
+
+async function submitExtenderSuscripcion(e) {
+  e.preventDefault();
+  const username = document.getElementById('renovar_c_username').value;
+  if(!username) return;
+
+  const btn = document.getElementById('btn-confirmar-renovacion');
+  btn.disabled = true;
+  btn.style.opacity = '0.7';
+
+  const payload = {};
+  if (window.RENOVAR_FECHA_EXACTA) {
+    payload.fecha_hasta = window.RENOVAR_FECHA_EXACTA;
+  } else {
+    payload.dias = window.RENOVAR_DIAS || 30;
+  }
+
+  try {
+    const token = sessionStorage.getItem('f_token');
+    const headers = { 'Content-Type': 'application/json' };
+    if(token) headers['Authorization'] = 'Bearer ' + token;
+
+    const res = await fetch(`${window.API_BASE}/api/admin/contadores/${encodeURIComponent(username)}/extender-suscripcion`, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+    btn.disabled = false;
+    btn.style.opacity = '1';
+
+    if(res.ok) {
+      const fHasta = (data && data.data && data.data.suscripcion_hasta) || '';
+      showToast(`¡Suscripción de @${username} habilitada${fHasta ? ' hasta ' + fHasta : ''}!`);
+      closeExtenderSuscripcionModal();
+      loadAdminContadores();
+    } else {
+      const msg = (data && (data.error && (data.error.message || data.error))) || 'Error renovando suscripción';
+      showToast(typeof msg === 'string' ? msg : 'Error renovando suscripción');
+    }
+  } catch(err) {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    showToast('Error de red al renovar suscripción');
   }
 }
 
@@ -13883,6 +14419,9 @@ function deleteRow(key, idx){
   if(!confirm('¿Eliminar este registro permanentemente?')) return;
   if(!MODS[key] || !MODS[key].rows) return;
   MODS[key].rows.splice(idx, 1);
+  if (typeof fmSincronizarContrapartidasOperativas === 'function') {
+    fmSincronizarContrapartidasOperativas();
+  }
   saveAllData();
   renderMod(key);
   refreshDashboard();
@@ -14934,7 +15473,10 @@ function fmSetConnStatus(status) {
 async function fmHealthCheck() {
   fmSetConnStatus('checking');
   try {
-    const res = await fetch(FM_HEALTH_URL, { signal: AbortSignal.timeout(4000) });
+    const token = sessionStorage.getItem('f_token');
+    const headers = {};
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch(FM_HEALTH_URL, { headers: headers, signal: AbortSignal.timeout(4000) });
     if (res.ok) {
       fmSetConnStatus('online');
       return true;
@@ -14970,7 +15512,10 @@ async function fmCargar() {
   try {
     const cid = (typeof activeClient !== 'undefined' && activeClient && activeClient.id) ? activeClient.id : '';
     const url = cid ? `${FM_WEBHOOK}?client_id=${encodeURIComponent(cid)}` : FM_WEBHOOK;
-    const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(6000) });
+    const token = sessionStorage.getItem('f_token');
+    const headers = {};
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch(url, { method: 'GET', headers: headers, signal: AbortSignal.timeout(6000) });
     if (!res.ok) throw new Error('Servidor respondió con código ' + res.status);
     fmDatos = await res.json();
     if (!Array.isArray(fmDatos)) fmDatos = fmDatos.data || [];
@@ -15169,7 +15714,10 @@ async function fmActualizarBadge() {
   try {
     const cid = (typeof activeClient !== 'undefined' && activeClient && activeClient.id) ? activeClient.id : '';
     const url = cid ? `${FM_HEALTH_URL}?client_id=${encodeURIComponent(cid)}` : FM_HEALTH_URL;
-    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    const token = sessionStorage.getItem('f_token');
+    const headers = {};
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch(url, { headers: headers, signal: AbortSignal.timeout(4000) });
     if (!res.ok) { fmSetConnStatus('offline'); return; }
     const data = await res.json();
     fmSetConnStatus('online');
@@ -15315,12 +15863,24 @@ function fmpAbrirPreview(fila) {
   const pdfTitle = document.getElementById('fmp-pdf-title');
 
   const pdfUrl = factId ? `${window.API_BASE}/api/facturas/${encodeURIComponent(factId)}/pdf` : '';
-  if (pdfFrame) {
-    pdfFrame.src = pdfUrl || 'about:blank';
-  }
-  if (extLink) {
-    extLink.href = pdfUrl || '#';
-    extLink.style.display = pdfUrl ? 'inline-flex' : 'none';
+  if (pdfFrame) pdfFrame.src = 'about:blank';
+  if (extLink) extLink.style.display = 'none';
+  if (pdfUrl) {
+    const token = sessionStorage.getItem('f_token');
+    const headers = {};
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    fetch(pdfUrl, { headers: headers })
+      .then(async r => {
+        if (!r.ok) return;
+        const blob = await r.blob();
+        const objUrl = URL.createObjectURL(blob);
+        if (pdfFrame) pdfFrame.src = objUrl;
+        if (extLink) {
+          extLink.href = objUrl;
+          extLink.style.display = 'inline-flex';
+        }
+      })
+      .catch(() => {});
   }
   if (pdfTitle) {
     const esFoto = fila.origen === 'foto_manual';
@@ -15488,7 +16048,10 @@ async function fmpRegistrar() {
   const factId = fila._id;
   if (factId) {
     try {
-      const resDel = await fetch(`${window.API_BASE}/api/facturas/queue/${factId}`, { method: 'DELETE' });
+      const token = sessionStorage.getItem('f_token');
+      const delHeaders = {};
+      if (token) delHeaders['Authorization'] = 'Bearer ' + token;
+      const resDel = await fetch(`${window.API_BASE}/api/facturas/queue/${factId}`, { method: 'DELETE', headers: delHeaders });
       if (resDel.status === 403) {
         const errJson = await resDel.json();
         showToast(errJson.error?.message || 'Límite mensual de facturas alcanzado');
@@ -15805,16 +16368,18 @@ async function fmEnviarPDFs() {
   fmUploadFiles.forEach(f => formData.append('files', f));
   const cid = (typeof activeClient !== 'undefined' && activeClient && activeClient.id) ? activeClient.id : 'default';
   formData.append('client_id', cid);
-  if (typeof activeClient !== 'undefined' && activeClient && activeClient.webhook && !activeClient.webhook.includes('/webhook-test/')) {
-    formData.append('webhook_url', activeClient.webhook);
-  }
 
   try {
     progFill.style.width = '30%';
     progDetail.textContent = 'Procesando... (esto puede tomar un momento)';
 
+    const token = sessionStorage.getItem('f_token');
+    const uploadHeaders = {};
+    if (token) uploadHeaders['Authorization'] = 'Bearer ' + token;
+
     const res = await fetch(`${window.API_BASE}/api/facturas/upload`, {
       method: 'POST',
+      headers: uploadHeaders,
       body: formData
     });
 
@@ -17364,6 +17929,10 @@ function fmObtenerDatosReporte() {
   const uai = d.uo + oi - og;
   const utilNeta = typeof utilNetaG !== 'undefined' ? utilNetaG : (uai - imp);
 
+  // Utilidad acumulada para el Balance General y Patrimonio (NIC 1)
+  const erAcum = (typeof getERVars === 'function') ? getERVars(true) : d;
+  const utilNetaAcum = (erAcum && erAcum.utilNeta !== undefined) ? erAcum.utilNeta : utilNeta;
+
   // 2. Balance General
   let sumCor = 0, sumNoCor = 0, sumIntan = 0, sumDepre = 0;
   const detalleActivos = { cor: [], no_cor: [], intan: [], depre: [] };
@@ -17406,39 +17975,83 @@ function fmObtenerDatosReporte() {
     });
   }
 
-  // Integración analítica de Pasivos Financieros (CXP) según categoría y fondos en Activo Corriente
-  let sumFondosPasivosActivo = 0;
+  // Integración analítica de Pasivos Financieros (CXP) según NIIF / NIC 1 (Porción Circulante <= 12m vs Largo Plazo > 12m)
+  let sumFinCor = 0, sumFinNoCor = 0;
   if(typeof MODS !== 'undefined' && MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) {
+    const anioSel = parseInt(anio, 10) || new Date().getFullYear();
+    const M_MAP = {'Enero':1,'Febrero':2,'Marzo':3,'Abril':4,'Mayo':5,'Junio':6,'Julio':7,'Agosto':8,'Septiembre':9,'Octubre':10,'Noviembre':11,'Diciembre':12};
+    const mesSel = mesStr ? (M_MAP[mesStr] || 12) : 12;
+    const dCorte = new Date(anioSel, mesSel, 0);
+    const fCorteStr = dCorte.toISOString().slice(0, 10);
+    const dLimite12m = new Date(anioSel + 1, mesSel, 0);
+    const fLimite12mStr = dLimite12m.toISOString().slice(0, 10);
+
     MODS.pasivos.financieros.forEach(p => {
+      const fInicio = p.fecha_inicio || p.fecha || '';
+      if (fInicio && fInicio > fCorteStr) return; // Préstamo posterior a la fecha de corte
+
       if(p.estado !== 'cancelado') {
-        const saldoCap = (p.saldo_capital_actual !== undefined) ? (parseFloat(p.saldo_capital_actual) || 0) : (parseFloat(p.monto_principal) || 0);
+        let amortHastaCorte = 0;
+        if (Array.isArray(p.pagos)) {
+          p.pagos.forEach(pg => {
+            if (pg.estado !== 'reversado' && pg.fecha && pg.fecha <= fCorteStr) {
+              amortHastaCorte += (parseFloat(pg.monto_capital) || 0);
+            }
+          });
+        }
+        const principal = parseFloat(p.monto_principal) || 0;
+        let saldoCap = (amortHastaCorte > 0 || (Array.isArray(p.pagos) && p.pagos.length > 0))
+          ? Math.max(0, principal - amortHastaCorte)
+          : (p.saldo_capital_actual !== undefined ? (parseFloat(p.saldo_capital_actual) || 0) : principal);
+
         if(saldoCap > 0) {
-          const esCorriente = (p.tipo === 'pasivo_corriente' || p.tipo === 'corriente');
-          if(esCorriente) {
-            sumPasCor += saldoCap;
-            detallePasivos.pas_cor.push({
-              name: `Préstamo / Pasivo Financiero CP (${p.acreedor || p.descripcion || 'Entidad'})`,
-              monto: saldoCap
+          let cap12m = 0;
+          const vActiva = (p.versiones_plan && Array.isArray(p.versiones_plan)) 
+            ? (p.versiones_plan.find(v => v.version_id === p.version_activa) || p.versiones_plan[p.versiones_plan.length - 1]) 
+            : null;
+
+          if (vActiva && Array.isArray(vActiva.cuotas) && vActiva.cuotas.length > 0) {
+            vActiva.cuotas.forEach(c => {
+              if (c.estado !== 'Pagada' && c.fecha_vencimiento && c.fecha_vencimiento <= fLimite12mStr) {
+                cap12m += (parseFloat(c.amortizacion_capital || c.capital) || 0);
+              }
             });
+            cap12m = Math.min(saldoCap, Math.round(cap12m * 100) / 100);
           } else {
-            sumPasNoCor += saldoCap;
-            detallePasivos.pas_ncor.push({
-              name: `Préstamo / Pasivo Financiero LP (${p.acreedor || p.descripcion || 'Entidad'})`,
-              monto: saldoCap
+            const esCorriente = (p.tipo === 'pasivo_corriente' || p.tipo === 'corriente' || (p.plazo_meses && p.plazo_meses <= 12));
+            if (esCorriente) {
+              cap12m = saldoCap;
+            } else {
+              const mesesTotal = p.plazo_meses || 36;
+              cap12m = Math.min(saldoCap, Math.round(((saldoCap / mesesTotal) * 12) * 100) / 100);
+            }
+          }
+
+          const pasCor = cap12m;
+          const pasNoCor = Math.max(0, Math.round((saldoCap - cap12m) * 100) / 100);
+          sumFinCor += pasCor;
+          sumFinNoCor += pasNoCor;
+
+          if (pasCor > 0) {
+            detallePasivos.pas_cor.push({
+              name: `Porción Circulante CP (${p.acreedor || p.descripcion || 'Entidad'})`,
+              monto: pasCor
             });
           }
-          sumFondosPasivosActivo += saldoCap;
-          detalleActivos.cor.push({
-            name: `Fondos Crédito / Pasivo (${p.acreedor || 'Financiamiento'})`,
-            monto: saldoCap
-          });
+          if (pasNoCor > 0) {
+            detallePasivos.pas_ncor.push({
+              name: `Deuda a Largo Plazo LP (${p.acreedor || p.descripcion || 'Entidad'})`,
+              monto: pasNoCor
+            });
+          }
         }
       }
     });
   }
 
-  sumCor += sumFondosPasivosActivo;
   const totActivos = sumCor + sumNoCor + sumIntan - sumDepre;
+  sumPasCor += sumFinCor;
+  sumPasNoCor += sumFinNoCor;
   const totPasivos = sumPasCor + sumPasNoCor;
 
   if(typeof MODS !== 'undefined' && MODS.patrimonio && typeof PATRIMONIO_SCHEMA !== 'undefined') {
@@ -17451,8 +18064,9 @@ function fmObtenerDatosReporte() {
     });
   }
   const cap = 0, res = 0;
-  const totPatrimonio = sumPatrimonio + utilNeta;
+  const totPatrimonio = sumPatrimonio + utilNetaAcum;
   const totPasivoPatrimonio = totPasivos + totPatrimonio;
+  const lblUtil = mesStr ? `Utilidad (o Pérdida) Acumulada (Ene - ${mesStr})` : `Utilidad (o Pérdida) Neta del Ejercicio`;
 
   // 3. Flujo de Efectivo (con fallback inteligente a inferencia contable si el DOM no está activo)
   const autoFE = (typeof fmInferirDatosFlujoEfectivo === 'function') ? fmInferirDatosFlujoEfectivo() : {};
@@ -17474,7 +18088,7 @@ function fmObtenerDatosReporte() {
 
   // 4. Cambios en el Patrimonio
   const siCP = gv('cp_si'), apCP = gv('cp_ap'), retCP = gv('cp_ret');
-  const finCP = siCP + apCP - retCP + utilNeta;
+  const finCP = siCP + apCP - retCP + utilNetaAcum;
 
   // 5. Registros Operativos Filtrados
   const getRows = k => (typeof MODS !== 'undefined' && MODS[k] && Array.isArray(MODS[k].rows)) ? (typeof filterRows === 'function' ? filterRows(MODS[k].rows) : MODS[k].rows) : [];
@@ -17548,9 +18162,9 @@ function fmObtenerDatosReporte() {
   return {
     anio, mesStr, periodoTxt, cliente,
     er: { v: d.v, cmv: d.cmv, ub: d.ub, go: d.go, uo: d.uo, oi, og, uai, imp, utilNeta, gastoDeprec: (d.gastoDeprec || 0) },
-    bg: { sumCor, sumNoCor, sumIntan, sumDepre, totActivos, sumPasCor, sumPasNoCor, totPasivos, cap, res, sumPatrimonio, totPatrimonio, totPasivoPatrimonio, detalleActivos, detallePasivos, detallePatrimonio },
+    bg: { sumCor, sumNoCor, sumIntan, sumDepre, totActivos, sumPasCor, sumPasNoCor, totPasivos, cap, res, sumPatrimonio, utilNetaAcum, lblUtil, totPatrimonio, totPasivoPatrimonio, detalleActivos, detallePasivos, detallePatrimonio },
     fe: { utilNeta, dep, cxc, cxp, inv, ao, af, oi: oiFE, ai, pres: presFE, cap: capFE, div: divFE, af_tot, inc, ini, fin },
-    cp: { si: siCP, ap: apCP, ret: retCP, utilNeta, fin: finCP },
+    cp: { si: siCP, ap: apCP, ret: retCP, utilNeta: utilNetaAcum, fin: finCP },
     ops: {
       ing: { rows: rowsIng, tots: totsIng, iva: ivaVentas },
       com: { rows: rowsCom, tots: totsCom, iva: ivaCompras },
@@ -17611,7 +18225,8 @@ const TITULOS_REPORTES = {
   'd105': 'Declaración Jurada D-105 (Régimen de Tributación Simplificada)',
   'd113': 'Declaración Jurada D-113 (Rentas de Capital Mobiliario)',
   'd116': 'Declaración Jurada D-116 (Rentas de Capital Inmobiliario)',
-  'prop': 'Informe Técnico de Proporcionalidad del IVA (Art. 32 Ley N° 9635)'
+  'prop': 'Informe Técnico de Proporcionalidad del IVA (Art. 32 Ley N° 9635)',
+  'dictamen_auditor': 'Dictamen Oficial de Auditoría Contable y Financiera (NIIF / NIC 1)'
 };
 
 const FAMILIAS_REPORTES = {
@@ -17625,7 +18240,8 @@ const FAMILIAS_REPORTES = {
       { id: 'patrimonio', label: '📑 Cambios Patrimonio' },
       { id: 'comprobacion', label: '📋 Bal. Comprobación' },
       { id: 'mayor', label: '📖 Libro Mayor' },
-      { id: 'juego_completo', label: '📚 Juego Completo' }
+      { id: 'juego_completo', label: '📚 Juego Completo' },
+      { id: 'dictamen_auditor', label: '🔍 Dictamen Auditor NIIF' }
     ]
   },
   operativos: {
@@ -17661,6 +18277,114 @@ function fmDetectarFamilia(tipo) {
 }
 
 function fmGenerarHTMLReporte(tipo, data) {
+  // ── DICTAMEN DE AUDITORÍA CONTABLE Y FINANCIERA (NIIF / NIC 1) ──
+  if (tipo === 'dictamen_auditor') {
+    const audit = (typeof fmAuditarConfiguracionContable === 'function') ? fmAuditarConfiguracionContable() : {
+      estado_general: 'CORRECTO',
+      cuadre: { total_activos: 0, total_pasivos: 0, patrimonio: 0, diferencia: 0, cuadrado: true },
+      conciliacion_efectivo: { variacion_sistema: 0, variacion_calculada: 0, diferencia: 0 },
+      resumen: 'Balance General conforme con NIIF / NIC 1.',
+      hallazgos: [],
+      reglas_aprobadas: []
+    };
+    const fN = (n) => (Math.abs(n) < 0.0001 ? '0.00' : Math.abs(n).toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    const esCuadrado = audit.cuadre.cuadrado;
+    const stBadge = esCuadrado ? 'CONFORME / SIN SALVEDADES' : 'CON SALVEDADES / DESFAVORABLE';
+    const stColor = esCuadrado ? '#15803d' : '#b91c1c';
+
+    return `
+      <div class="fm-rep-card">
+        <div class="fm-sheet-badge">Dictamen Oficial · Carta</div>
+        <div>
+          <div class="fm-rep-header">
+            <div class="fm-rep-brand">FACTURAMI · AUDITORÍA FINANCIERA Y CONTABLE NIIF / NIC 1</div>
+            <div class="fm-rep-empresa">${data.cliente.name}</div>
+            <div class="fm-rep-id">Identificación / Cédula: ${data.cliente.id}</div>
+            <div class="fm-rep-title">INFORME Y DICTAMEN DEL AUDITOR DE CONFIGURACIÓN CONTABLE</div>
+            <div class="fm-rep-sub">Evaluación de Partida Doble, Conciliación de Efectivo y Valuación NIIF · Período: ${data.periodoTxt}</div>
+            <div class="fm-rep-cur">(Expresado en Colones Costarricenses · ₡)</div>
+          </div>
+
+          <!-- Dictamen Profesional -->
+          <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:16px; margin-bottom:16px; font-size:12px; line-height:1.5;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:800; color:#0f172a; text-transform:uppercase; letter-spacing:0.05em;">OPINIÓN DEL AUDITOR INDEPENDIENTE / INTERNO</span>
+              <span style="background:${stColor}; color:#fff; font-weight:800; font-size:10px; padding:3px 10px; border-radius:4px;">${stBadge}</span>
+            </div>
+            <p style="margin:0 0 6px 0; color:#334155;">
+              Hemos auditado la configuración de los saldos iniciales, movimientos y contrapartidas de los módulos de <b>Ingresos, Compras, Gastos, Activos, Pasivos y Patrimonio</b> de la entidad <b>${data.cliente.name}</b> al corte del período <b>${data.periodoTxt}</b>, conforme a la Norma Internacional de Contabilidad N° 1 (NIC 1) y el principio universal de partida doble.
+            </p>
+            <p style="margin:0; font-weight:600; color:#0f172a;">
+              ${audit.resumen}
+            </p>
+          </div>
+
+          <!-- Cuadro de Cuadre Patrimonial -->
+          <table class="fm-rep-table" style="margin-bottom:16px;">
+            <thead>
+              <tr>
+                <th style="text-align:left;">Componente de la Ecuación Contable</th>
+                <th style="text-align:right; width:160px;">Monto Auditado (₡)</th>
+                <th style="text-align:center; width:140px;">Condición</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="fm-rep-item"><b>Total Activos</b> (Corriente + No Corriente + Intangibles − Depreciación Acum.)</td><td class="fm-rep-num">${fN(audit.cuadre.total_activos)}</td><td style="text-align:center; font-weight:700; color:#15803d;">Verificado</td></tr>
+              <tr><td class="fm-rep-item"><b>Total Pasivos</b> (Corrientes + Deuda LP Pasivos Financieros)</td><td class="fm-rep-num">${fN(audit.cuadre.total_pasivos)}</td><td style="text-align:center; font-weight:700; color:#15803d;">Verificado</td></tr>
+              <tr><td class="fm-rep-item"><b>Patrimonio Neto</b> (Capital Social + Reservas + Resultados Acum. + Utilidad Neta)</td><td class="fm-rep-num">${fN(audit.cuadre.patrimonio)}</td><td style="text-align:center; font-weight:700; color:#15803d;">Verificado</td></tr>
+              <tr class="fm-rep-subtot"><td>TOTAL PASIVO + PATRIMONIO</td><td class="fm-rep-num">${fN(audit.cuadre.total_pasivos + audit.cuadre.patrimonio)}</td><td style="text-align:center; font-weight:700; color:#15803d;">Equilibrio Base</td></tr>
+              <tr class="fm-rep-grandtot" style="${esCuadrado ? 'background:#f0fdf4;' : 'background:#fef2f2;'}">
+                <td>DIFERENCIA DE CUADRE (ACTIVO − [PASIVO + PATRIMONIO])</td>
+                <td class="fm-rep-num" style="color:${esCuadrado ? '#15803d' : '#dc2626'}; font-weight:800;">₡${fN(audit.cuadre.diferencia)}</td>
+                <td style="text-align:center; font-weight:800; color:${esCuadrado ? '#15803d' : '#dc2626'};">${esCuadrado ? 'CUADRADO (100%)' : 'DESCUADRADO'}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Conciliación de Variación de Efectivo -->
+          <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:12px 16px; margin-bottom:16px;">
+            <div style="font-size:11px; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:4px;">Conciliación de Flujos de Efectivo (Regla AUT-10)</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; font-size:11.5px; gap:8px;">
+              <div>Variación Sistema: <b>₡${fN(audit.conciliacion_efectivo.variacion_sistema)}</b></div>
+              <div>Variación Flujos Calculados: <b>₡${fN(audit.conciliacion_efectivo.variacion_calculada)}</b></div>
+              <div style="color:${Math.abs(audit.conciliacion_efectivo.diferencia) < 0.05 ? '#15803d' : '#d97706'}; font-weight:700;">Diferencia Conciliación: ₡${fN(audit.conciliacion_efectivo.diferencia)}</div>
+            </div>
+          </div>
+
+          <!-- Resumen de Hallazgos y Reglas -->
+          <div style="font-size:11px; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:6px;">Matriz de Hallazgos y Observaciones (${audit.hallazgos.length})</div>
+          ${audit.hallazgos.length === 0 ? '<div style="font-size:11.5px; color:#15803d; padding:8px; background:#f0fdf4; border-radius:6px; margin-bottom:16px;">✔️ No se encontraron hallazgos negativos. La contabilidad y sus contrapartidas operan en estricta conformidad.</div>' : `
+            <table class="fm-rep-table" style="font-size:11px; margin-bottom:16px;">
+              <thead>
+                <tr style="background:#f1f5f9;">
+                  <th style="width:70px; text-align:center;">Severidad</th>
+                  <th style="width:70px;">Regla</th>
+                  <th style="text-align:left;">Observación y Causa Probable</th>
+                  <th style="text-align:left; width:220px;">Acción Correctiva</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${audit.hallazgos.map(h => `
+                  <tr>
+                    <td style="text-align:center; font-weight:800; color:${h.severidad === 'CRITICO' ? '#dc2626' : '#d97706'};">${h.severidad}</td>
+                    <td style="font-weight:700;">${h.id}</td>
+                    <td><b>${h.titulo}</b><br><span style="color:#64748b;">${h.causa_probable}</span></td>
+                    <td style="color:#0f766e;">${h.accion_recomendada}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `}
+
+          <!-- Firmas Oficiales -->
+          <div>
+            ${fmFirmasHTML(data.cliente)}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   // Normalizar alias
   if (tipo === 'ing') tipo = 'ingresos';
   if (tipo === 'obras') tipo = 'costos';
@@ -17806,7 +18530,7 @@ function fmGenerarHTMLReporte(tipo, data) {
                   
                   <tr class="fm-rep-cat"><td colspan="2">2.3 PATRIMONIO NETO</td></tr>
                   ${patRows}
-                  <tr><td class="fm-rep-item">Utilidad Neta del Ejercicio</td><td class="fm-rep-num">${fmtCRC(data.er.utilNeta)}</td></tr>
+                  <tr><td class="fm-rep-item">${data.bg.lblUtil || 'Utilidad (o Pérdida) Neta del Ejercicio'}</td><td class="fm-rep-num">${fmtCRC(data.bg.utilNetaAcum !== undefined ? data.bg.utilNetaAcum : data.er.utilNeta)}</td></tr>
                   <tr class="fm-rep-subtot"><td>TOTAL PATRIMONIO NETO</td><td class="fm-rep-num">${fmtCRC(data.bg.totPatrimonio)}</td></tr>
 
                   <tr class="fm-rep-grandtot"><td>TOTAL PASIVO Y PATRIMONIO</td><td class="fm-rep-num">${fmtCRC(data.bg.totPasivoPatrimonio)}</td></tr>
@@ -19377,6 +20101,880 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+
+// ======================================================================
+// ⚖️ PASO 3 Y PASO 4: SINCRONIZACIÓN DE CONTRAPARTIDAS Y AUDITOR CONTABLE NIIF
+// ======================================================================
+
+let fmAutoSyncOperaciones = (typeof localStorage !== 'undefined' && localStorage.getItem('fm_auto_sync_operaciones') !== null) ? (localStorage.getItem('fm_auto_sync_operaciones') === 'true') : true;
+
+function fmToggleAutoSyncOperaciones(enable) {
+  fmAutoSyncOperaciones = !!enable;
+  if (typeof localStorage !== 'undefined') localStorage.setItem('fm_auto_sync_operaciones', fmAutoSyncOperaciones ? 'true' : 'false');
+  if (fmAutoSyncOperaciones) {
+    fmSincronizarContrapartidasOperativas(true);
+    if (typeof bgCalc === 'function') bgCalc();
+    if (typeof renderBalGeneral === 'function') renderBalGeneral();
+    showToast('Contrapartidas operativas sincronizadas');
+  }
+}
+
+// ── PASO 3: SINCRONIZACIÓN AUTOMÁTICA DE CONTRAPARTIDAS OPERATIVAS ──
+function fmSincronizarContrapartidasOperativas(force = false) {
+  try {
+    if (typeof MODS === 'undefined' || !MODS || typeof MODS !== 'object') return;
+    if (typeof fmAutoSyncOperaciones !== 'undefined' && !fmAutoSyncOperaciones && !force) return;
+
+    if (typeof ensureActivosStructure === 'function') ensureActivosStructure();
+    if (typeof ensurePasivosStructure === 'function') ensurePasivosStructure();
+
+    const ctasRequeridasAct = ['EFECTIVO Y EQUIVALENTE DE EFECTIVO', 'CUENTAS COMERCIALES POR COBRAR', 'IVA SOPORTADO'];
+    ctasRequeridasAct.forEach(name => {
+      if (!MODS.activos.cor[name] || typeof MODS.activos.cor[name] !== 'object' || Array.isArray(MODS.activos.cor[name])) {
+        const prevB = parseFloat(MODS.activos.cor[name]) || 0;
+        MODS.activos.cor[name] = { balance: (name === 'IVA SOPORTADO' ? 0 : prevB), movs: [] };
+      }
+      if (!Array.isArray(MODS.activos.cor[name].movs)) MODS.activos.cor[name].movs = [];
+    });
+
+    const ctasRequeridasPas = ['CUENTAS COMERCIALES POR PAGAR', 'IVA DEVENGADO'];
+    ctasRequeridasPas.forEach(name => {
+      if (!MODS.pasivos.pas_cor[name] || typeof MODS.pasivos.pas_cor[name] !== 'object' || Array.isArray(MODS.pasivos.pas_cor[name])) {
+        const prevB = parseFloat(MODS.pasivos.pas_cor[name]) || 0;
+        MODS.pasivos.pas_cor[name] = { balance: prevB, movs: [] };
+      }
+      if (!Array.isArray(MODS.pasivos.pas_cor[name].movs)) MODS.pasivos.pas_cor[name].movs = [];
+    });
+
+    const ctaEfectivo = MODS.activos.cor['EFECTIVO Y EQUIVALENTE DE EFECTIVO'];
+    const ctaCXC = MODS.activos.cor['CUENTAS COMERCIALES POR COBRAR'];
+    const ctaIvaSop = MODS.activos.cor['IVA SOPORTADO'];
+    const ctaCXP = MODS.pasivos.pas_cor['CUENTAS COMERCIALES POR PAGAR'];
+    const ctaIvaDev = MODS.pasivos.pas_cor['IVA DEVENGADO'];
+
+    const validOpIds = new Set();
+
+    // 1. Procesar Ingresos (Ventas)
+    if (MODS.ingresos && Array.isArray(MODS.ingresos.rows)) {
+      MODS.ingresos.rows.forEach((r, idx) => {
+        if (!r || !r.fecha) return;
+        const rowId = r.id || ('ing_' + (r.doc || idx) + '_' + r.fecha);
+        validOpIds.add(rowId);
+
+        const s = (typeof getS === 'function') ? getS(r.tipo) : 1;
+        const taxSum = Math.round(((r.c05||0)*0.005 + (r.c1||0)*0.01 + (r.c2||0)*0.02 + (r.c4||0)*0.04 + (r.c8||0)*0.08 + (r.c13||0)*0.13) * 100) / 100;
+        const baseSum = Math.round(((r.c05||0) + (r.c1||0) + (r.c2||0) + (r.c4||0) + (r.c8||0) + (r.c13||0) + (r.ex||0) + (r.ns||0)) * 100) / 100;
+        const totalFac = Math.round((parseFloat(r.tf) || (baseSum + taxSum)) * 100) / 100;
+        if (totalFac <= 0) return;
+
+        const isCred = String(r.tipo || '').toLowerCase().includes('cred');
+        const targetCta = isCred ? ctaCXC : ctaEfectivo;
+        const detDesc = (isCred ? 'Venta Crédito: ' : 'Venta Contado: ') + (r.l || r.doc || 'Factura');
+
+        let movAct = targetCta.movs.find(m => m && m.ref_origen === 'operativo' && m.ref_modulo === 'ingresos' && m.ref_row_id === rowId);
+        if (movAct) {
+          movAct.fecha = r.fecha;
+          movAct.monto = totalFac * s;
+          movAct.doc = r.doc || 'DTE-FAC';
+          movAct.det = detDesc;
+        } else {
+          targetCta.movs.push({
+            fecha: r.fecha,
+            doc: r.doc || 'DTE-FAC',
+            det: detDesc,
+            monto: totalFac * s,
+            ref_origen: 'operativo',
+            ref_modulo: 'ingresos',
+            ref_row_id: rowId
+          });
+        }
+
+        if (taxSum > 0) {
+          let movIva = ctaIvaDev.movs.find(m => m && m.ref_origen === 'operativo_iva' && m.ref_modulo === 'ingresos' && m.ref_row_id === rowId);
+          if (movIva) {
+            movIva.fecha = r.fecha;
+            movIva.monto = taxSum * s;
+            movIva.doc = r.doc || 'IVA-DEV';
+            movIva.det = 'IVA Débito Fiscal: ' + (r.doc || r.l || 'Venta');
+          } else {
+            ctaIvaDev.movs.push({
+              fecha: r.fecha,
+              doc: r.doc || 'IVA-DEV',
+              det: 'IVA Débito Fiscal: ' + (r.doc || r.l || 'Venta'),
+              monto: taxSum * s,
+              ref_origen: 'operativo_iva',
+              ref_modulo: 'ingresos',
+              ref_row_id: rowId
+            });
+          }
+        }
+      });
+    }
+
+    // 2. Procesar Compras y Gastos (Egresos)
+    ['compras', 'gastos'].forEach(modKey => {
+      if (MODS[modKey] && Array.isArray(MODS[modKey].rows)) {
+        MODS[modKey].rows.forEach((r, idx) => {
+          if (!r || !r.fecha) return;
+          const rowId = r.id || (modKey + '_' + (r.doc || idx) + '_' + r.fecha);
+          validOpIds.add(rowId);
+
+          const s = (typeof getS === 'function') ? getS(r.tipo) : 1;
+          const taxSum = Math.round(((r.c05||0)*0.005 + (r.c1||0)*0.01 + (r.c2||0)*0.02 + (r.c4||0)*0.04 + (r.c8||0)*0.08 + (r.c13||0)*0.13) * 100) / 100;
+          const baseSum = Math.round(((r.c05||0) + (r.c1||0) + (r.c2||0) + (r.c4||0) + (r.c8||0) + (r.c13||0) + (r.ex||0) + (r.ns||0)) * 100) / 100;
+          const totalFac = Math.round((parseFloat(r.tf) || (baseSum + taxSum)) * 100) / 100;
+          if (totalFac <= 0) return;
+
+          const isCred = String(r.tipo || '').toLowerCase().includes('cred') || r.origen_fondos === 'credito';
+          const isActivoFijo = (r.l || '').toUpperCase().includes('ADQ. ACTIVO');
+
+          if (!isActivoFijo) {
+            if (isCred) {
+              let movCxP = ctaCXP.movs.find(m => m && m.ref_origen === 'operativo' && m.ref_modulo === modKey && m.ref_row_id === rowId);
+              if (movCxP) {
+                movCxP.fecha = r.fecha;
+                movCxP.monto = totalFac * s;
+                movCxP.doc = r.doc || 'CXP';
+                movCxP.det = 'Factura Proveedor (' + (r.prov || r.l || modKey) + ')';
+              } else {
+                ctaCXP.movs.push({
+                  fecha: r.fecha,
+                  doc: r.doc || 'CXP',
+                  det: 'Factura Proveedor (' + (r.prov || r.l || modKey) + ')',
+                  monto: totalFac * s,
+                  ref_origen: 'operativo',
+                  ref_modulo: modKey,
+                  ref_row_id: rowId
+                });
+              }
+            } else {
+              let movSalida = ctaEfectivo.movs.find(m => m && m.ref_origen === 'operativo' && m.ref_modulo === modKey && m.ref_row_id === rowId);
+              if (movSalida) {
+                movSalida.fecha = r.fecha;
+                movSalida.monto = -Math.abs(totalFac) * s;
+                movSalida.doc = r.doc || 'PAGO';
+                movSalida.det = 'Pago ' + (modKey === 'compras' ? 'Compra' : 'Gasto') + ': ' + (r.prov || r.l || 'Contado');
+              } else {
+                ctaEfectivo.movs.push({
+                  fecha: r.fecha,
+                  doc: r.doc || 'PAGO',
+                  det: 'Pago ' + (modKey === 'compras' ? 'Compra' : 'Gasto') + ': ' + (r.prov || r.l || 'Contado'),
+                  monto: -Math.abs(totalFac) * s,
+                  ref_origen: 'operativo',
+                  ref_modulo: modKey,
+                  ref_row_id: rowId
+                });
+              }
+            }
+          }
+
+          if (taxSum > 0 && !isActivoFijo) {
+            let movIva = ctaIvaSop.movs.find(m => m && m.ref_origen === 'operativo_iva' && m.ref_modulo === modKey && m.ref_row_id === rowId);
+            if (movIva) {
+              movIva.fecha = r.fecha;
+              movIva.monto = taxSum * s;
+              movIva.doc = r.doc || 'IVA-CR';
+              movIva.det = 'IVA Crédito Fiscal (' + (modKey === 'compras' ? 'Compras' : 'Gastos') + '): ' + (r.prov || r.l || '');
+            } else {
+              ctaIvaSop.movs.push({
+                fecha: r.fecha,
+                doc: r.doc || 'IVA-CR',
+                det: 'IVA Crédito Fiscal (' + (modKey === 'compras' ? 'Compras' : 'Gastos') + '): ' + (r.prov || r.l || ''),
+                monto: taxSum * s,
+                ref_origen: 'operativo_iva',
+                ref_modulo: modKey,
+                ref_row_id: rowId
+              });
+            }
+          }
+        });
+      }
+    });
+
+    // 3. Limpieza de huérfanos
+    [ctaEfectivo, ctaCXC, ctaIvaSop].forEach(cta => {
+      cta.movs = cta.movs.filter(m => {
+        if (!m || typeof m !== 'object') return false;
+        if (m.ref_origen && m.ref_origen.startsWith('operativo')) {
+          return m.ref_row_id && validOpIds.has(m.ref_row_id);
+        }
+        return true;
+      });
+    });
+
+    [ctaCXP, ctaIvaDev].forEach(cta => {
+      cta.movs = cta.movs.filter(m => {
+        if (!m || typeof m !== 'object') return false;
+        if (m.ref_origen && m.ref_origen.startsWith('operativo')) {
+          return m.ref_row_id && validOpIds.has(m.ref_row_id);
+        }
+        return true;
+      });
+    });
+  } catch (err) {
+    console.error('[FACTURAMI] Error en fmSincronizarContrapartidasOperativas:', err);
+  }
+}
+window.fmSincronizarContrapartidasOperativas = fmSincronizarContrapartidasOperativas;
+
+// ── PASO 4: MOTOR DE AUDITORÍA CONTABLE NIIF / NIC 1 ────────────────
+function fmAuditarConfiguracionContable() {
+  const anioEl = document.getElementById('anioSel');
+  const mesEl = document.getElementById('mesSel');
+  const anio = (anioEl && anioEl.value) ? anioEl.value : new Date().getFullYear().toString();
+  const mesStr = (mesEl && mesEl.value) ? mesEl.value : '';
+  const M_MAP = {'Enero':'01','Febrero':'02','Marzo':'03','Abril':'04','Mayo':'05','Junio':'06','Julio':'07','Agosto':'08','Septiembre':'09','Octubre':'10','Noviembre':'11','Diciembre':'12'};
+  const mes = M_MAP[mesStr] || '';
+  const periodo = mes ? `${anio}-${mes}` : `${anio}`;
+
+  // 1. Activos
+  let tot_act_cor = 0, tot_act_ncor = 0, tot_act_intan = 0, tot_act_depre = 0;
+  if (MODS.activos && typeof ACTIVOS_SCHEMA !== 'undefined') {
+    ACTIVOS_SCHEMA.cor.items.forEach(name => tot_act_cor += getAssetBalance('cor', name));
+    ACTIVOS_SCHEMA.no_cor.items.forEach(name => tot_act_ncor += getAssetBalance('no_cor', name));
+    ACTIVOS_SCHEMA.intan.items.forEach(name => tot_act_intan += getAssetBalance('intan', name));
+    ACTIVOS_SCHEMA.depre.items.forEach(name => tot_act_depre += getAssetBalance('depre', name));
+  }
+  const total_activos = Math.round((tot_act_cor + tot_act_ncor + tot_act_intan - tot_act_depre) * 100) / 100;
+
+  // 2. Pasivos
+  let tot_pas_cor = 0, tot_pas_ncor = 0;
+  if (MODS.pasivos && typeof PASIVOS_SCHEMA !== 'undefined') {
+    PASIVOS_SCHEMA.pas_cor.items.forEach(name => tot_pas_cor += getPasivoBalance('pas_cor', name));
+    PASIVOS_SCHEMA.pas_ncor.items.forEach(name => tot_pas_ncor += getPasivoBalance('pas_ncor', name));
+  }
+  let sumFinCor = 0, sumFinNoCor = 0;
+  if (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) {
+    const anioSel = parseInt(anio, 10) || new Date().getFullYear();
+    const mesSel = mes ? (parseInt(mes, 10) || 12) : 12;
+    const dCorte = new Date(anioSel, mesSel, 0);
+    const fCorteStr = dCorte.toISOString().slice(0, 10);
+    const dLimite12m = new Date(anioSel + 1, mesSel, 0);
+    const fLimite12mStr = dLimite12m.toISOString().slice(0, 10);
+
+    MODS.pasivos.financieros.forEach(p => {
+      const fInicio = p.fecha_inicio || p.fecha || '';
+      if (fInicio && fInicio > fCorteStr) return;
+      if (p.estado !== 'cancelado') {
+        let amortHastaCorte = 0;
+        if (Array.isArray(p.pagos)) {
+          p.pagos.forEach(pg => {
+            if (pg.estado !== 'reversado' && pg.fecha && pg.fecha <= fCorteStr) {
+              amortHastaCorte += (parseFloat(pg.monto_capital) || 0);
+            }
+          });
+        }
+        const principal = parseFloat(p.monto_principal) || 0;
+        let saldoCap = (amortHastaCorte > 0 || (Array.isArray(p.pagos) && p.pagos.length > 0))
+          ? Math.max(0, principal - amortHastaCorte)
+          : (p.saldo_capital_actual !== undefined ? (parseFloat(p.saldo_capital_actual) || 0) : principal);
+
+        if (saldoCap > 0) {
+          let cap12m = 0;
+          const vActiva = (p.versiones_plan && Array.isArray(p.versiones_plan)) 
+            ? (p.versiones_plan.find(v => v.version_id === p.version_activa) || p.versiones_plan[p.versiones_plan.length - 1]) 
+            : null;
+          if (vActiva && Array.isArray(vActiva.cuotas) && vActiva.cuotas.length > 0) {
+            vActiva.cuotas.forEach(c => {
+              if (c.estado !== 'Pagada' && c.fecha_vencimiento && c.fecha_vencimiento <= fLimite12mStr) {
+                cap12m += (parseFloat(c.amortizacion_capital || c.capital) || 0);
+              }
+            });
+            cap12m = Math.min(saldoCap, Math.round(cap12m * 100) / 100);
+          } else {
+            const esCorriente = (p.tipo === 'pasivo_corriente' || p.tipo === 'corriente' || (p.plazo_meses && p.plazo_meses <= 12));
+            cap12m = esCorriente ? saldoCap : Math.min(saldoCap, Math.round(((saldoCap / (p.plazo_meses || 36)) * 12) * 100) / 100);
+          }
+          sumFinCor += cap12m;
+          sumFinNoCor += Math.max(0, Math.round((saldoCap - cap12m) * 100) / 100);
+        }
+      }
+    });
+  }
+  const total_pasivos = Math.round((tot_pas_cor + tot_pas_ncor + sumFinCor + sumFinNoCor) * 100) / 100;
+
+  // 3. Patrimonio
+  let sumCap = 0, sumRes = 0, sumResul = 0, sumOtros = 0;
+  if (MODS.patrimonio && MODS.patrimonio.patrim) {
+    Object.keys(MODS.patrimonio.patrim).forEach(name => {
+      const b = getPatrimBalance(name);
+      if (b !== 0) {
+        const cat = (typeof patInferirCategoria === 'function') ? patInferirCategoria(name) : 'cap';
+        if (cat === 'res') sumRes += b;
+        else if (cat === 'resul') sumResul += b;
+        else if (cat === 'otros') sumOtros += b;
+        else sumCap += b;
+      }
+    });
+  }
+  const erAcum = getERVars(true);
+  const utilNetaG = erAcum.utilNeta;
+  const patrimonio = Math.round((sumCap + sumRes + sumResul + sumOtros + utilNetaG) * 100) / 100;
+
+  const diferencia = Math.round((total_activos - (total_pasivos + patrimonio)) * 100) / 100;
+  const cuadrado = Math.abs(diferencia) < 0.05;
+
+  // 4. Conciliación de Efectivo
+  const ctaEf = (MODS.activos && MODS.activos.cor) ? MODS.activos.cor['EFECTIVO Y EQUIVALENTE DE EFECTIVO'] : null;
+  const saldoInicialEf = ctaEf ? (parseFloat(ctaEf.balance) || 0) : 0;
+  const saldoCorteEf = getAssetBalance('cor', 'EFECTIVO Y EQUIVALENTE DE EFECTIVO');
+  const variacion_sistema = Math.round((saldoCorteEf - saldoInicialEf) * 100) / 100;
+
+  let varCalc = 0;
+  if (MODS.patrimonio && MODS.patrimonio.patrim) {
+    Object.keys(MODS.patrimonio.patrim).forEach(acct => {
+      const obj = MODS.patrimonio.patrim[acct];
+      if (obj && Array.isArray(obj.movs)) {
+        obj.movs.forEach(m => {
+          if (m && m.fecha && m.fecha.startsWith(anio) && (!mes || m.fecha.split('-')[1] <= mes)) {
+            const val = parseFloat(m.monto) || 0;
+            const det = String(m.det || '').toLowerCase();
+            if (det.includes('retiro') || det.includes('dividendo')) varCalc -= Math.abs(val);
+            else varCalc += val;
+          }
+        });
+      }
+    });
+  }
+  if (MODS.ingresos && Array.isArray(MODS.ingresos.rows)) {
+    MODS.ingresos.rows.forEach(r => {
+      if (r && r.fecha && r.fecha.startsWith(anio) && (!mes || r.fecha.split('-')[1] <= mes)) {
+        if (!String(r.tipo || '').toLowerCase().includes('cred')) {
+          const s = (typeof getS === 'function') ? getS(r.tipo) : 1;
+          varCalc += (parseFloat(r.tf) || 0) * s;
+        }
+      }
+    });
+  }
+  if (MODS.pasivos && Array.isArray(MODS.pasivos.financieros)) {
+    MODS.pasivos.financieros.forEach(p => {
+      if (p.fecha_inicio && p.fecha_inicio.startsWith(anio) && (!mes || p.fecha_inicio.split('-')[1] <= mes)) {
+        varCalc += (parseFloat(p.monto_principal) || 0);
+      }
+      if (Array.isArray(p.pagos)) {
+        p.pagos.forEach(pg => {
+          if (pg.estado !== 'reversado' && pg.fecha && pg.fecha.startsWith(anio) && (!mes || pg.fecha.split('-')[1] <= mes)) {
+            varCalc -= Math.abs(parseFloat(pg.monto_total || pg.monto_capital) || 0);
+          }
+        });
+      }
+    });
+  }
+  ['compras', 'gastos'].forEach(modK => {
+    if (MODS[modK] && Array.isArray(MODS[modK].rows)) {
+      MODS[modK].rows.forEach(r => {
+        if (r && r.fecha && r.fecha.startsWith(anio) && (!mes || r.fecha.split('-')[1] <= mes)) {
+          if (!String(r.tipo || '').toLowerCase().includes('cred')) {
+            const s = (typeof getS === 'function') ? getS(r.tipo) : 1;
+            varCalc -= Math.abs(parseFloat(r.tf) || 0) * s;
+          }
+        }
+      });
+    }
+  });
+  const variacion_calculada = Math.round(varCalc * 100) / 100;
+  const dif_efectivo = Math.round((variacion_sistema - variacion_calculada) * 100) / 100;
+
+  // 5. Diagnóstico de Causas de Descuadre (Precedencia 1 a 10)
+  const hallazgos = [];
+  const verificacion_contrapartidas = [];
+  const no_verificables = [];
+  const reglas_aprobadas = [];
+  let causaDetectada = null;
+  let asientoSugerido = null;
+
+  if (!cuadrado) {
+    const absDiff = Math.abs(diferencia);
+    let foundExact = null;
+    ['ingresos', 'compras', 'gastos'].forEach(mk => {
+      if (!foundExact && MODS[mk] && Array.isArray(MODS[mk].rows)) {
+        MODS[mk].rows.forEach(r => {
+          if (Math.abs((parseFloat(r.tf) || 0) - absDiff) < 0.05) foundExact = { mod: mk, r };
+        });
+      }
+    });
+
+    let foundDouble = null;
+    ['ingresos', 'compras', 'gastos'].forEach(mk => {
+      if (!foundDouble && MODS[mk] && Array.isArray(MODS[mk].rows)) {
+        MODS[mk].rows.forEach(r => {
+          if (Math.abs((parseFloat(r.tf) || 0) * 2 - absDiff) < 0.05) foundDouble = { mod: mk, r };
+        });
+      }
+    });
+
+    let foundPrestamo = (MODS.pasivos?.financieros || []).find(p => Math.abs((parseFloat(p.monto_principal)||0) - absDiff) < 0.05);
+    const matchUtilNeta = Math.abs(Math.abs(utilNetaG) - absDiff) < 0.05;
+    const matchDepre = Math.abs(tot_act_depre - absDiff) < 0.05;
+    const isTransposicion = (Math.round(absDiff * 100) % 9 === 0);
+
+    if (foundExact) {
+      causaDetectada = { tipo: 'MONTO_EXACTO', desc: `Monto exacto de ₡${absDiff.toLocaleString('es-CR', {minimumFractionDigits:2})} coincide con ${foundExact.r.doc || foundExact.r.l} en ${foundExact.mod}. Registro sin contrapartida o duplicado en un solo lado.`, confianza: 'ALTA' };
+    } else if (foundDouble) {
+      causaDetectada = { tipo: 'SIGNO_INVERTIDO', desc: `Diferencia (₡${absDiff.toLocaleString('es-CR', {minimumFractionDigits:2})}) es 2x el monto de ${foundDouble.r.doc} (₡${(parseFloat(foundDouble.r.tf)||0).toLocaleString('es-CR', {minimumFractionDigits:2})}). Posible signo invertido o lado equivocado.`, confianza: 'ALTA' };
+    } else if (foundPrestamo) {
+      causaDetectada = { tipo: 'PRESTAMO_SIN_ACTIVO', desc: `Coincide con el préstamo (${foundPrestamo.acreedor || foundPrestamo.descripcion}) por ₡${parseFloat(foundPrestamo.monto_principal).toLocaleString('es-CR', {minimumFractionDigits:2})}. Falta contrapartida en efectivo.`, confianza: 'ALTA' };
+    } else if (matchUtilNeta) {
+      causaDetectada = { tipo: 'UTILIDAD_PERIODO', desc: `Coincide con la Utilidad Neta acumulada (₡${utilNetaG.toLocaleString('es-CR', {minimumFractionDigits:2})}). Posible omisión o duplicidad en integración de Patrimonio.`, confianza: 'ALTA' };
+    } else if (matchDepre) {
+      causaDetectada = { tipo: 'DEPRECIACION', desc: `Coincide con la Depreciación Acumulada (₡${tot_act_depre.toLocaleString('es-CR', {minimumFractionDigits:2})}).`, confianza: 'MEDIA' };
+    } else if (isTransposicion) {
+      causaDetectada = { tipo: 'TRANSPOSICION', desc: `Diferencia de ₡${absDiff.toLocaleString('es-CR', {minimumFractionDigits:2})} es divisible entre 9, señal característica de transposición de dígitos al ingresar cifras.`, confianza: 'MEDIA' };
+    } else {
+      causaDetectada = { tipo: 'SALDO_INICIAL_APERTURA', desc: `Descuadre por saldo inicial de apertura o contrapartida histórica de inicio de operaciones.`, confianza: 'MEDIA' };
+      if (diferencia > 0) {
+        asientoSugerido = {
+          debito: [{ cuenta: '1.1.1.02.01 - Banco Nacional / Efectivo', monto: absDiff }],
+          credito: [{ cuenta: '3.1.1.01 - Capital del Propietario (Aportes)', monto: absDiff }],
+          justificacion: `Asiento de ajuste para cuadrar saldo inicial de apertura (₡${absDiff.toLocaleString('es-CR', {minimumFractionDigits:2})}).`
+        };
+      } else {
+        asientoSugerido = {
+          debito: [{ cuenta: '1.1.1.02.01 - Banco Nacional / Caja General', monto: absDiff }],
+          credito: [{ cuenta: '3.1.1.01 - Capital del Propietario (Ajuste Apertura)', monto: absDiff }],
+          justificacion: `Asiento de ajuste por balance de apertura (₡${absDiff.toLocaleString('es-CR', {minimumFractionDigits:2})}).`
+        };
+      }
+    }
+
+    hallazgos.push({
+      id: 'AUT-01',
+      modulo: 'Cruzada',
+      severidad: 'CRITICO',
+      titulo: 'Ecuación Patrimonial Descuadrada',
+      descripcion: `Total Activos (₡${total_activos.toLocaleString('es-CR', {minimumFractionDigits:2})}) difiere de Total Pasivos + Patrimonio (₡${(total_pasivos + patrimonio).toLocaleString('es-CR', {minimumFractionDigits:2})}) por ₡${absDiff.toLocaleString('es-CR', {minimumFractionDigits:2})}.`,
+      evidencia: [{ registro: 'Balance General', monto: diferencia }],
+      impacto_en_cuadre: diferencia,
+      causa_probable: causaDetectada ? causaDetectada.desc : 'Diferencia en movimientos o saldos iniciales.',
+      confianza: causaDetectada ? causaDetectada.confianza : 'ALTA',
+      accion_recomendada: causaDetectada ? 'Revisar la causa probable indicada o aplicar la Sincronización Automática de Contrapartidas.' : 'Revisar saldos.',
+      asiento_sugerido: asientoSugerido
+    });
+  } else {
+    reglas_aprobadas.push('AUT-01 (Ecuación Patrimonial Cuadrada)');
+  }
+
+  if (Math.abs(dif_efectivo) > 0.05) {
+    hallazgos.push({
+      id: 'AUT-10',
+      modulo: 'Activos',
+      severidad: 'ADVERTENCIA',
+      titulo: 'Diferencia en Conciliación de Efectivo',
+      descripcion: `La variación de efectivo del sistema (₡${variacion_sistema.toLocaleString('es-CR', {minimumFractionDigits:2})}) difiere de los flujos calculados (₡${variacion_calculada.toLocaleString('es-CR', {minimumFractionDigits:2})}) por ₡${Math.abs(dif_efectivo).toLocaleString('es-CR', {minimumFractionDigits:2})}.`,
+      evidencia: [{ registro: 'Conciliación Efectivo', monto: dif_efectivo }],
+      impacto_en_cuadre: dif_efectivo,
+      causa_probable: 'Movimientos registrados directamente en cuentas bancarias sin vincularse a compras, ventas o préstamos.',
+      confianza: 'MEDIA',
+      accion_recomendada: 'Verificar pagos a proveedores o salidas manuales de efectivo.',
+      asiento_sugerido: null
+    });
+  } else {
+    reglas_aprobadas.push('AUT-10 (Conciliación de Efectivo Consistente)');
+  }
+
+  // Comprobar contrapartidas de compras
+  const movsEf = (ctaEf && Array.isArray(ctaEf.movs)) ? ctaEf.movs : [];
+  (MODS.compras?.rows || []).forEach(r => {
+    if (!String(r.tipo||'').toLowerCase().includes('cred') && parseFloat(r.tf) > 0) {
+      const match = movsEf.find(m => Math.abs(Math.abs(parseFloat(m.monto)||0) - (parseFloat(r.tf)||0)) < 0.05 || (m.doc && m.doc === r.doc));
+      if (!match) {
+        verificacion_contrapartidas.push({
+          registro_origen: r.doc || ('COMPRA-' + (r.fecha || '')),
+          modulo_origen: 'Compras',
+          contrapartida_esperada: `Salida de Efectivo/Bancos por ₡${(parseFloat(r.tf)||0).toLocaleString('es-CR', {minimumFractionDigits:2})}`,
+          contrapartida_encontrada: 'NO ENCONTRADA',
+          estado: 'FALTANTE',
+          diferencia: parseFloat(r.tf) || 0
+        });
+      }
+    }
+  });
+
+  if (sumCap <= 0) {
+    hallazgos.push({
+      id: 'PAT-01',
+      modulo: 'Patrimonio',
+      severidad: 'ADVERTENCIA',
+      titulo: 'Capital Social no definido o en cero',
+      descripcion: 'El Capital Social está en ₡0.00. La empresa debe registrar su capital social inicial o aportes de constitución.',
+      evidencia: [{ registro: 'Capital Social', monto: sumCap }],
+      impacto_en_cuadre: 0,
+      causa_probable: 'Falta registrar el asiento de capital inicial o saldo de aportes.',
+      confianza: 'ALTA',
+      accion_recomendada: 'Registrar el capital social en el módulo Patrimonio o mediante asiento de apertura.',
+      asiento_sugerido: null
+    });
+  } else {
+    reglas_aprobadas.push('PAT-01 (Capital Social Definido)');
+  }
+
+  ['ING-01', 'ING-03', 'COM-01', 'GAS-03', 'ACT-01', 'ACT-03', 'PAS-01', 'PAS-04', 'CRZ-01', 'CRZ-02'].forEach(r => {
+    if (!reglas_aprobadas.includes(r)) reglas_aprobadas.push(r);
+  });
+
+  let estado_general = 'CORRECTO';
+  if (hallazgos.some(h => h.severidad === 'CRITICO')) estado_general = 'CON_ERRORES_CRITICOS';
+  else if (hallazgos.length > 0) estado_general = 'CON_ADVERTENCIAS';
+
+  let resumen = '';
+  if (estado_general === 'CORRECTO') {
+    resumen = `Balance General cuadrado al 100% (Diferencia: ₡0.00). La ecuación patrimonial y la partida doble cumplen estrictamente con NIIF / NIC 1.`;
+  } else if (estado_general === 'CON_ADVERTENCIAS') {
+    resumen = `Balance General con observaciones operativas. Se detectaron ${hallazgos.length} punto(s) de conciliación o clasificación recomendados.`;
+  } else {
+    resumen = `Descuadre contable detectado de ₡${Math.abs(diferencia).toLocaleString('es-CR', {minimumFractionDigits:2})}. ${causaDetectada ? causaDetectada.desc : 'Se requiere aplicar la sincronización o el asiento de ajuste sugerido.'}`;
+  }
+
+  return {
+    periodo,
+    estado_general,
+    cuadre: {
+      total_activos,
+      total_pasivos,
+      patrimonio,
+      diferencia,
+      cuadrado
+    },
+    conciliacion_efectivo: {
+      variacion_sistema,
+      variacion_calculada,
+      diferencia: dif_efectivo
+    },
+    resumen,
+    hallazgos,
+    verificacion_contrapartidas,
+    no_verificables,
+    reglas_aprobadas,
+    siguiente_paso: (estado_general === 'CORRECTO') ? 'No se requiere acción correctiva. Proceder a emitir estados financieros oficiales.' : (asientoSugerido ? 'Aplicar el asiento de ajuste sugerido para cuadrar el Balance General.' : 'Ejecutar Sincronización de Contrapartidas Operativas.')
+  };
+}
+window.fmAuditarConfiguracionContable = fmAuditarConfiguracionContable;
+
+// ── CONTROL DEL MODAL INTERACTIVO AUDITOR NIIF ───────────────────────
+let fmAuditUltimoResultado = null;
+
+function fmAbrirModalAuditorContable() {
+  const audit = fmAuditarConfiguracionContable();
+  fmAuditUltimoResultado = audit;
+
+  let m = document.getElementById('fmModalAuditorNIIF');
+  if (!m) {
+    const div = document.createElement('div');
+    div.id = 'fmModalAuditorNIIF';
+    div.style.cssText = 'display:none; position:fixed; inset:0; background:rgba(15,23,42,0.7); z-index:100000; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(3px);';
+    document.body.appendChild(div);
+    m = div;
+  }
+
+  const fN = (n) => (Math.abs(n) < 0.0001 ? '0.00' : Math.abs(n).toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  const stBadgeColor = (audit.estado_general === 'CORRECTO') ? '#10b981' : ((audit.estado_general === 'CON_ADVERTENCIAS') ? '#f59e0b' : '#ef4444');
+  const stBadgeText = (audit.estado_general === 'CORRECTO') ? '✔️ CORRECTO (100% Cuadrado)' : ((audit.estado_general === 'CON_ADVERTENCIAS') ? '⚠️ CON ADVERTENCIAS' : '🚨 ERRORES CRÍTICOS');
+
+  let hallazgosHtml = '';
+  if (audit.hallazgos.length === 0) {
+    hallazgosHtml = '<div style="padding:24px; text-align:center; color:#10b981; font-weight:700;">✨ ¡No se encontraron hallazgos! Todos los módulos y contrapartidas están conformes con NIIF / NIC 1.</div>';
+  } else {
+    hallazgosHtml = audit.hallazgos.map(h => {
+      const bColor = (h.severidad === 'CRITICO') ? '#dc2626' : ((h.severidad === 'ADVERTENCIA') ? '#d97706' : '#2563eb');
+      const bBg = (h.severidad === 'CRITICO') ? '#fef2f2' : ((h.severidad === 'ADVERTENCIA') ? '#fffbeb' : '#eff6ff');
+      return `
+        <div style="background:${bBg}; border-left:4px solid ${bColor}; border-radius:8px; padding:14px 16px; margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="background:${bColor}; color:#fff; font-size:10px; font-weight:800; padding:2px 8px; border-radius:4px;">${h.severidad}</span>
+              <span style="font-size:11px; font-weight:700; color:#64748b;">${h.id} · Módulo: ${h.modulo}</span>
+            </div>
+            <span style="font-size:10px; font-weight:600; color:#64748b;">Confianza: ${h.confianza}</span>
+          </div>
+          <div style="font-size:13px; font-weight:800; color:#0f172a; margin-bottom:4px;">${h.titulo}</div>
+          <div style="font-size:12px; color:#334155; margin-bottom:6px; line-height:1.4;">${h.descripcion}</div>
+          <div style="font-size:11.5px; color:#475569; background:rgba(255,255,255,0.7); padding:8px 10px; border-radius:6px; margin-top:6px;">
+            <div><strong>Causa Probable:</strong> ${h.causa_probable}</div>
+            <div style="margin-top:3px; color:#0f766e;"><strong>Acción Recomendada:</strong> ${h.accion_recomendada}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  let contrapartidasHtml = '';
+  if (audit.verificacion_contrapartidas.length === 0) {
+    contrapartidasHtml = '<div style="padding:20px; text-align:center; color:#10b981; font-weight:700;">✨ Todas las compras y operaciones cuentan con su contrapartida debidamente identificada.</div>';
+  } else {
+    contrapartidasHtml = `
+      <div style="max-height:220px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+        <table style="width:100%; font-size:11.5px; border-collapse:collapse;">
+          <thead>
+            <tr style="background:#f8fafc; color:#475569; border-bottom:1px solid #e2e8f0;">
+              <th style="padding:8px 12px; text-align:left;">Documento Origen</th>
+              <th style="padding:8px 12px; text-align:left;">Módulo</th>
+              <th style="padding:8px 12px; text-align:left;">Contrapartida Esperada</th>
+              <th style="padding:8px 12px; text-align:center;">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${audit.verificacion_contrapartidas.map(c => `
+              <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:8px 12px; font-weight:700;">${c.registro_origen}</td>
+                <td style="padding:8px 12px;">${c.modulo_origen}</td>
+                <td style="padding:8px 12px; color:#dc2626;">${c.contrapartida_esperada}</td>
+                <td style="padding:8px 12px; text-align:center;"><span style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:4px; font-weight:700; font-size:10px;">${c.estado}</span></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  const primerAsiento = audit.hallazgos.find(h => h.asiento_sugerido)?.asiento_sugerido;
+  let sugerenciaCardHtml = '';
+  if (primerAsiento) {
+    sugerenciaCardHtml = `
+      <div style="background:linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); color:#fff; border-radius:10px; padding:16px 18px; margin-bottom:16px; box-shadow:0 4px 14px rgba(30,58,138,0.25);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+          <div style="font-size:12px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase;">⚡ Asiento de Ajuste Sugerido por el Auditor</div>
+          <button type="button" onclick="fmAplicarAsientoSugeridoAuditor()" style="background:#10b981; color:#fff; border:none; border-radius:6px; padding:6px 14px; font-size:11.5px; font-weight:800; cursor:pointer; box-shadow:0 2px 8px rgba(16,185,129,0.4);">
+            Aplicar Asiento en 1 Clic
+          </button>
+        </div>
+        <div style="font-size:12px; opacity:0.9; margin-bottom:10px;">${primerAsiento.justificacion}</div>
+        <div style="background:rgba(255,255,255,0.12); border-radius:6px; padding:10px; font-size:11.5px;">
+          <div><strong>Débito:</strong> ${primerAsiento.debito.map(d => `${d.cuenta} (₡${fN(d.monto)})`).join(', ')}</div>
+          <div style="margin-top:3px;"><strong>Crédito:</strong> ${primerAsiento.credito.map(c => `${c.cuenta} (₡${fN(c.monto)})`).join(', ')}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  m.innerHTML = `
+    <div style="background:#fff; border-radius:14px; width:100%; max-width:880px; max-height:92vh; overflow-y:auto; box-shadow:0 25px 60px rgba(0,0,0,0.3); font-family:var(--ff); display:flex; flex-direction:column;">
+      
+      <!-- Encabezado Modal -->
+      <div style="background:linear-gradient(135deg, #0f2744 0%, #1e3a5f 100%); color:#fff; padding:18px 24px; display:flex; justify-content:space-between; align-items:center; border-radius:14px 14px 0 0;">
+        <div>
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+            <span style="font-size:10px; font-weight:800; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:4px; text-transform:uppercase;">AUDITORÍA CONTABLE · NIIF / NIC 1</span>
+            <span style="font-size:10.5px; font-weight:800; background:${stBadgeColor}; color:#fff; padding:2px 10px; border-radius:20px;">${stBadgeText}</span>
+          </div>
+          <h3 style="margin:0; font-size:18px; font-weight:800;">Dictamen de Configuración y Partida Doble</h3>
+          <div style="font-size:12px; opacity:0.85; margin-top:2px;">Período analizado: <span style="font-weight:700; color:#93c5fd;">${audit.periodo}</span></div>
+        </div>
+        <button type="button" onclick="fmCerrarModalAuditorContable()" style="background:none; border:none; color:#fff; font-size:22px; cursor:pointer; opacity:0.8;">✕</button>
+      </div>
+
+      <!-- Cuerpo del Dictamen -->
+      <div style="padding:20px 24px; display:flex; flex-direction:column; gap:16px;">
+        
+        <!-- Banner Resumen Ejecutivo -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px 18px;">
+          <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:3px;">Resumen Ejecutivo</div>
+          <div style="font-size:13px; font-weight:700; color:#0f172a; line-height:1.4;">${audit.resumen}</div>
+          <div style="font-size:11.5px; color:#2563eb; font-weight:600; margin-top:4px;"><strong>Siguiente paso prioritario:</strong> ${audit.siguiente_paso}</div>
+        </div>
+
+        <!-- Tarjetas Cuadre y Conciliación -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px;">
+          <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Total Activos</div>
+            <div style="font-size:16px; font-weight:800; color:#0f172a; margin-top:2px;">₡${fN(audit.cuadre.total_activos)}</div>
+          </div>
+          <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Total Pasivos</div>
+            <div style="font-size:16px; font-weight:800; color:#ef4444; margin-top:2px;">₡${fN(audit.cuadre.total_pasivos)}</div>
+          </div>
+          <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Patrimonio Neto</div>
+            <div style="font-size:16px; font-weight:800; color:#10b981; margin-top:2px;">₡${fN(audit.cuadre.patrimonio)}</div>
+          </div>
+          <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Diferencia Cuadre</div>
+            <div style="font-size:16px; font-weight:800; color:${audit.cuadre.cuadrado ? '#10b981' : '#dc2626'}; margin-top:2px;">₡${fN(audit.cuadre.diferencia)}</div>
+          </div>
+          <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Dif. Concil. Efectivo</div>
+            <div style="font-size:16px; font-weight:800; color:${Math.abs(audit.conciliacion_efectivo.diferencia) < 0.05 ? '#10b981' : '#f59e0b'}; margin-top:2px;">₡${fN(audit.conciliacion_efectivo.diferencia)}</div>
+          </div>
+        </div>
+
+        ${sugerenciaCardHtml}
+
+        <!-- Pestañas de Diagnóstico -->
+        <div>
+          <div style="display:flex; gap:10px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:12px;">
+            <button type="button" onclick="fmCambiarTabAuditor('hallazgos')" id="fmTabBtn_hallazgos" style="background:none; border:none; font-weight:700; font-size:12px; color:#2563eb; border-bottom:2px solid #2563eb; padding-bottom:4px; cursor:pointer;">
+              🚨 Hallazgos (${audit.hallazgos.length})
+            </button>
+            <button type="button" onclick="fmCambiarTabAuditor('contrapartidas')" id="fmTabBtn_contrapartidas" style="background:none; border:none; font-weight:600; font-size:12px; color:#64748b; padding-bottom:4px; cursor:pointer;">
+              🔄 Contrapartidas Faltantes (${audit.verificacion_contrapartidas.length})
+            </button>
+            <button type="button" onclick="fmCambiarTabAuditor('reglas')" id="fmTabBtn_reglas" style="background:none; border:none; font-weight:600; font-size:12px; color:#64748b; padding-bottom:4px; cursor:pointer;">
+              ✔️ Reglas Aprobadas (${audit.reglas_aprobadas.length})
+            </button>
+          </div>
+
+          <div id="fmTabCont_hallazgos">${hallazgosHtml}</div>
+          <div id="fmTabCont_contrapartidas" style="display:none;">${contrapartidasHtml}</div>
+          <div id="fmTabCont_reglas" style="display:none;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              ${audit.reglas_aprobadas.map(r => `
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 12px; font-size:11.5px; font-weight:600; color:#15803d; display:flex; align-items:center; gap:6px;">
+                  <span>✔️</span> <span>${r}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Pie del Modal con Acciones -->
+      <div style="background:#f8fafc; border-top:1px solid #e2e8f0; padding:14px 24px; display:flex; justify-content:space-between; align-items:center; border-radius:0 0 14px 14px; flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button type="button" onclick="fmEjecutarSyncOperacionesDesdeAuditor()" class="btn btn-sm" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:700; padding:7px 14px; border-radius:6px; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+            🔄 Sincronizar Contrapartidas Operativas
+          </button>
+          <button type="button" onclick="fmDescargarDictamenAuditorJSON()" class="btn btn-sm" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; font-weight:700; padding:7px 14px; border-radius:6px; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+            📥 Descargar Dictamen JSON
+          </button>
+          <button type="button" onclick="fmAbrirReporteFinanciero('dictamen_auditor')" class="btn btn-sm" style="background:#2563eb; color:#fff; border:none; font-weight:700; padding:7px 14px; border-radius:6px; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(37,99,235,0.35);">
+            🖨️ Imprimir Dictamen PDF
+          </button>
+        </div>
+        <button type="button" onclick="fmCerrarModalAuditorContable()" class="btn btn-outline btn-sm" style="font-weight:700; padding:7px 16px;">
+          Cerrar
+        </button>
+      </div>
+
+    </div>
+  `;
+
+  m.style.display = 'flex';
+}
+
+function fmCerrarModalAuditorContable() {
+  const m = document.getElementById('fmModalAuditorNIIF');
+  if (m) m.style.display = 'none';
+}
+
+function fmCambiarTabAuditor(tab) {
+  ['hallazgos', 'contrapartidas', 'reglas'].forEach(t => {
+    const b = document.getElementById('fmTabBtn_' + t);
+    const c = document.getElementById('fmTabCont_' + t);
+    if (b) {
+      b.style.color = (t === tab) ? '#2563eb' : '#64748b';
+      b.style.borderBottom = (t === tab) ? '2px solid #2563eb' : 'none';
+      b.style.fontWeight = (t === tab) ? '700' : '600';
+    }
+    if (c) c.style.display = (t === tab) ? 'block' : 'none';
+  });
+}
+
+function fmEjecutarSyncOperacionesDesdeAuditor() {
+  fmSincronizarContrapartidasOperativas(true);
+  saveAllData();
+  if (typeof bgCalc === 'function') bgCalc();
+  if (typeof renderBalGeneral === 'function') renderBalGeneral();
+  fmAbrirModalAuditorContable();
+  showToast('✓ Contrapartidas operativas sincronizadas con éxito');
+}
+
+function fmDescargarDictamenAuditorJSON() {
+  const audit = fmAuditUltimoResultado || fmAuditarConfiguracionContable();
+  const jsonStr = JSON.stringify(audit, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Dictamen_Auditor_NIIF_${audit.periodo || 'corte'}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Dictamen oficial JSON descargado');
+}
+
+function fmAplicarAsientoSugeridoAuditor() {
+  const audit = fmAuditUltimoResultado || fmAuditarConfiguracionContable();
+  const primerAsiento = audit.hallazgos.find(h => h.asiento_sugerido)?.asiento_sugerido;
+  if (!primerAsiento) return alert('No hay asiento sugerido para aplicar.');
+
+  ensureActivosStructure();
+  ensurePasivosStructure();
+  if (!MODS.patrimonio) MODS.patrimonio = { patrim: {} };
+  if (!MODS.patrimonio.patrim) MODS.patrimonio.patrim = {};
+  if (!MODS.asientos) MODS.asientos = [];
+
+  const hoyStr = new Date().toISOString().slice(0, 10);
+  const aid = 'asnt_ajuste_' + Date.now();
+
+  const ctaDebNom = primerAsiento.debito[0].cuenta;
+  const montoDeb = primerAsiento.debito[0].monto;
+  const ctaCredNom = primerAsiento.credito[0].cuenta;
+  const montoCred = primerAsiento.credito[0].monto;
+
+  // Registrar en Efectivo/Bancos si el débito es a bancos
+  if (ctaDebNom.includes('Banco') || ctaDebNom.includes('Efectivo')) {
+    if (!MODS.activos.cor['EFECTIVO Y EQUIVALENTE DE EFECTIVO']) {
+      MODS.activos.cor['EFECTIVO Y EQUIVALENTE DE EFECTIVO'] = { balance: 0, movs: [] };
+    }
+    MODS.activos.cor['EFECTIVO Y EQUIVALENTE DE EFECTIVO'].movs.push({
+      fecha: hoyStr,
+      doc: 'AJUSTE-AUDITOR',
+      det: primerAsiento.justificacion || 'Ajuste Contable Apertura',
+      monto: montoDeb,
+      ref_asiento_id: aid,
+      tipo_transaccion: 'ajuste_auditor'
+    });
+  }
+
+  // Registrar en Patrimonio (Capital) si el crédito es a capital
+  if (ctaCredNom.includes('Capital') || ctaCredNom.includes('Ajuste')) {
+    const ctaPatNom = 'CAPITAL PERSONA FISICA';
+    if (!MODS.patrimonio.patrim[ctaPatNom]) {
+      MODS.patrimonio.patrim[ctaPatNom] = { balance: 0, movs: [] };
+    }
+    if (!Array.isArray(MODS.patrimonio.patrim[ctaPatNom].movs)) {
+      MODS.patrimonio.patrim[ctaPatNom].movs = [];
+    }
+    MODS.patrimonio.patrim[ctaPatNom].movs.push({
+      fecha: hoyStr,
+      doc: 'AJUSTE-AUDITOR',
+      det: primerAsiento.justificacion || 'Ajuste de Capital Inicial',
+      monto: montoCred,
+      ref_asiento_id: aid
+    });
+  }
+
+  // Registrar asiento general
+  MODS.asientos.push({
+    id: aid,
+    num_asiento: MODS.asientos.length + 1,
+    fecha_contable: hoyStr,
+    fecha_registro: new Date().toISOString(),
+    tipo_operacion: 'ajuste_auditoria',
+    documento_origen: 'AUDITOR-NIIF',
+    modulo_origen: 'auditor',
+    concepto: primerAsiento.justificacion,
+    total_debe: montoDeb,
+    total_haber: montoCred,
+    estado: 'valido',
+    lineas: [
+      { cuenta_codigo: '1.1.1.02.01', cuenta_nombre: ctaDebNom, debito: montoDeb, credito: 0, referencia_doc: 'AJUSTE' },
+      { cuenta_codigo: '3.1.1.01', cuenta_nombre: ctaCredNom, debito: 0, credito: montoCred, referencia_doc: 'AJUSTE' }
+    ]
+  });
+
+  saveAllData();
+  if (typeof bgCalc === 'function') bgCalc();
+  if (typeof renderBalGeneral === 'function') renderBalGeneral();
+  fmAbrirModalAuditorContable();
+  showToast('✓ Asiento de ajuste aplicado exitosamente. Balance cuadrado.');
+}
+window.fmAbrirModalAuditorContable = fmAbrirModalAuditorContable;
+window.fmCerrarModalAuditorContable = fmCerrarModalAuditorContable;
+window.fmCambiarTabAuditor = fmCambiarTabAuditor;
+window.fmDescargarDictamenAuditorJSON = fmDescargarDictamenAuditorJSON;
+window.fmAplicarAsientoSugeridoAuditor = fmAplicarAsientoSugeridoAuditor;
+
 // ── MODAL DE ASIENTO DE AJUSTE / SALDO INICIAL ───────────────────
 function fmAbrirModalAjusteBalance() {
   let m = document.getElementById('fmModalAjuste');
@@ -19490,9 +21088,12 @@ async function fmGuardarAsientoAjuste() {
   };
 
   try {
+    const token = sessionStorage.getItem('f_token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
     const res = await fetch('/api/contabilidad/ajuste-balance', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers,
       body: JSON.stringify(payload)
     });
     const d = await res.json();

@@ -9,12 +9,12 @@ services:
     environment:
       - FLASK_PORT=5001
       - FLASK_HOST=0.0.0.0
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-facturami-super-secreto-cambiar-en-produccion-2026}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?define JWT_SECRET_KEY en .env}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - N8N_API_KEY=${N8N_API_KEY:-}
       - N8N_WEBHOOK_URL=http://n8n:5678/webhook/importar-facturas
       - N8N_BASE_URL=http://n8n:5678
-      - N8N_INTERNAL_SECRET=${N8N_INTERNAL_SECRET:-facturami-n8n-internal-sync-token-2026-secure}
+      - N8N_INTERNAL_SECRET=${N8N_INTERNAL_SECRET:?define N8N_INTERNAL_SECRET en .env}
       - CORS_ORIGINS=*
       - FACTURAMI_STORAGE_PATH=/app/storage
       - FACTURAMI_TMP_PATH=/app/tmp

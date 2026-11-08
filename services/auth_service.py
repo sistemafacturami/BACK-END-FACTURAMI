@@ -7,7 +7,7 @@ import json
 import bcrypt
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-USERS_FILE = os.path.join(BASE_DIR, 'users.json')
+USERS_FILE = os.environ.get('FACTURAMI_USERS_FILE') or os.path.join(BASE_DIR, 'users.json')
 
 
 def _load_users():
@@ -55,12 +55,8 @@ def authenticate(username, password):
     except Exception as e:
         print(f"[AUTH] Error consultando SQLite cuentas: {e}")
 
-    # Obtener el hash de contraseña
-    pw_hash = None
-    if user and user.get('password_hash'):
-        pw_hash = user['password_hash']
-    elif cuenta_db and cuenta_db.get('password_hash'):
-        pw_hash = cuenta_db['password_hash']
+    # Obtener el hash de contraseña (prioridad a base de datos SQLite)
+    pw_hash = (cuenta_db or {}).get('password_hash') or (user or {}).get('password_hash')
 
     if not pw_hash:
         print(f"[AUTH] Usuario '{username}' no encontrado ni en users.json ni en cuentas SQLite.")
@@ -88,6 +84,20 @@ def authenticate(username, password):
     if activo == 0:
         return {'error': 'CUENTA_SUSPENDIDA', 'username': final_username}
 
+    suscripcion_hasta = (cuenta_db or {}).get('suscripcion_hasta') or (user or {}).get('suscripcion_hasta') or ''
+    if role != 'admin' and suscripcion_hasta:
+        try:
+            from datetime import datetime, date
+            exp_date = datetime.strptime(str(suscripcion_hasta)[:10], '%Y-%m-%d').date()
+            if date.today() > exp_date:
+                return {
+                    'error': 'SUSCRIPCION_VENCIDA',
+                    'username': final_username,
+                    'fecha_vencimiento': exp_date.strftime('%d/%m/%Y')
+                }
+        except Exception as e:
+            print(f"[AUTH] Error comprobando suscripcion_hasta '{suscripcion_hasta}': {e}")
+
     facturas_mes = (cuenta_db or {}).get('facturas_mes', 0)
 
     return {
@@ -98,33 +108,23 @@ def authenticate(username, password):
         'limite_facturas_mes': limite,
         'facturas_mes': facturas_mes,
         'max_clientes': max_cli,
+        'suscripcion_hasta': suscripcion_hasta,
         'activo': activo
     }
 
 
-def validate_n8n_token(token, remote_addr):
+def validate_n8n_token(req):
     """
-    Valida un token de n8n o servicio interno.
-    Permite llamadas autenticadas con N8N_API_KEY o N8N_INTERNAL_SECRET,
-    o llamadas directas originadas estrictamente desde localhost.
+    Valida el token interno de n8n (header X-N8N-Token) contra N8N_INTERNAL_SECRET.
+
+    - Sin valor por defecto: si la variable no esta definida, se rechaza todo.
+    - Comparacion en tiempo constante (hmac.compare_digest).
+    - NO se acepta por IP de origen: detras de Caddy remote_addr siempre es la
+      IP privada del proxy, asi que ese criterio no filtraria nada.
     """
-    expected_api = os.environ.get('N8N_API_KEY', '')
-    expected_secret = os.environ.get('N8N_INTERNAL_SECRET', '')
-
-    # Token coincide con secretos autorizados
-    valid_tokens = {expected_api, expected_secret, 'facturami_n8n_internal_2026_secure', 'facturami-n8n-internal-sync-token-2026-secure'}
-    valid_tokens.discard('')
-    if token and token in valid_tokens:
-        return True
-
-    # Localhost o red privada Docker (172.x, 10.x, etc.) permitidos
-    if remote_addr in ('127.0.0.1', '::1', 'localhost'):
-        return True
-    try:
-        import ipaddress
-        if remote_addr and ipaddress.ip_address(remote_addr).is_private:
-            return True
-    except Exception:
-        pass
-
-    return False
+    import hmac
+    expected = os.environ.get('N8N_INTERNAL_SECRET', '')
+    if not expected:
+        return False
+    got = req.headers.get('X-N8N-Token', '')
+    return hmac.compare_digest(got.encode('utf-8'), expected.encode('utf-8'))

@@ -61,7 +61,9 @@ CREATE TABLE IF NOT EXISTS cuentas (
     max_clientes        INTEGER DEFAULT 9999,
     activo              INTEGER DEFAULT 1 CHECK(activo IN (0,1)),
     role                TEXT DEFAULT 'contador',
+    suscripcion_hasta   TEXT DEFAULT '',
     password_hash       TEXT DEFAULT '',
+    contador_reset_at   TEXT DEFAULT '',
     created_at          TEXT DEFAULT (datetime('now','localtime')),
     updated_at          TEXT DEFAULT (datetime('now','localtime'))
 );
@@ -227,6 +229,14 @@ def init_db(db_path=None):
             except Exception as e:
                 print(f"[DB] Error agregando columna 'contador_reset_at': {e}")
 
+        # Migracion: fecha limite de suscripcion
+        if 'suscripcion_hasta' not in existing_cuenta_cols:
+            try:
+                conn.execute("ALTER TABLE cuentas ADD COLUMN suscripcion_hasta TEXT DEFAULT ''")
+                print("[DB] Columna 'suscripcion_hasta' anadida a cuentas.")
+            except Exception as e:
+                print(f"[DB] Error agregando columna 'suscripcion_hasta': {e}")
+
         # Seeding inicial para cuentas
         cur.execute("SELECT COUNT(*) as cnt FROM cuentas")
         if cur.fetchone()['cnt'] == 0:
@@ -321,8 +331,36 @@ def get_clientes_legacy(conn, cuenta_id=None):
 #  CRUD: Cuentas de Contadores (Multi-Tenant SaaS)
 # ══════════════════════════════════════════════════════════════════════════
 
+def _enrich_cuenta(c_dict):
+    """Calcula dias restantes y estado de la suscripcion para una cuenta."""
+    if not c_dict:
+        return c_dict
+    s_hasta = c_dict.get('suscripcion_hasta') or ''
+    role = c_dict.get('role', 'contador')
+    if role == 'admin' or not s_hasta:
+        c_dict['dias_restantes'] = None
+        c_dict['estado_suscripcion'] = 'permanente'
+        return c_dict
+    
+    try:
+        from datetime import datetime, date
+        exp_date = datetime.strptime(str(s_hasta)[:10], '%Y-%m-%d').date()
+        today = date.today()
+        diff = (exp_date - today).days
+        c_dict['dias_restantes'] = diff
+        if diff < 0:
+            c_dict['estado_suscripcion'] = 'vencido'
+        elif diff <= 5:
+            c_dict['estado_suscripcion'] = 'por_vencer'
+        else:
+            c_dict['estado_suscripcion'] = 'activo'
+    except Exception:
+        c_dict['dias_restantes'] = None
+        c_dict['estado_suscripcion'] = 'desconocido'
+    return c_dict
+
 def get_cuentas(conn):
-    """Devuelve todas las cuentas de contadores con estadisticas de consumo en tiempo real."""
+    """Devuelve todas las cuentas de contadores con estadisticas de consumo y suscripcion en tiempo real."""
     rows = conn.execute("""
         SELECT c.*,
             (SELECT COUNT(*) FROM clientes cl WHERE cl.cuenta_id = c.username) as total_clientes,
@@ -335,7 +373,7 @@ def get_cuentas(conn):
         FROM cuentas c
         ORDER BY c.created_at DESC
     """).fetchall()
-    return [dict(r) for r in rows]
+    return [_enrich_cuenta(dict(r)) for r in rows]
 
 def get_cuenta(conn, username):
     """Obtiene una cuenta por su username."""
@@ -350,7 +388,7 @@ def get_cuenta(conn, username):
              AND (COALESCE(c.contador_reset_at, '') = '' OR COALESCE(fq.absorbida_at, fq.recibida_at) > c.contador_reset_at)) as facturas_mes
         FROM cuentas c WHERE c.username = ?
     """, (username,)).fetchone()
-    return dict(row) if row else None
+    return _enrich_cuenta(dict(row)) if row else None
 
 def reset_contador_facturas(conn, username):
     """Reinicia a 0 el contador mensual de facturas de una cuenta.
@@ -363,18 +401,58 @@ def reset_contador_facturas(conn, username):
     )
     return cur.rowcount > 0
 
+def extender_suscripcion(conn, username, dias=30, fecha_fija=None):
+    """
+    Extiende la suscripcion de una cuenta.
+    Si se especifica fecha_fija ('YYYY-MM-DD'), se fija esa fecha directamente.
+    Si se especifican dias:
+      - Si la fecha actual de vencimiento es futura, se le suman los dias a esa fecha.
+      - Si ya vencio o esta vacia, se le suman los dias a la fecha de hoy.
+    Ademas, reactiva la cuenta (activo = 1).
+    """
+    from datetime import datetime, date, timedelta
+    row = conn.execute("SELECT suscripcion_hasta, activo FROM cuentas WHERE username = ?", (username,)).fetchone()
+    if not row:
+        return None
+    
+    today = date.today()
+    if fecha_fija:
+        nueva_fecha = str(fecha_fija)[:10]
+    else:
+        current_hasta = row['suscripcion_hasta'] or ''
+        base_date = today
+        if current_hasta:
+            try:
+                curr_date = datetime.strptime(str(current_hasta)[:10], '%Y-%m-%d').date()
+                if curr_date > today:
+                    base_date = curr_date
+            except Exception:
+                base_date = today
+        nueva_fecha = (base_date + timedelta(days=int(dias))).strftime('%Y-%m-%d')
+    
+    conn.execute(
+        "UPDATE cuentas SET suscripcion_hasta = ?, activo = 1, updated_at = datetime('now','localtime') WHERE username = ?",
+        (nueva_fecha, username)
+    )
+    return nueva_fecha
+
 def upsert_cuenta(conn, c_dict):
     """Inserta o actualiza una cuenta de contador."""
     pw_hash = c_dict.get('password_hash', '')
+    s_hasta = c_dict.get('suscripcion_hasta', '')
     conn.execute("""
         INSERT INTO cuentas 
-        (username, nombre, email, telefono, plan_id, limite_facturas_mes, creditos_extra, max_clientes, activo, role, password_hash)
-        VALUES (:username, :nombre, :email, :tel, :plan_id, :limite, :creditos, :max_cli, :activo, :role, :pw_hash)
+        (username, nombre, email, telefono, plan_id, limite_facturas_mes, creditos_extra, max_clientes, activo, role, suscripcion_hasta, password_hash)
+        VALUES (:username, :nombre, :email, :tel, :plan_id, :limite, :creditos, :max_cli, :activo, :role, :suscripcion_hasta, :pw_hash)
         ON CONFLICT(username) DO UPDATE SET
             nombre=excluded.nombre, email=excluded.email, telefono=excluded.telefono,
             plan_id=excluded.plan_id, limite_facturas_mes=excluded.limite_facturas_mes,
             creditos_extra=excluded.creditos_extra, max_clientes=excluded.max_clientes,
             activo=excluded.activo, role=excluded.role,
+            suscripcion_hasta=CASE 
+                WHEN :has_suscripcion = 1 THEN :suscripcion_hasta
+                ELSE cuentas.suscripcion_hasta 
+            END,
             password_hash=CASE WHEN excluded.password_hash != '' THEN excluded.password_hash ELSE cuentas.password_hash END,
             updated_at=datetime('now','localtime')
     """, {
@@ -388,6 +466,8 @@ def upsert_cuenta(conn, c_dict):
         'max_cli': int(c_dict.get('max_clientes', 9999)),
         'activo': int(c_dict.get('activo', 1)),
         'role': c_dict.get('role', 'contador'),
+        'suscripcion_hasta': s_hasta,
+        'has_suscripcion': 1 if 'suscripcion_hasta' in c_dict else 0,
         'pw_hash': pw_hash
     })
 

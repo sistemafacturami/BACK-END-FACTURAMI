@@ -32,13 +32,24 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 import db as database
 
 
+def _require_strong_secrets():
+    """Se niega a arrancar si los secretos faltan o son debiles."""
+    for var in ('JWT_SECRET_KEY', 'N8N_INTERNAL_SECRET'):
+        v = os.environ.get(var, '')
+        if len(v) < 32 or v.upper().startswith('CAMBIAR'):
+            raise RuntimeError(f'{var} no esta configurada o es insegura (minimo 32 caracteres)')
+
+
 def create_app():
     """App factory: crea y configura la aplicacion Flask."""
+    _require_strong_secrets()
     app = Flask(__name__)
 
     # ── Configuracion ──────────────────────────────────────────────────
-    app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'CAMBIAR-ESTE-SECRETO')
+    app.config['JWT_SECRET_KEY'] = os.environ['JWT_SECRET_KEY']
+    app.config['JWT_ALGORITHM'] = 'HS256'
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=12)
+    app.config['MAX_CONTENT_LENGTH'] = 15 * 1024 * 1024  # 15 MB por peticion
 
     # ── CORS ───────────────────────────────────────────────────────────
     cors_origins = os.environ.get('CORS_ORIGINS', '*')
@@ -80,7 +91,7 @@ def create_app():
     @app.after_request
     def set_security_headers(response):
         response.headers['X-Content-Type-Options'] = 'nosniff'
-        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         # Bloquear grabacion de pantalla no autorizada via APIs de navegador
         response.headers['Permissions-Policy'] = 'display-capture=(), camera=(), microphone=(), geolocation=()'
@@ -167,6 +178,10 @@ def create_app():
     def method_not_allowed(e):
         return jsonify({'ok': False, 'error': 'Metodo no permitido'}), 405
 
+    @app.errorhandler(413)
+    def too_large(e):
+        return jsonify({'ok': False, 'error': 'Archivo demasiado grande (maximo 15 MB)'}), 413
+
     @app.errorhandler(500)
     def internal_error(e):
         return jsonify({'ok': False, 'error': 'Error interno del servidor'}), 500
@@ -191,8 +206,7 @@ if __name__ == '__main__':
     print(f"  Host:    {host}")
     print(f"  Puerto:  {port}")
     print(f"  DB:      {database.DB_PATH} ({db_size:.1f} KB)")
-    jwt_ok = app.config['JWT_SECRET_KEY'] != 'CAMBIAR-ESTE-SECRETO'
-    print(f"  JWT:     {'[OK]' if jwt_ok else '[!!] SECRETO POR DEFECTO'}")
+    print("  JWT:     [OK] (secreto validado al arrancar)")
     print(f"  Gemini:  {'[OK]' if os.environ.get('GEMINI_API_KEY') else '[--]'}")
     print("-" * 55)
     print("  Rutas Activas:")

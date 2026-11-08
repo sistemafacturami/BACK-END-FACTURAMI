@@ -6,7 +6,9 @@ import os
 import json
 import bcrypt
 from flask import Blueprint, request
-from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+from flask_jwt_extended import get_jwt_identity, get_jwt
+
+from services.authz import role_required
 
 import db as database
 from errors import success, error, handle_errors
@@ -14,7 +16,7 @@ from errors import success, error, handle_errors
 admin_bp = Blueprint('admin', __name__)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-USERS_FILE = os.path.join(BASE_DIR, 'users.json')
+USERS_FILE = os.environ.get('FACTURAMI_USERS_FILE') or os.path.join(BASE_DIR, 'users.json')
 
 
 def _load_users():
@@ -39,7 +41,7 @@ PLANES_DEF = {
 
 
 @admin_bp.route('/api/admin/contadores', methods=['GET'])
-@jwt_required(optional=True)
+@role_required('admin')
 @handle_errors
 def list_contadores():
     """GET /api/admin/contadores - Lista todas las cuentas de contadores con su consumo actual."""
@@ -49,7 +51,7 @@ def list_contadores():
 
 
 @admin_bp.route('/api/admin/contadores', methods=['POST'])
-@jwt_required(optional=True)
+@role_required('admin')
 @handle_errors
 def create_contador():
     """POST /api/admin/contadores - Crea un nuevo contador/despacho con su plan."""
@@ -76,6 +78,11 @@ def create_contador():
     limite = int(data.get('limite_facturas_mes') or plan_meta['facturas'])
     max_cli = int(data.get('max_clientes') or plan_meta['max_clientes'])
 
+    # Suscripcion inicial: por defecto 30 dias (1 mes)
+    from datetime import date, timedelta
+    dias_ini = int(data.get('dias_suscripcion') or 30)
+    suscripcion_hasta = data.get('suscripcion_hasta') or (date.today() + timedelta(days=dias_ini)).strftime('%Y-%m-%d')
+
     # Encriptar password
     salt = bcrypt.gensalt(rounds=12)
     pw_hash = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
@@ -90,6 +97,7 @@ def create_contador():
         'plan_id': plan_id,
         'limite_facturas_mes': limite,
         'max_clientes': max_cli,
+        'suscripcion_hasta': suscripcion_hasta,
         'activo': 1
     })
     _save_users(users)
@@ -104,6 +112,7 @@ def create_contador():
         'limite_facturas_mes': limite,
         'creditos_extra': 0,
         'max_clientes': max_cli,
+        'suscripcion_hasta': suscripcion_hasta,
         'activo': 1,
         'role': 'contador',
         'password_hash': pw_hash
@@ -116,7 +125,7 @@ def create_contador():
 
 
 @admin_bp.route('/api/admin/contadores/<username>', methods=['PUT'])
-@jwt_required(optional=True)
+@role_required('admin')
 @handle_errors
 def update_contador(username):
     """PUT /api/admin/contadores/<username> - Actualiza plan, limites o estado."""
@@ -159,6 +168,8 @@ def update_contador(username):
         user['limite_facturas_mes'] = limite
         user['max_clientes'] = max_cli
         user['activo'] = activo
+        if 'suscripcion_hasta' in data:
+            user['suscripcion_hasta'] = str(data['suscripcion_hasta']).strip()
         if new_pw_hash:
             user['password_hash'] = new_pw_hash
         _save_users(users)
@@ -175,6 +186,8 @@ def update_contador(username):
         'activo': activo,
         'role': (user or {}).get('role', 'contador')
     }
+    if 'suscripcion_hasta' in data:
+        cuenta_dict['suscripcion_hasta'] = str(data['suscripcion_hasta']).strip()
     if new_pw_hash:
         cuenta_dict['password_hash'] = new_pw_hash
 
@@ -185,8 +198,47 @@ def update_contador(username):
     return success(cuenta_dict, message="Contador actualizado correctamente")
 
 
+@admin_bp.route('/api/admin/contadores/<username>/extender-suscripcion', methods=['POST'])
+@role_required('admin')
+@handle_errors
+def extender_suscripcion_contador(username):
+    """POST /api/admin/contadores/<username>/extender-suscripcion - Habilita o renueva la suscripcion."""
+    if get_jwt().get('role') != 'admin':
+        return error('Solo el administrador puede renovar o extender suscripciones', 403)
+
+    data = request.get_json(force=True, silent=True) or {}
+    dias = data.get('dias')
+    meses = data.get('meses')
+    fecha_hasta = data.get('fecha_hasta')
+
+    if meses:
+        dias = int(meses) * 30
+    elif dias:
+        dias = int(dias)
+    elif not fecha_hasta:
+        dias = 30  # Por defecto +30 dias (+1 mes)
+
+    with database.get_db() as conn:
+        nueva_fecha = database.extender_suscripcion(conn, username, dias=dias, fecha_fija=fecha_hasta)
+        if not nueva_fecha:
+            return error(f"Contador '{username}' no encontrado", 404)
+        cuenta = database.get_cuenta(conn, username)
+
+    # Mantener sincronizado users.json
+    users = _load_users()
+    for u in users:
+        if u.get('username', '').lower() == username.lower():
+            u['suscripcion_hasta'] = nueva_fecha
+            u['activo'] = 1
+            break
+    _save_users(users)
+
+    print(f"[ADMIN] Suscripción de '{username}' extendida hasta {nueva_fecha}")
+    return success(cuenta, message=f"Suscripción de @{username} habilitada hasta {nueva_fecha}")
+
+
 @admin_bp.route('/api/admin/contadores/<username>', methods=['DELETE'])
-@jwt_required(optional=True)
+@role_required('admin')
 @handle_errors
 def delete_contador(username):
     """DELETE /api/admin/contadores/<username> - Elimina o desactiva la cuenta."""
@@ -205,7 +257,7 @@ def delete_contador(username):
 
 
 @admin_bp.route('/api/admin/contadores/<username>/reset-facturas', methods=['POST'])
-@jwt_required()
+@role_required('admin')
 @handle_errors
 def reset_facturas_contador(username):
     """POST /api/admin/contadores/<username>/reset-facturas - Reinicia a 0 el consumo mensual.
