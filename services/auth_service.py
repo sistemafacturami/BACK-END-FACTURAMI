@@ -72,7 +72,7 @@ def authenticate(username, password):
         return None
 
     # Extraer perfil y permisos finales combinados
-    final_username = (user or {}).get('username') or (cuenta_db or {}).get('username') or u_clean
+    final_username = str((user or {}).get('username') or (cuenta_db or {}).get('username') or u_clean).strip().lower()
     role = (cuenta_db or {}).get('role') or (user or {}).get('role', 'contador')
     nombre = (cuenta_db or {}).get('nombre') or (user or {}).get('nombre', final_username)
     plan_id = (cuenta_db or {}).get('plan_id') or (user or {}).get('plan_id', 'master' if role == 'admin' else 'despacho')

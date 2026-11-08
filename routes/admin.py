@@ -4,11 +4,14 @@ Blueprint: /api/admin/*
 """
 import os
 import json
+import re
+import time
+from datetime import datetime, date, timedelta
 import bcrypt
 from flask import Blueprint, request
 from flask_jwt_extended import get_jwt_identity, get_jwt
 
-from services.authz import role_required
+from services.authz import role_required, CLIENT_ID_RE
 
 import db as database
 from errors import success, error, handle_errors
@@ -72,6 +75,18 @@ def create_contador():
     users = _load_users()
     if any(u['username'].lower() == username for u in users):
         return error(f"El usuario '{username}' ya existe", 409)
+
+    # Evitar que una nueva cuenta adopte clientes huérfanos preexistentes
+    with database.get_db() as conn:
+        cuenta_exist = database.get_cuenta(conn, username)
+        if cuenta_exist:
+            return error(f"La cuenta '{username}' ya existe en la base de datos", 409)
+        orphans = conn.execute(
+            "SELECT COUNT(*) FROM clientes WHERE LOWER(TRIM(cuenta_id)) = LOWER(TRIM(?))",
+            (username,)
+        ).fetchone()[0]
+        if orphans > 0:
+            return error(f"No se puede crear la cuenta '{username}': existen {orphans} cliente(s) registrados con este cuenta_id. Transfiéralos primero.", 409)
 
     # Determinar limites segun el plan
     plan_meta = PLANES_DEF.get(plan_id, PLANES_DEF['despacho'])
@@ -241,19 +256,35 @@ def extender_suscripcion_contador(username):
 @role_required('admin')
 @handle_errors
 def delete_contador(username):
-    """DELETE /api/admin/contadores/<username> - Elimina o desactiva la cuenta."""
-    if username in ('facturami1', 'admin'):
+    """DELETE /api/admin/contadores/<username> - Elimina o desactiva la cuenta si no tiene clientes."""
+    u_clean = (username or '').strip().lower()
+    if u_clean in ('facturami1', 'admin'):
         return error('No se puede eliminar la cuenta principal de administrador', 400)
 
+    admin_username = get_jwt_identity()
+    with database.get_db() as conn:
+        n = conn.execute(
+            "SELECT COUNT(*) FROM clientes WHERE LOWER(TRIM(cuenta_id))=LOWER(TRIM(?))",
+            (u_clean,)
+        ).fetchone()[0]
+        if n > 0:
+            return error(f'Tiene {n} clientes; transfiérelos primero', 409)
+
+        database.delete_cuenta(conn, u_clean)
+        database.insert_audit_log(
+            conn,
+            accion='eliminar_cuenta',
+            actor=admin_username,
+            target_tipo='cuenta',
+            target_id=u_clean
+        )
+
     users = _load_users()
-    users = [u for u in users if u['username'] != username]
+    users = [u for u in users if u['username'].lower() != u_clean]
     _save_users(users)
 
-    with database.get_db() as conn:
-        database.delete_cuenta(conn, username)
-
-    print(f"[ADMIN] Cuenta de contador eliminada: {username}")
-    return success(message=f"Cuenta '{username}' eliminada")
+    print(f"[ADMIN] Cuenta de contador eliminada: {u_clean}")
+    return success(message=f"Cuenta '{u_clean}' eliminada")
 
 
 @admin_bp.route('/api/admin/contadores/<username>/reset-facturas', methods=['POST'])
@@ -288,13 +319,54 @@ def transfer_cliente():
     nuevo_cuenta_id = body.get('nuevo_cuenta_id')
     if not cliente_id or not nuevo_cuenta_id:
         return error("Se requiere cliente_id y nuevo_cuenta_id", 400)
+
+    cid_clean = str(cliente_id).strip()
+    if not CLIENT_ID_RE.fullmatch(cid_clean):
+        return error(f"ID de cliente invalido: {cid_clean}", 400)
+
+    nuevo_clean = str(nuevo_cuenta_id).strip().lower()
+    admin_username = get_jwt_identity()
+
     with database.get_db() as conn:
-        cli = conn.execute("SELECT id, cuenta_id FROM clientes WHERE id=?", (cliente_id,)).fetchone()
+        # Serializar lectura y escritura de forma atómica
+        conn.execute("BEGIN IMMEDIATE")
+
+        cli = conn.execute("SELECT id, cuenta_id, nombre FROM clientes WHERE id=?", (cid_clean,)).fetchone()
         if not cli:
-            return error(f"Cliente {cliente_id} no encontrado", 404)
-        cuenta = conn.execute("SELECT username FROM cuentas WHERE LOWER(TRIM(username))=LOWER(TRIM(?))", (str(nuevo_cuenta_id).strip(),)).fetchone()
+            return error(f"Cliente {cid_clean} no encontrado", 404)
+
+        if (cli['cuenta_id'] or '').strip().lower() == nuevo_clean:
+            return error(f"El cliente ya pertenece a la cuenta '{nuevo_clean}'", 400)
+
+        cuenta = conn.execute(
+            "SELECT username, activo FROM cuentas WHERE LOWER(TRIM(username))=LOWER(TRIM(?))",
+            (nuevo_clean,)
+        ).fetchone()
         if not cuenta:
-            return error(f"Cuenta de destino {nuevo_cuenta_id} no existe", 404)
-        conn.execute("UPDATE clientes SET cuenta_id=?, updated_at=datetime('now','localtime') WHERE id=?", (cuenta['username'], cliente_id))
-    print(f"[ADMIN] Cliente '{cliente_id}' transferido de '{cli['cuenta_id']}' a '{cuenta['username']}' por {get_jwt_identity()}")
-    return success(message=f"Cliente {cliente_id} transferido exitosamente a {cuenta['username']}")
+            return error(f"Cuenta de destino '{nuevo_clean}' no existe", 404)
+
+        # Tratar activo NULL como 1 (consistente con _cuenta_activa)
+        activo_val = cuenta['activo'] if cuenta['activo'] is not None else 1
+        if int(activo_val) != 1:
+            return error(f"Cuenta de destino '{cuenta['username']}' no está activa", 400)
+
+        conn.execute(
+            "UPDATE clientes SET cuenta_id=?, updated_at=datetime('now','localtime') WHERE id=?",
+            (cuenta['username'], cid_clean)
+        )
+
+        database.insert_audit_log(
+            conn,
+            accion='transferencia_cliente',
+            actor=admin_username,
+            target_tipo='cliente',
+            target_id=cid_clean,
+            detalles={
+                'cliente_nombre': cli['nombre'],
+                'cuenta_anterior': cli['cuenta_id'],
+                'cuenta_nueva': cuenta['username']
+            }
+        )
+
+    print(f"[AUDIT] Cliente '{cid_clean}' transferido de '{cli['cuenta_id']}' a '{cuenta['username']}' por admin '{admin_username}'")
+    return success(message=f"Cliente {cid_clean} transferido exitosamente a cuenta activa {cuenta['username']}")

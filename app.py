@@ -43,7 +43,8 @@ def _require_strong_secrets():
 def create_app():
     """App factory: crea y configura la aplicacion Flask."""
     _require_strong_secrets()
-    app = Flask(__name__)
+    # static_folder=None asegura que Flask no registre /static ni sirva archivos por defecto
+    app = Flask(__name__, static_folder=None)
 
     # ── Configuracion ──────────────────────────────────────────────────
     app.config['JWT_SECRET_KEY'] = os.environ['JWT_SECRET_KEY']

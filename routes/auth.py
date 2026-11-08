@@ -10,6 +10,7 @@ from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identi
 from errors import success, error, handle_errors, validate, ValidationError
 from schemas import LOGIN_SCHEMA
 from services.auth_service import authenticate
+from services.authz import auth_required
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -66,12 +67,13 @@ def login():
             msg = f'Tu suscripción ha vencido{(" el " + fv) if fv else ""}. Por favor contacta al administrador para renovar o habilitar tu acceso.'
             return error(msg, 403)
 
+    canonical_username = str(user['username']).strip().lower()
     token = create_access_token(
-        identity=user['username'],
+        identity=canonical_username,
         additional_claims={'role': user['role']}
     )
 
-    print(f"[AUTH] Login exitoso: {user['username']} ({user['role']})")
+    print(f"[AUTH] Login exitoso: {canonical_username} ({user['role']})")
     return success({
         'token': token,
         'user': user
@@ -79,9 +81,9 @@ def login():
 
 
 @auth_bp.route('/api/auth/verify', methods=['GET'])
-@jwt_required()
+@auth_required
 @handle_errors
 def verify_token():
-    """GET /api/auth/verify - Verifica que un token JWT siga valido."""
+    """GET /api/auth/verify - Verifica que un token JWT siga valido y la cuenta siga activa."""
     current_user = get_jwt_identity()
     return success({'user': current_user})

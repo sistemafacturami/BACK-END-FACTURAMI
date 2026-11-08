@@ -789,6 +789,607 @@ class TestFase1Seguridad(unittest.TestCase):
             asnt_row = conn.execute("SELECT estado FROM asientos WHERE id='asnt_privado_c2'").fetchone()
             self.assertEqual(asnt_row['estado'], 'valido')
 
+    # ══════════════════════════════════════════════════════════════════════
+    #  16. Bloqueante: sync_push con doble prefijo ('f_data_f_data_<cid>')
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_21_sync_push_clave_f_data_doble_prefijo(self):
+        """
+        Verifica que una clave manipulada 'f_data_f_data_<cid>' sea rechazada
+        y no permita sobrescribir los datos de un cliente ajeno.
+        """
+        with database.get_db(TEST_DB) as conn:
+            conn.execute("""
+                INSERT INTO transacciones (id, cliente_id, modulo, fecha, descripcion, total_factura)
+                VALUES ('tx_legitima_c1', 'cli_tenant_1', 'ingresos', '2026-10-15', 'Venta Original C1', 75000)
+            """)
+
+        payload = {
+            'f_data_f_data_cli_tenant_1': {
+                'ingresos': {'rows': [{'fecha': '2026-10-30', 'l': 'Ataque Inyectado', 'tf': 1}]}
+            }
+        }
+        res = self.client.post('/api/sync/push', json=payload, headers=self.auth_h(self.token_c2))
+        self.assertIn(res.status_code, (400, 403), "Debe rechazar la clave manipulada")
+
+        # Verificar que los datos de cli_tenant_1 siguen intactos
+        with database.get_db(TEST_DB) as conn:
+            txs = conn.execute("SELECT descripcion, total_factura FROM transacciones WHERE cliente_id='cli_tenant_1'").fetchall()
+            self.assertTrue(any(t['descripcion'] == 'Venta Original C1' for t in txs))
+            self.assertFalse(any(t['descripcion'] == 'Ataque Inyectado' for t in txs))
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  17. Condición de carrera en sync_push con cédula nueva
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_22_sync_push_registro_cedula_y_bloqueo(self):
+        """
+        Verifica que sync_push valide pertenencia y evite secuestro de cédula nueva.
+        Si Contador 1 registra 'new_cli_999', Contador 2 no puede sobrescribirla ni inyectarle f_data.
+        """
+        p1 = {
+            'f_clients': [{'id': 'new_cli_999', 'name': 'Empresa Nueva 999', 'type': 'PJ'}],
+            'f_data_new_cli_999': {'ingresos': {'rows': [{'fecha': '2026-10-01', 'l': 'Servicio 1', 'tf': 1000}]}}
+        }
+        r1 = self.client.post('/api/sync/push', json=p1, headers=self.auth_h(self.token_c1))
+        self.assertEqual(r1.status_code, 200)
+
+        # Contador 2 intenta registrar o escribir sobre la misma cédula
+        p2 = {
+            'f_clients': [{'id': 'new_cli_999', 'name': 'Secuestro de Cédula', 'type': 'PJ'}],
+            'f_data_new_cli_999': {'ingresos': {'rows': [{'fecha': '2026-10-01', 'l': 'Venta Falsa', 'tf': 999999}]}}
+        }
+        r2 = self.client.post('/api/sync/push', json=p2, headers=self.auth_h(self.token_c2))
+        self.assertEqual(r2.status_code, 403, "Contador 2 debe recibir 403 al intentar escribir sobre cliente de Contador 1")
+
+        # Verificar que el dueño sigue siendo contador_1
+        with database.get_db(TEST_DB) as conn:
+            cli = conn.execute("SELECT cuenta_id, nombre FROM clientes WHERE id='new_cli_999'").fetchone()
+            self.assertEqual(cli['cuenta_id'], 'contador_1')
+            self.assertEqual(cli['nombre'], 'Empresa Nueva 999')
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  18. Protección de cuentas bancarias contra secuestro por ON CONFLICT
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_23_cuentas_bancarias_secuestro_prevention(self):
+        """
+        Verifica que enviar un id de cuenta bancaria perteneciente a otro cliente
+        no sobrescriba ni reasigne la cuenta bancaria de la víctima.
+        """
+        with database.get_db(TEST_DB) as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO cuentas_bancarias
+                (id, cliente_id, banco_nombre, numero_cuenta, saldo_inicial, activo)
+                VALUES ('bank_acc_c1', 'cli_tenant_1', 'BAC San Jose', 'CR1111111111', 100000, 1)
+            """)
+
+        # Contador 2 intenta registrar en cli_tenant_2 una cuenta bancaria con el mismo ID 'bank_acc_c1'
+        p2 = {
+            'f_data_cli_tenant_2': {
+                'cuentas_bancarias': [
+                    {'id': 'bank_acc_c1', 'banco_nombre': 'Banco Hackeado', 'numero_cuenta': 'CR9999999999', 'saldo_inicial': 500}
+                ]
+            }
+        }
+        r2 = self.client.post('/api/sync/push', json=p2, headers=self.auth_h(self.token_c2))
+        self.assertEqual(r2.status_code, 200)
+
+        # Verificar que bank_acc_c1 sigue perteneciendo a cli_tenant_1 y con su nombre original
+        with database.get_db(TEST_DB) as conn:
+            b = conn.execute("SELECT cliente_id, banco_nombre, numero_cuenta FROM cuentas_bancarias WHERE id='bank_acc_c1'").fetchone()
+            self.assertEqual(b['cliente_id'], 'cli_tenant_1')
+            self.assertEqual(b['banco_nombre'], 'BAC San Jose')
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  19. Visor Drive: JSON {"ok": true, "drive_url": ...} sin redirect 302
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_24_visor_drive_json_response(self):
+        """
+        Cuando una factura solo existe en Google Drive, el backend devuelve 200 con JSON drive_url
+        para evitar problemas de CORS y despojo de Bearer tokens al seguir redirecciones.
+        """
+        with database.get_db(TEST_DB) as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO facturas_queue (id, cliente_id, estado, factura, drive_id)
+                VALUES ('factura_drive_only', 'cli_tenant_1', 'pendiente', 'FAC-DRIVE-99', '1a2b3c4d5e6f7g8h9i0j')
+            """)
+
+        res = self.client.get('/api/facturas/factura_drive_only/pdf', headers=self.auth_h(self.token_c1))
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.is_json)
+        data = res.get_json()
+        self.assertTrue(data.get('ok'))
+        self.assertIn('drive.google.com', data.get('drive_url', ''))
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  20. Validación de clientes_config y topes en subidas
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_25_upload_clientes_config_and_limits(self):
+        """
+        Verifica que upload falle con error claro si falta clientes_config o alguna de sus 3 claves,
+        y rechace peticiones con más de 10 archivos.
+        """
+        with database.get_db(TEST_DB) as conn:
+            conn.execute("INSERT OR REPLACE INTO clientes (id, nombre, cuenta_id) VALUES ('cli_sin_cfg', 'Sin Cfg', 'contador_1')")
+
+        pdf_bytes = b"%PDF-1.4\n%test\n%%EOF"
+        # 1. Cliente sin clientes_config
+        res_nocfg = self.client.post(
+            '/api/facturas/upload',
+            data={'client_id': 'cli_sin_cfg', 'files': (io.BytesIO(pdf_bytes), 'f.pdf')},
+            content_type='multipart/form-data',
+            headers=self.auth_h(self.token_c1)
+        )
+        self.assertEqual(res_nocfg.status_code, 400)
+        self.assertIn('clientes_config', res_nocfg.get_json().get('error', ''))
+
+        # 2. Cliente con clientes_config incompleto (falta drive_folder_processed)
+        with database.get_db(TEST_DB) as conn:
+            conn.execute("INSERT OR REPLACE INTO clientes (id, nombre, cuenta_id) VALUES ('cli_incompleto', 'Incompleto', 'contador_1')")
+            conn.execute("""
+                INSERT OR REPLACE INTO clientes_config (cliente_id, razon_social_prompt, drive_folder_inbox, drive_folder_processed, drive_folder_error, activo)
+                VALUES ('cli_incompleto', 'Prompt Incompleto', 'folder_inbox_x', '', 'folder_err_x', 1)
+            """)
+
+        res_inc = self.client.post(
+            '/api/facturas/upload',
+            data={'client_id': 'cli_incompleto', 'files': (io.BytesIO(pdf_bytes), 'f.pdf')},
+            content_type='multipart/form-data',
+            headers=self.auth_h(self.token_c1)
+        )
+        self.assertEqual(res_inc.status_code, 400)
+        self.assertIn('incompleta', res_inc.get_json().get('error', '').lower())
+
+        # 3. Más de 10 archivos por petición
+        res_limit = self.client.post(
+            '/api/facturas/upload',
+            data={'client_id': 'cli_tenant_1', 'files': [(io.BytesIO(pdf_bytes), f'f_{i}.pdf') for i in range(11)]},
+            content_type='multipart/form-data',
+            headers=self.auth_h(self.token_c1)
+        )
+        self.assertEqual(res_limit.status_code, 400)
+        self.assertIn('máximo', res_limit.get_json().get('error', '').lower())
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  21. Validación matemática de simular_tabla
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_26_simular_tabla_validation(self):
+        """Verifica validación estricta de rangos en simular_tabla (plazo 1-600, tasa 0-100, principal>0)."""
+        # Plazo inválido (0 o 601)
+        r1 = self.client.post('/api/contabilidad/pasivos/simular-tabla', json={'principal': 1000, 'tasa_anual': 12, 'plazo_meses': 0}, headers=self.auth_h(self.token_c1))
+        self.assertEqual(r1.status_code, 400)
+
+        r2 = self.client.post('/api/contabilidad/pasivos/simular-tabla', json={'principal': 1000, 'tasa_anual': 12, 'plazo_meses': 601}, headers=self.auth_h(self.token_c1))
+        self.assertEqual(r2.status_code, 400)
+
+        # Tasa inválida (<0 o >100)
+        r3 = self.client.post('/api/contabilidad/pasivos/simular-tabla', json={'principal': 1000, 'tasa_anual': -5, 'plazo_meses': 12}, headers=self.auth_h(self.token_c1))
+        self.assertEqual(r3.status_code, 400)
+
+        r4 = self.client.post('/api/contabilidad/pasivos/simular-tabla', json={'principal': 1000, 'tasa_anual': 105, 'plazo_meses': 12}, headers=self.auth_h(self.token_c1))
+        self.assertEqual(r4.status_code, 400)
+
+        # Principal negativo o cero
+        r5 = self.client.post('/api/contabilidad/pasivos/simular-tabla', json={'principal': 0, 'tasa_anual': 12, 'plazo_meses': 12}, headers=self.auth_h(self.token_c1))
+        self.assertEqual(r5.status_code, 400)
+
+        # Valores válidos
+        r_ok = self.client.post('/api/contabilidad/pasivos/simular-tabla', json={'principal': 5000000, 'tasa_anual': 15.5, 'plazo_meses': 48}, headers=self.auth_h(self.token_c1))
+        self.assertEqual(r_ok.status_code, 200)
+        body = r_ok.get_json()
+        self.assertTrue(body.get('ok'))
+        cuotas = body.get('cuotas') or body.get('data', {}).get('cuotas', [])
+        self.assertEqual(len(cuotas), 48)
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  22. Estáticos: /static/ users.json, db, .env, storage retornan 404
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_27_static_files_hardening(self):
+        """Verifica que cualquier acceso a /static/ de archivos sensibles devuelva 404."""
+        for path in ('/static/users.json', '/static/facturami.db', '/static/.env', '/static/storage/x.jpg'):
+            res = self.client.get(path)
+            self.assertEqual(res.status_code, 404, f"{path} debe devolver 404")
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  23. Sync Pull: Aislamiento estricto de n8n_creds y cuentas vacías
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_28_sync_pull_no_n8n_creds_and_empty_accounts(self):
+        """
+        Verifica que sync/pull no entregue n8n_creds a usuarios no administradores,
+        falle con ValueError si falta cuenta_id, y entregue n8n_creds únicamente al admin.
+        """
+        with database.get_db(TEST_DB) as conn:
+            database.config_set(conn, 'n8n_creds', json.dumps({'webhook_secret': 'super_secret_internal'}))
+            # Directo en base de datos: sync_pull sin cuenta_id debe lanzar ValueError
+            with self.assertRaises(ValueError):
+                database.sync_pull(conn, None)
+            with self.assertRaises(ValueError):
+                database.sync_pull(conn, '   ')
+
+            # Por defecto include_creds=False no incluye n8n_creds
+            data_db = database.sync_pull(conn, 'contador_1')
+            self.assertNotIn('n8n_creds', data_db)
+
+        # Contador 1 pide pull por HTTP
+        r_c1 = self.client.get('/api/sync/pull', headers=self.auth_h(self.token_c1))
+        self.assertEqual(r_c1.status_code, 200)
+        data_c1 = r_c1.get_json().get('data', {})
+        self.assertNotIn('n8n_creds', data_c1, "n8n_creds NUNCA debe entregarse a contadores no-admin")
+
+        # Admin pide pull por HTTP
+        r_admin = self.client.get('/api/sync/pull', headers=self.auth_h(self.token_admin))
+        self.assertEqual(r_admin.status_code, 200)
+        data_admin = r_admin.get_json().get('data', {})
+        self.assertIn('n8n_creds', data_admin, "Admin legítimo sí puede recibir n8n_creds")
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  24. Admin Transferir Cliente: validación atómica y tabla audit_log
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_29_admin_transferir_cliente_checks(self):
+        """Verifica que transferir-cliente valide destino, rechace misma cuenta y registre en audit_log."""
+        # 1. Transferir a cuenta inexistente -> 404
+        r_no = self.client.post(
+            '/api/admin/transferir-cliente',
+            json={'cliente_id': 'cli_tenant_1', 'nuevo_cuenta_id': 'cuenta_inexistente_xyz'},
+            headers=self.auth_h(self.token_admin)
+        )
+        self.assertEqual(r_no.status_code, 404)
+
+        # 2. Transferir a cuenta inactiva / suspendida -> 400
+        r_susp = self.client.post(
+            '/api/admin/transferir-cliente',
+            json={'cliente_id': 'cli_tenant_1', 'nuevo_cuenta_id': 'contador_suspendido'},
+            headers=self.auth_h(self.token_admin)
+        )
+        self.assertEqual(r_susp.status_code, 400)
+        self.assertIn('no está activa', r_susp.get_json().get('error', ''))
+
+        # 3. Transferir a la misma cuenta -> 400
+        r_same = self.client.post(
+            '/api/admin/transferir-cliente',
+            json={'cliente_id': 'cli_tenant_1', 'nuevo_cuenta_id': 'contador_1'},
+            headers=self.auth_h(self.token_admin)
+        )
+        self.assertEqual(r_same.status_code, 400)
+        self.assertIn('ya pertenece', r_same.get_json().get('error', ''))
+
+        # 4. Transferir con cliente_id inválido -> 400
+        r_bad_id = self.client.post(
+            '/api/admin/transferir-cliente',
+            json={'cliente_id': 'cli@@invalid$$', 'nuevo_cuenta_id': 'contador_2'},
+            headers=self.auth_h(self.token_admin)
+        )
+        self.assertEqual(r_bad_id.status_code, 400)
+
+        # 5. Caso exitoso: transferir válidamente a contador_2 -> 200
+        r_ok = self.client.post(
+            '/api/admin/transferir-cliente',
+            json={'cliente_id': 'cli_tenant_1', 'nuevo_cuenta_id': 'contador_2'},
+            headers=self.auth_h(self.token_admin)
+        )
+        self.assertEqual(r_ok.status_code, 200)
+
+        # Verificar fila en clientes actualizada y entrada inmutable en audit_log
+        with database.get_db(TEST_DB) as conn:
+            c = conn.execute("SELECT cuenta_id FROM clientes WHERE id='cli_tenant_1'").fetchone()
+            self.assertEqual(c['cuenta_id'], 'contador_2')
+
+            log = conn.execute("SELECT * FROM audit_log WHERE target_tipo='cliente' AND target_id='cli_tenant_1' ORDER BY id DESC LIMIT 1").fetchone()
+            self.assertIsNotNone(log)
+            self.assertEqual(log['accion'], 'transferencia_cliente')
+            self.assertEqual(log['actor'], 'admin_user')
+
+            # Revertir transferencia a contador_1 para mantener estado limpio
+            conn.execute("UPDATE clientes SET cuenta_id='contador_1' WHERE id='cli_tenant_1'")
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  25. Login con Email asigna Username Canónico en JWT y clientes
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_30_jwt_identity_canonical_username_on_email_login(self):
+        """Verifica que al hacer login con email, la identidad del token JWT sea el username canónico en minúsculas."""
+        import bcrypt
+        pw = "Password123!"
+        pw_hash = bcrypt.hashpw(pw.encode('utf-8'), bcrypt.gensalt(rounds=12)).decode('utf-8')
+        
+        # Registrar cuenta de prueba con email
+        with database.get_db(TEST_DB) as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO cuentas (username, password_hash, nombre, email, role, activo)
+                VALUES ('carlos_contador', ?, 'Carlos Contador', 'carlos@estudiocontable.com', 'contador', 1)
+            """, (pw_hash,))
+            
+        with open(TEST_USERS, 'r', encoding='utf-8') as f:
+            current_users = json.load(f)
+        current_users.append({
+            "username": "carlos_contador", "email": "carlos@estudiocontable.com",
+            "password_hash": pw_hash, "role": "contador", "name": "Carlos Contador", "active": True
+        })
+        with open(TEST_USERS, 'w', encoding='utf-8') as f:
+            json.dump(current_users, f)
+
+        # Login con email en mayúsculas/minúsculas
+        res = self.client.post('/api/login', json={'username': 'Carlos@EstudioContable.com', 'password': pw})
+        self.assertEqual(res.status_code, 200)
+        token_carlos = res.get_json().get('token')
+        self.assertTrue(token_carlos)
+
+        # Usar token para registrar cliente en sync/push
+        res_push = self.client.post(
+            '/api/sync/push',
+            headers=self.auth_h(token_carlos),
+            json={
+                'f_clients': [{'id': 'cli_carlos_01', 'name': 'Empresa de Carlos', 'type': 'PJ'}]
+            }
+        )
+        self.assertEqual(res_push.status_code, 200)
+
+        # Verificar en SQLite que el cliente quedó asociado al username canónico 'carlos_contador', NO al email
+        with database.get_db(TEST_DB) as conn:
+            cli = conn.execute("SELECT cuenta_id FROM clientes WHERE id='cli_carlos_01'").fetchone()
+            self.assertEqual(cli['cuenta_id'], 'carlos_contador')
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  26. Rollback Atómico en Sync Push con Clave f_data_ Inválida
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_31_sync_push_atomic_rollback_on_invalid_f_data(self):
+        """
+        Verifica que si sync/push recibe un cliente nuevo válido en f_clients pero
+        una clave f_data_ inválida o maliciosa, la transacción haga rollback completo
+        y el cliente nuevo NO quede registrado en la base de datos.
+        """
+        cid_nuevo = "cli_rollback_target_999"
+        res = self.client.post(
+            '/api/sync/push',
+            headers=self.auth_h(self.token_c1),
+            json={
+                'f_clients': [{'id': cid_nuevo, 'name': 'Cliente Que Debe Fallar', 'type': 'PF'}],
+                'f_data_invalid@@@#$': {'ingresos': {'rows': []}}
+            }
+        )
+        self.assertEqual(res.status_code, 400)
+
+        # Verificar que el cliente NO existe en base de datos
+        with database.get_db(TEST_DB) as conn:
+            row = conn.execute("SELECT id FROM clientes WHERE id=?", (cid_nuevo,)).fetchone()
+            self.assertIsNone(row, "El cliente NO debe haberse insertado tras un fallo en f_data (rollback atómico)")
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  27. /api/auth/verify Rechaza Cuentas Suspendidas
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_32_auth_verify_rejects_suspended_account(self):
+        """Verifica que /api/auth/verify con un token de una cuenta suspendida devuelva 403 o 401."""
+        res_susp = self.client.get('/api/auth/verify', headers=self.auth_h(self.token_susp))
+        self.assertIn(res_susp.status_code, (401, 403))
+
+        # En cambio, con cuenta activa devuelve 200
+        res_ok = self.client.get('/api/auth/verify', headers=self.auth_h(self.token_c1))
+        self.assertEqual(res_ok.status_code, 200)
+        self.assertEqual(res_ok.get_json().get('user'), 'contador_1')
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  28. Prevención de Colisión y Secuestro de ID en insert_asiento
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_33_asiento_id_collision_rejected_cross_client(self):
+        """Verifica que no se pueda insertar un asiento con un ID ya perteneciente a otro cliente."""
+        lineas = [
+            {'debito': 1000, 'credito': 0, 'cuenta_codigo': '1.1.1.01'},
+            {'debito': 0, 'credito': 1000, 'cuenta_codigo': '2.1.1.01'}
+        ]
+        shared_asnt_id = "asnt_seguridad_cross_client_01"
+
+        with database.get_db(TEST_DB) as conn:
+            # 1. Insertar para cli_tenant_1
+            database.insert_asiento(conn, {
+                'id': shared_asnt_id,
+                'cliente_id': 'cli_tenant_1',
+                'concepto': 'Asiento Legítimo Cliente 1'
+            }, lineas)
+
+            # 2. Intentar secuestrar o colisionar con cli_tenant_2 usando el mismo ID
+            with self.assertRaises(PermissionError):
+                database.insert_asiento(conn, {
+                    'id': shared_asnt_id,
+                    'cliente_id': 'cli_tenant_2',
+                    'concepto': 'Asiento Malicioso Cliente 2'
+                }, lineas)
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  29. Rate Limiting Persistente en SQLite para Subidas
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_34_upload_rate_limit_persistent_sqlite(self):
+        """Verifica que el límite de 300 archivos/hora persista en la tabla uploads_log de SQLite."""
+        cuenta_test = "rate_limit_test_user"
+        with database.get_db(TEST_DB) as conn:
+            # Limpiar historial de prueba
+            conn.execute("DELETE FROM uploads_log WHERE cuenta_id=?", (cuenta_test,))
+
+            # Subida de 295 archivos -> Permitida
+            ok1, total1, max_h = database.check_and_record_upload_rate(conn, cuenta_test, 295, max_archivos_hora=300)
+            self.assertTrue(ok1)
+            self.assertEqual(total1, 295)
+
+            # Subida subsecuente de 10 archivos (295 + 10 = 305 > 300) -> Rechazada
+            ok2, total2, max_h = database.check_and_record_upload_rate(conn, cuenta_test, 10, max_archivos_hora=300)
+            self.assertFalse(ok2)
+            self.assertEqual(total2, 295)
+
+        # Probar endpoint HTTP /api/facturas/upload con 429 cuando el límite se satura
+        with database.get_db(TEST_DB) as conn:
+            # Llenar la cuota de contador_1
+            conn.execute("INSERT INTO uploads_log (cuenta_id, num_archivos, created_at) VALUES ('contador_1', 300, datetime('now'))")
+
+        pdf_bytes = b"%PDF-1.4\n%test\n%%EOF"
+        res_429 = self.client.post(
+            '/api/facturas/upload',
+            data={'client_id': 'cli_tenant_1', 'files': (io.BytesIO(pdf_bytes), 'f.pdf')},
+            content_type='multipart/form-data',
+            headers=self.auth_h(self.token_c1)
+        )
+        self.assertEqual(res_429.status_code, 429)
+        self.assertIn('Límite de subidas por hora excedido', res_429.get_json().get('error', ''))
+
+        # Limpiar uploads_log de contador_1 para no afectar otras pruebas
+        with database.get_db(TEST_DB) as conn:
+            conn.execute("DELETE FROM uploads_log WHERE cuenta_id='contador_1'")
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  30. Normalización de ID en sync_push y upsert_cliente
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_35_sync_push_id_normalization_and_numeric_id(self):
+        """Verifica que un id con espacio '999 ' sea normalizado a '999' y que ids numéricos se persistan bien."""
+        res = self.client.post(
+            '/api/sync/push',
+            headers=self.auth_h(self.token_c1),
+            json={
+                'f_clients': [
+                    {'id': '999 ', 'name': 'Cliente Con Espacio', 'type': 'PF'},
+                    {'id': '8888', 'name': 'Cliente Numérico', 'type': 'PJ'}
+                ]
+            }
+        )
+        self.assertEqual(res.status_code, 200)
+
+        with database.get_db(TEST_DB) as conn:
+            # Debe existir '999' limpio, no '999 '
+            c_space = conn.execute("SELECT id FROM clientes WHERE id='999'").fetchone()
+            self.assertIsNotNone(c_space)
+            c_raw = conn.execute("SELECT id FROM clientes WHERE id='999 '").fetchone()
+            self.assertIsNone(c_raw)
+
+            # Debe existir '8888'
+            c_num = conn.execute("SELECT id FROM clientes WHERE id='8888'").fetchone()
+            self.assertIsNotNone(c_num)
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  31. delete_contador Bloquea con 409 si Hay Clientes
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_36_delete_contador_blocked_with_409_if_has_clients(self):
+        """Verifica que no se pueda eliminar una cuenta que todavía tiene clientes asociados."""
+        # contador_1 tiene cli_tenant_1
+        r_del = self.client.delete('/api/admin/contadores/contador_1', headers=self.auth_h(self.token_admin))
+        self.assertEqual(r_del.status_code, 409)
+        self.assertIn('transfiérelos primero', r_del.get_json().get('error', '').lower())
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  32. create_contador Rechaza si Existen Clientes con ese cuenta_id
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_37_create_contador_rejected_if_clients_exist_with_cuenta_id(self):
+        """Verifica que no se pueda registrar una cuenta nueva con un username que tiene clientes huérfanos."""
+        with database.get_db(TEST_DB) as conn:
+            conn.execute("INSERT OR REPLACE INTO clientes (id, nombre, cuenta_id) VALUES ('cli_orphan_99', 'Huerfano', 'contador_fantasma')")
+
+        r_create = self.client.post(
+            '/api/admin/contadores',
+            json={
+                'username': 'contador_fantasma',
+                'password': 'Password123!',
+                'nombre': 'Fantasma',
+                'email': 'fantasma@test.com'
+            },
+            headers=self.auth_h(self.token_admin)
+        )
+        self.assertEqual(r_create.status_code, 409)
+        self.assertIn('existen 1 cliente(s)', r_create.get_json().get('error', ''))
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  33. Flujo Post-Transferencia: Pull limpia y Push no da error
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_38_client_transfer_flow_previous_accountant_pull_push(self):
+        """
+        Verifica el ciclo de vida tras transferencia de cliente:
+        1. Contador 1 transfiere cli_transfer_flow a Contador 2.
+        2. Contador 1 hace pull -> cli_transfer_flow ya no viene.
+        3. Contador 1 hace push con sus clientes legítimos -> 200 OK sin error.
+        4. Si Contador 1 intenta forzar push de cli_transfer_flow -> 403 Forbidden.
+        """
+        with database.get_db(TEST_DB) as conn:
+            conn.execute("INSERT OR REPLACE INTO clientes (id, nombre, cuenta_id) VALUES ('cli_transfer_flow', 'Flujo Transfer', 'contador_1')")
+
+        # Admin transfiere a contador_2
+        r_tr = self.client.post(
+            '/api/admin/transferir-cliente',
+            json={'cliente_id': 'cli_transfer_flow', 'nuevo_cuenta_id': 'contador_2'},
+            headers=self.auth_h(self.token_admin)
+        )
+        self.assertEqual(r_tr.status_code, 200)
+
+        # Contador 1 hace pull
+        r_pull = self.client.get('/api/sync/pull', headers=self.auth_h(self.token_c1))
+        self.assertEqual(r_pull.status_code, 200)
+        c1_clients = [c['id'] for c in r_pull.get_json()['data']['f_clients']]
+        self.assertNotIn('cli_transfer_flow', c1_clients)
+
+        # Contador 1 hace push normal sin el cliente transferido -> 200 OK
+        r_push = self.client.post(
+            '/api/sync/push',
+            headers=self.auth_h(self.token_c1),
+            json={'f_clients': [{'id': 'cli_tenant_1', 'name': 'Cliente 1', 'type': 'PF'}]}
+        )
+        self.assertEqual(r_push.status_code, 200)
+
+        # Si Contador 1 intenta mandar de vuelta el cliente transferido -> 403 Forbidden
+        r_push_bad = self.client.post(
+            '/api/sync/push',
+            headers=self.auth_h(self.token_c1),
+            json={'f_clients': [{'id': 'cli_transfer_flow', 'name': 'Flujo Transfer', 'type': 'PF'}]}
+        )
+        self.assertEqual(r_push_bad.status_code, 403)
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  34. insert_transaccion: Prevención de Colisión y Secuestro de ID
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_39_insert_transaccion_collision_protection(self):
+        """Verifica que insert_transaccion no permita insertar un id ya existente perteneciente a otro cliente."""
+        tx_custom_id = "tx_secuestro_test_99"
+        row_data = {'id': tx_custom_id, 'fecha': '2026-11-01', 'total': 1000}
+
+        with database.get_db(TEST_DB) as conn:
+            # 1. Insertar para cli_tenant_1
+            database.insert_transaccion(conn, 'cli_tenant_1', 'ingresos', row_data)
+
+            # 2. Intentar secuestrar con cli_tenant_2 usando el mismo id
+            with self.assertRaises(PermissionError):
+                database.insert_transaccion(conn, 'cli_tenant_2', 'ingresos', row_data)
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  35. Cuota: activo NULL Tratado como Activo (Migraciones Antiguas)
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_40_cuota_null_activo_treated_as_active(self):
+        """Verifica que check_quota_for_client trate activo NULL como cuenta activa y activo=0 como inactiva."""
+        with database.get_db(TEST_DB) as conn:
+            conn.execute("INSERT OR REPLACE INTO cuentas (username, nombre, activo) VALUES ('cuenta_null_act', 'Null Act', NULL)")
+            conn.execute("INSERT OR REPLACE INTO clientes (id, nombre, cuenta_id) VALUES ('cli_null_act', 'Cli Null', 'cuenta_null_act')")
+
+        from routes.facturas import check_quota_for_client
+        ok_null, _ = check_quota_for_client('cli_null_act')
+        self.assertTrue(ok_null, "activo NULL debe tratarse como activo")
+
+        # Desactivar cuenta
+        with database.get_db(TEST_DB) as conn:
+            conn.execute("UPDATE cuentas SET activo=0 WHERE username='cuenta_null_act'")
+
+        ok_zero, err_zero = check_quota_for_client('cli_null_act')
+        self.assertFalse(ok_zero, "activo=0 debe rechazarse")
+        self.assertIn('inactiva', err_zero.lower())
+
 
 if __name__ == '__main__':
     unittest.main()

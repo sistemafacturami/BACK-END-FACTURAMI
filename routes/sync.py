@@ -28,7 +28,12 @@ def pull_data():
     if not cuenta_id:
         return error('Identidad no encontrada en token', 401)
 
-    data, is_empty = pull(cuenta_id=cuenta_id)
+    from flask_jwt_extended import get_jwt
+    claims = get_jwt()
+    is_admin = (claims.get('role') == 'admin')
+
+    data, is_empty = pull(cuenta_id=cuenta_id, include_creds=is_admin)
+
     return success({'empty': is_empty, 'data': data, 'cuenta_id': cuenta_id})
 
 
@@ -45,28 +50,6 @@ def push_data():
     if not data or not isinstance(data, dict):
         return error('Se requiere un body JSON valido', 400)
 
-    # Validar que ningun cliente pertenezca a otra cuenta antes de escribir
-    with database.get_db() as conn:
-        for c in data.get('f_clients', []):
-            if isinstance(c, dict):
-                cid = str(c.get('id') or '').strip()
-                if not cid:
-                    continue
-                if not valid_client_id(cid):
-                    return error(f'ID de cliente invalido: {cid}', 400)
-                existing = conn.execute("SELECT cuenta_id FROM clientes WHERE id=?", (cid,)).fetchone()
-                if existing and existing['cuenta_id'] and existing['cuenta_id'].strip().lower() != str(cuenta_id).strip().lower():
-                    return error(f'Acceso denegado al cliente {cid}', 403)
-
-        for key in list(data.keys()):
-            if key.startswith('f_data_'):
-                cid = key[len('f_data_'):].strip()
-                if not valid_client_id(cid):
-                    return error(f'ID de cliente invalido en f_data: {cid}', 400)
-                existing = conn.execute("SELECT cuenta_id FROM clientes WHERE id=?", (cid,)).fetchone()
-                if existing and existing['cuenta_id'] and existing['cuenta_id'].strip().lower() != str(cuenta_id).strip().lower():
-                    return error(f'Acceso denegado a cliente {cid}', 403)
-
     # Evitar que contadores regulares sobrescriban configuraciones globales del sistema (n8n_creds)
     from flask_jwt_extended import get_jwt
     claims = get_jwt()
@@ -75,7 +58,15 @@ def push_data():
 
     # Forzar cuenta_id del token (no confiar en data.get('cuenta_id'))
     data['cuenta_id'] = cuenta_id
-    push(data, cuenta_id=cuenta_id)
+
+    # La validacion de propiedad y consistencia se ejecuta atomicamente en db.sync_push (BEGIN IMMEDIATE)
+    try:
+        push(data, cuenta_id=cuenta_id)
+    except PermissionError as pe:
+        return error(str(pe) or 'Acceso denegado a cliente', 403)
+    except ValueError as ve:
+        return error(str(ve) or 'Datos de sincronizacion invalidos', 400)
+
     return success(message='Sincronizacion completada')
 
 

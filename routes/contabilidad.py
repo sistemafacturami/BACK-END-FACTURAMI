@@ -6,6 +6,7 @@ Autorizacion (Fase 1):
   - Todos los endpoints exigen token JWT valido (@auth_required).
   - Cada operacion valida que el cliente pertenezca a la cuenta del token (deny_unless_cliente).
 """
+import math
 from flask import Blueprint, request
 from errors import success, error, handle_errors
 from services.authz import auth_required, deny_unless_cliente
@@ -174,9 +175,26 @@ def ajuste_balance():
 def simular_tabla():
     """POST /api/contabilidad/pasivos/simular-tabla"""
     body = request.get_json(force=True, silent=True) or {}
-    principal = float(body.get('monto_principal') or body.get('principal') or 0)
-    tasa = float(body.get('tasa_anual') or 0)
-    plazo = int(body.get('plazo_meses') or 12)
+    try:
+        p_raw = body.get('monto_principal') if body.get('monto_principal') is not None else body.get('principal', 0)
+        t_raw = body.get('tasa_anual') if body.get('tasa_anual') is not None else body.get('tasa', 0)
+        pl_raw = body.get('plazo_meses') if body.get('plazo_meses') is not None else body.get('plazo', 12)
+        principal = float(p_raw)
+        tasa = float(t_raw)
+        plazo = int(pl_raw)
+    except (ValueError, TypeError):
+        return error("Parámetros numéricos inválidos", 400)
+
+    # Validacion estricta de límites matematicos y de negocio
+    if not (math.isfinite(principal) and math.isfinite(tasa) and math.isfinite(plazo)):
+        return error("Los valores numéricos deben ser finitos", 400)
+    if principal <= 0:
+        return error("El monto principal debe ser mayor a cero", 400)
+    if not (0 <= tasa <= 100):
+        return error("La tasa anual debe estar entre 0% y 100%", 400)
+    if not (1 <= plazo <= 600):
+        return error("El plazo en meses debe estar entre 1 y 600", 400)
+
     periodicidad = body.get('periodicidad', 'mensual')
     sistema = body.get('sistema', 'frances')
     fecha_inicio = body.get('fecha_inicio')
@@ -206,11 +224,13 @@ def registrar_pasivo():
     datos = body.get('datos', {})
     if not cliente_id or not datos:
         return error("Se requiere cliente_id y objeto datos del pasivo", 400)
-    denied = deny_unless_cliente(cliente_id)
+    
+    cid_str = str(cliente_id)
+    denied = deny_unless_cliente(cid_str)
     if denied:
         return denied
 
-    res = contabilidad_service.registrar_pasivo_financiero(cliente_id, datos)
+    res = contabilidad_service.registrar_pasivo_financiero(cid_str, datos)
     return success(res, message="Pasivo financiero registrado exitosamente con asiento contable")
 
 
@@ -225,11 +245,13 @@ def pago_pasivo():
     datos_pago = body.get('datos_pago', {})
     if not cliente_id or not pasivo or not datos_pago:
         return error("Se requiere cliente_id, pasivo y datos_pago", 400)
-    denied = deny_unless_cliente(cliente_id)
+    
+    cid_str = str(cliente_id)
+    denied = deny_unless_cliente(cid_str)
     if denied:
         return denied
 
-    res = contabilidad_service.registrar_pago_pasivo(cliente_id, pasivo, datos_pago)
+    res = contabilidad_service.registrar_pago_pasivo(cid_str, pasivo, datos_pago)
     return success(res, message="Pago de pasivo registrado exitosamente con partida doble")
 
 
@@ -245,20 +267,37 @@ def anular_pago():
     motivo = body.get('motivo', 'Anulación de pago de préstamo')
     if not cliente_id or not pasivo or not pago_id:
         return error("Se requiere cliente_id, pasivo y pago_id", 400)
-    denied = deny_unless_cliente(cliente_id)
+    
+    cid_str = str(cliente_id)
+    denied = deny_unless_cliente(cid_str)
     if denied:
         return denied
 
-    # Proteccion contra IDOR de objeto: verificar que el asiento_id asociado al pago pertenezca al cliente
-    pago_obj = next((p for p in pasivo.get('historial_pagos', []) if p.get('pago_id') == pago_id), None)
-    if pago_obj and pago_obj.get('asiento_id'):
-        with database.get_db() as conn:
-            asnt = conn.execute("SELECT cliente_id FROM asientos WHERE id=?", (pago_obj['asiento_id'],)).fetchone()
-            if asnt and asnt['cliente_id'] != cliente_id:
-                return error("El asiento contable no pertenece al cliente especificado", 403)
+    # Proteccion contra IDOR de objeto: verificar directamente en DB que el pago/asiento pertenezca al cliente
+    pagos = pasivo.get('pagos', []) if isinstance(pasivo, dict) else []
+    if not pagos and isinstance(pasivo, dict) and 'historial_pagos' in pasivo:
+        pagos = pasivo['historial_pagos']
+        
+    pago_obj = next((p for p in pagos if str(p.get('id') or p.get('pago_id')) == str(pago_id)), None)
+    if not pago_obj:
+        return error("Pago no encontrado en el pasivo especificado", 404)
 
-    res = contabilidad_service.anular_pago_pasivo(cliente_id, pasivo, pago_id, motivo)
-    return success(res, message="Pago anulado y asiento contable reversado con trazabilidad")
+    asiento_id = pago_obj.get('asiento_id')
+    if not asiento_id:
+        return error("El pago no tiene asiento contable asociado", 400)
+
+    with database.get_db() as conn:
+        asnt = conn.execute("SELECT id, cliente_id FROM asientos WHERE id=? AND cliente_id=?", (asiento_id, cid_str)).fetchone()
+        if not asnt:
+            return error("El asiento contable no pertenece al cliente especificado", 403)
+
+    try:
+        res = contabilidad_service.anular_pago_pasivo(cid_str, pasivo, pago_id, motivo)
+        return success(res, message="Pago anulado y asiento contable reversado con trazabilidad")
+    except PermissionError as pe:
+        return error(str(pe), 403)
+    except ValueError as ve:
+        return error(str(ve), 400)
 
 
 @contabilidad_bp.route('/api/contabilidad/auditoria', methods=['GET', 'POST'])

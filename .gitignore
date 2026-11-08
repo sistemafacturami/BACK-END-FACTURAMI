@@ -17,7 +17,10 @@
 
 # --- Bases de Datos y Datos Reales de Contribuyentes ---
 *.db
+*.db-*
 *.db-journal
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 facturami.db
@@ -34,6 +37,7 @@ backup_cloud.sh
 venv/
 env/
 ENV/
+python/
 node_modules/
 .n8n/
 

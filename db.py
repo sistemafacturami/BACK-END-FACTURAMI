@@ -11,8 +11,11 @@ import sqlite3
 import os
 import uuid
 import json
+import re
 from datetime import datetime, date
 from contextlib import contextmanager
+
+CLIENT_ID_RE = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get('FACTURAMI_DB_PATH', os.path.join(BASE_DIR, 'facturami.db'))
@@ -161,6 +164,25 @@ CREATE TABLE IF NOT EXISTS configuracion (
     valor       TEXT DEFAULT ''
 );
 
+-- Registro de subidas para rate limiting persistente por cuenta (archivos por hora)
+CREATE TABLE IF NOT EXISTS uploads_log (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    cuenta_id    TEXT NOT NULL,
+    num_archivos INTEGER NOT NULL,
+    created_at   TEXT DEFAULT (datetime('now','localtime'))
+);
+
+-- Bitacora append-only inmutable de auditoria administrativa y de seguridad
+CREATE TABLE IF NOT EXISTS audit_log (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    accion        TEXT NOT NULL,
+    actor         TEXT NOT NULL,
+    target_tipo   TEXT DEFAULT '',
+    target_id     TEXT DEFAULT '',
+    detalles_json TEXT DEFAULT '{}',
+    created_at    TEXT DEFAULT (datetime('now','localtime'))
+);
+
 -- Indices para consultas frecuentes
 CREATE INDEX IF NOT EXISTS idx_tx_cliente   ON transacciones(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_tx_modulo    ON transacciones(modulo);
@@ -169,6 +191,9 @@ CREATE INDEX IF NOT EXISTS idx_tx_cli_mod   ON transacciones(cliente_id, modulo)
 CREATE INDEX IF NOT EXISTS idx_queue_cli    ON facturas_queue(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_queue_estado ON facturas_queue(estado);
 CREATE INDEX IF NOT EXISTS idx_queue_cli_estado ON facturas_queue(cliente_id, estado);
+CREATE INDEX IF NOT EXISTS idx_uploads_cuenta ON uploads_log(cuenta_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_log_target ON audit_log(target_tipo, target_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at);
 """
 
 def init_db(db_path=None):
@@ -276,7 +301,14 @@ def init_db(db_path=None):
 
 def upsert_cliente(conn, client_dict, cuenta_id=None):
     """Inserta o actualiza un cliente asociado a una cuenta de contador."""
-    c_owner = cuenta_id or client_dict.get('cuenta_id') or 'lvarmedi'
+    if not cuenta_id or not str(cuenta_id).strip():
+        raise ValueError("cuenta_id requerido")
+    c_owner = str(cuenta_id).strip().lower()
+    cid = str(client_dict.get('id') or '').strip()
+    if not cid:
+        raise ValueError("id de cliente requerido")
+    if not CLIENT_ID_RE.fullmatch(cid):
+        raise ValueError(f"ID de cliente invalido: {cid}")
     conn.execute("""
         INSERT INTO clientes (id, tipo, nombre, telefono, email, direccion, actividad, representante, webhook_url, cuenta_id)
         VALUES (:id, :tipo, :nombre, :tel, :mail, :dir, :act, :rep, :webhook, :cuenta_id)
@@ -290,9 +322,9 @@ def upsert_cliente(conn, client_dict, cuenta_id=None):
             END,
             updated_at=datetime('now','localtime')
     """, {
-        'id':        client_dict.get('id', ''),
+        'id':        cid,
         'tipo':      client_dict.get('type', 'PF'),
-        'nombre':    client_dict.get('name', ''),
+        'nombre':    str(client_dict.get('name') or cid).strip(),
         'tel':       client_dict.get('tel', ''),
         'mail':      client_dict.get('mail', ''),
         'dir':       client_dict.get('dir', ''),
@@ -304,22 +336,28 @@ def upsert_cliente(conn, client_dict, cuenta_id=None):
 
 def get_clientes(conn, cuenta_id=None):
     """Devuelve todos los clientes en formato compatible con el frontend, filtrando por cuenta."""
-    if not cuenta_id:
+    if not cuenta_id or not str(cuenta_id).strip():
         return []
     if cuenta_id == '__all__':
         rows = conn.execute("SELECT * FROM clientes ORDER BY nombre").fetchall()
     else:
-        rows = conn.execute("SELECT * FROM clientes WHERE cuenta_id=? ORDER BY nombre", (cuenta_id,)).fetchall()
+        rows = conn.execute(
+            "SELECT * FROM clientes WHERE LOWER(TRIM(cuenta_id))=LOWER(TRIM(?)) ORDER BY nombre",
+            (str(cuenta_id).strip(),)
+        ).fetchall()
     return [dict(r) for r in rows]
 
 def get_clientes_legacy(conn, cuenta_id=None):
     """Devuelve clientes en el formato original del frontend (f_clients) filtrados por cuenta."""
-    if not cuenta_id:
+    if not cuenta_id or not str(cuenta_id).strip():
         return []
     if cuenta_id == '__all__':
         rows = conn.execute("SELECT * FROM clientes ORDER BY rowid").fetchall()
     else:
-        rows = conn.execute("SELECT * FROM clientes WHERE cuenta_id=? ORDER BY rowid", (cuenta_id,)).fetchall()
+        rows = conn.execute(
+            "SELECT * FROM clientes WHERE LOWER(TRIM(cuenta_id))=LOWER(TRIM(?)) ORDER BY rowid",
+            (str(cuenta_id).strip(),)
+        ).fetchall()
     return [{
         'type': r['tipo'], 'name': r['nombre'], 'id': r['id'],
         'tel': r['telefono'], 'mail': r['email'], 'dir': r['direccion'],
@@ -376,19 +414,53 @@ def get_cuentas(conn):
     return [_enrich_cuenta(dict(r)) for r in rows]
 
 def get_cuenta(conn, username):
-    """Obtiene una cuenta por su username."""
+    """Obtiene una cuenta por su username (búsqueda insensible a mayúsculas y espacios)."""
+    if not username:
+        return None
+    u_clean = str(username).strip().lower()
     row = conn.execute("""
         SELECT c.*,
-            (SELECT COUNT(*) FROM clientes cl WHERE cl.cuenta_id = c.username) as total_clientes,
+            (SELECT COUNT(*) FROM clientes cl WHERE LOWER(TRIM(cl.cuenta_id)) = LOWER(TRIM(c.username))) as total_clientes,
             (SELECT COUNT(*) FROM facturas_queue fq 
              JOIN clientes cl ON fq.cliente_id = cl.id 
-             WHERE cl.cuenta_id = c.username 
+             WHERE LOWER(TRIM(cl.cuenta_id)) = LOWER(TRIM(c.username))
              AND fq.estado = 'absorbida'
              AND strftime('%Y-%m', COALESCE(fq.absorbida_at, fq.recibida_at)) = strftime('%Y-%m', 'now')
              AND (COALESCE(c.contador_reset_at, '') = '' OR COALESCE(fq.absorbida_at, fq.recibida_at) > c.contador_reset_at)) as facturas_mes
-        FROM cuentas c WHERE c.username = ?
-    """, (username,)).fetchone()
+        FROM cuentas c WHERE LOWER(TRIM(c.username)) = ?
+    """, (u_clean,)).fetchone()
     return _enrich_cuenta(dict(row)) if row else None
+
+def check_and_record_upload_rate(conn, cuenta_id, num_archivos, max_archivos_hora=300):
+    """
+    Control de tasa de subidas persistente en SQLite por cuenta (archivos por hora).
+    Suma num_archivos subidos en la última hora (datetime('now', '-1 hour', 'localtime')).
+    Si total + num_archivos > max_archivos_hora, retorna (False, total, max_archivos_hora).
+    De lo contrario, registra el lote y retorna (True, total + num_archivos, max_archivos_hora).
+    """
+    if not cuenta_id:
+        return False, 0, max_archivos_hora
+    c_clean = str(cuenta_id).strip().lower()
+    row = conn.execute("""
+        SELECT COALESCE(SUM(num_archivos), 0) as total
+        FROM uploads_log
+        WHERE LOWER(TRIM(cuenta_id)) = ?
+          AND created_at >= datetime('now', '-1 hour', 'localtime')
+    """, (c_clean,)).fetchone()
+    total_reciente = int(row['total'] if row else 0)
+
+    if total_reciente + int(num_archivos) > max_archivos_hora:
+        return False, total_reciente, max_archivos_hora
+
+    conn.execute("""
+        INSERT INTO uploads_log (cuenta_id, num_archivos, created_at)
+        VALUES (?, ?, datetime('now', 'localtime'))
+    """, (c_clean, int(num_archivos)))
+    try:
+        conn.execute("DELETE FROM uploads_log WHERE created_at < datetime('now', '-48 hours', 'localtime')")
+    except Exception:
+        pass
+    return True, total_reciente + int(num_archivos), max_archivos_hora
 
 def reset_contador_facturas(conn, username):
     """Reinicia a 0 el contador mensual de facturas de una cuenta.
@@ -586,7 +658,14 @@ def resolve_client_by_email(conn, email_str, from_email=None):
 
 def insert_transaccion(conn, cliente_id, modulo, row_dict, origen='manual'):
     """Inserta una transaccion contable con soporte de origen de fondos y asiento NIIF."""
-    tx_id = str(uuid.uuid4())
+    tx_id = str(row_dict.get('id') or uuid.uuid4())
+
+    # Protección anti-colisión / secuestro: si id viene provisto, verificar que no pertenezca a otro cliente
+    if row_dict.get('id'):
+        exist = conn.execute("SELECT cliente_id FROM transacciones WHERE id=?", (tx_id,)).fetchone()
+        if exist and str(exist['cliente_id']) != str(cliente_id):
+            raise PermissionError(f"La transacción {tx_id} ya existe y pertenece a otro cliente")
+
     conn.execute("""
         INSERT INTO transacciones
         (id, cliente_id, modulo, fecha, documento, tipo_doc, descripcion, proveedor,
@@ -649,9 +728,12 @@ def get_transacciones_legacy(conn, cliente_id, modulo):
         })
     return result
 
-def delete_transaccion(conn, tx_id):
-    """Elimina una transaccion por ID."""
-    conn.execute("DELETE FROM transacciones WHERE id=?", (tx_id,))
+def delete_transaccion(conn, tx_id, cliente_id=None):
+    """Elimina una transaccion por ID asegurando pertenencia al cliente si se especifica."""
+    if cliente_id:
+        conn.execute("DELETE FROM transacciones WHERE id=? AND cliente_id=?", (tx_id, str(cliente_id)))
+    else:
+        conn.execute("DELETE FROM transacciones WHERE id=?", (tx_id,))
 
 # ══════════════════════════════════════════════════════════════════════════
 #  NIIF: Asientos Contables, Libro Diario y Catálogo de Cuentas
@@ -671,6 +753,12 @@ def insert_asiento(conn, asiento_dict, lineas_list):
 
     asiento_id = asiento_dict.get('id') or str(uuid.uuid4())
     cliente_id = asiento_dict['cliente_id']
+
+    # Protección anti-colisión / secuestro: si id viene provisto, verificar que no pertenezca a otro cliente
+    if asiento_dict.get('id'):
+        exist = conn.execute("SELECT cliente_id FROM asientos WHERE id=?", (str(asiento_id),)).fetchone()
+        if exist and str(exist['cliente_id']) != str(cliente_id):
+            raise PermissionError(f"El asiento {asiento_id} ya existe y pertenece a otro cliente")
     
     # Calcular correlativo si no viene dado
     num_asiento = asiento_dict.get('num_asiento')
@@ -732,22 +820,28 @@ def get_asientos_por_cliente(conn, cliente_id, anio=None, mes=None):
         asientos.append(ad)
     return asientos
 
-def reversar_asiento(conn, asiento_id, motivo="Anulación de comprobante"):
+def reversar_asiento(conn, asiento_id, motivo="Anulación de comprobante", cliente_id=None):
     """
     Reversa un asiento contable creando un contrasiento exacto (invierte Debe y Haber)
     y preservando la trazabilidad completa según NIIF (los asientos no se borran).
+    Valida pertenencia de cliente_id si se especifica.
     """
-    asiento_orig = conn.execute("SELECT * FROM asientos WHERE id=?", (asiento_id,)).fetchone()
+    query = "SELECT * FROM asientos WHERE id=?"
+    params = [asiento_id]
+    if cliente_id is not None:
+        query += " AND cliente_id=?"
+        params.append(str(cliente_id))
+    asiento_orig = conn.execute(query, params).fetchone()
     if not asiento_orig:
-        raise ValueError("Asiento no encontrado")
+        raise ValueError("Asiento no encontrado o no pertenece al cliente")
     if asiento_orig['estado'] == 'reversado':
         raise ValueError("El asiento ya se encuentra reversado")
         
     lineas_orig = conn.execute("SELECT * FROM asiento_lineas WHERE asiento_id=?", (asiento_id,)).fetchall()
     
     nuevo_asiento_id = str(uuid.uuid4())
-    cliente_id = asiento_orig['cliente_id']
-    cur_max = conn.execute("SELECT COALESCE(MAX(num_asiento), 0) FROM asientos WHERE cliente_id=?", (cliente_id,)).fetchone()
+    cid = str(asiento_orig['cliente_id'])
+    cur_max = conn.execute("SELECT COALESCE(MAX(num_asiento), 0) FROM asientos WHERE cliente_id=?", (cid,)).fetchone()
     num_asiento = (cur_max[0] if cur_max else 0) + 1
     
     # Crear asiento de reversión
@@ -757,7 +851,7 @@ def reversar_asiento(conn, asiento_id, motivo="Anulación de comprobante"):
          modulo_origen, concepto, total_debe, total_haber, estado, asiento_reversion_id)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
     """, (
-        nuevo_asiento_id, cliente_id, num_asiento,
+        nuevo_asiento_id, cid, num_asiento,
         date.today().isoformat(),
         'reversion',
         f"REV-{asiento_orig['documento_origen']}",
@@ -781,7 +875,7 @@ def reversar_asiento(conn, asiento_id, motivo="Anulación de comprobante"):
         ))
         
     # Marcar original como reversado
-    conn.execute("UPDATE asientos SET estado='reversado', asiento_reversion_id=? WHERE id=?", (nuevo_asiento_id, asiento_id))
+    conn.execute("UPDATE asientos SET estado='reversado', asiento_reversion_id=? WHERE id=? AND cliente_id=?", (nuevo_asiento_id, asiento_id, cid))
     return nuevo_asiento_id
 
 def get_catalogo_cuentas(conn, cliente_id):
@@ -958,26 +1052,55 @@ def config_set(conn, clave, valor):
         (clave, valor)
     )
 
+def insert_audit_log(conn, accion, actor, target_tipo='', target_id='', detalles=None):
+    """Inserta una entrada inmutable en la bitácora append-only de auditoría."""
+    d_str = json.dumps(detalles or {}, ensure_ascii=False)
+    conn.execute("""
+        INSERT INTO audit_log (accion, actor, target_tipo, target_id, detalles_json, created_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now','localtime'))
+    """, (accion, actor, target_tipo, target_id, d_str))
+
+def get_audit_log(conn, target_tipo=None, target_id=None, limit=100):
+    """Devuelve registros recientes de auditoría."""
+    if target_tipo and target_id:
+        rows = conn.execute(
+            "SELECT * FROM audit_log WHERE target_tipo=? AND target_id=? ORDER BY id DESC LIMIT ?",
+            (target_tipo, str(target_id), limit)
+        ).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM audit_log ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    return [dict(r) for r in rows]
+
 # ══════════════════════════════════════════════════════════════════════════
 #  Sync: Pull/Push compatibles con frontend
 # ══════════════════════════════════════════════════════════════════════════
 
-def sync_pull(conn, cuenta_id=None):
-    """Genera el payload completo compatible con el formato usb_database.json, filtrando por cuenta."""
+def sync_pull(conn, cuenta_id, include_creds=False):
+    """
+    Genera el payload completo compatible con el frontend, filtrando por cuenta.
+    Lanza ValueError si falta cuenta_id.
+    Solo incluye n8n_creds si include_creds es True.
+    """
+    if not cuenta_id or not str(cuenta_id).strip():
+        raise ValueError("cuenta_id requerido")
+
+    owner = str(cuenta_id).strip().lower()
     data = {}
     
     # Clientes en formato legacy
-    data['f_clients'] = get_clientes_legacy(conn, cuenta_id=cuenta_id)
+    data['f_clients'] = get_clientes_legacy(conn, cuenta_id=owner)
     
-    # Tema
-    data['f_theme'] = config_get(conn, 'f_theme', 'light')
+    # Tema aislado por cuenta
+    theme_key = f'theme_{owner}'
+    data['f_theme'] = config_get(conn, theme_key, config_get(conn, 'f_theme', 'light'))
     
-    # n8n creds
-    creds_str = config_get(conn, 'n8n_creds', '{}')
-    try:
-        data['n8n_creds'] = json.loads(creds_str)
-    except Exception:
-        data['n8n_creds'] = {}
+    # n8n creds solo si se solicita explícitamente (solo para administradores)
+    if include_creds:
+        creds_str = config_get(conn, 'n8n_creds', '{}')
+        try:
+            data['n8n_creds'] = json.loads(creds_str)
+        except Exception:
+            data['n8n_creds'] = {}
     
     # Datos por cliente
     for client in data['f_clients']:
@@ -1040,86 +1163,127 @@ def sync_pull(conn, cuenta_id=None):
     return data
 
 def sync_push(conn, data, cuenta_id=None):
-    """Recibe el payload del frontend y actualiza SQLite asociando la cuenta."""
-    # Clientes
+    """
+    Recibe el payload del frontend y actualiza SQLite asociando la cuenta.
+    Ejecuta dentro de transaccion atómica inmediata (BEGIN IMMEDIATE) para serializar escritores.
+    Valida pertenencia de cada cliente antes de escribir y rechaza clientes o datos no autorizados.
+    """
+    if not cuenta_id or not str(cuenta_id).strip():
+        raise ValueError("cuenta_id es requerido para sync_push")
+    
+    owner = str(cuenta_id).strip().lower()
+    conn.execute("BEGIN IMMEDIATE")
+
+    # 1. Validar y procesar f_clients
     clients = data.get('f_clients', [])
+    valid_pushed_cids = set()
     for c in clients:
-        upsert_cliente(conn, c, cuenta_id=cuenta_id or c.get('cuenta_id'))
-    
-    # Tema
+        if isinstance(c, dict):
+            cid = str(c.get('id') or '').strip()
+            if not cid:
+                continue
+            if not CLIENT_ID_RE.fullmatch(cid):
+                raise ValueError(f"ID de cliente invalido en f_clients: {cid}")
+            row = conn.execute("SELECT cuenta_id FROM clientes WHERE id=?", (cid,)).fetchone()
+            if row and row['cuenta_id'] and row['cuenta_id'].strip().lower() != owner:
+                raise PermissionError(f"Acceso denegado al cliente {cid} (pertenece a otra cuenta)")
+            upsert_cliente(conn, {**c, 'id': cid}, cuenta_id=owner)
+            valid_pushed_cids.add(cid)
+
+    # 2. Tema aislado por cuenta
     if 'f_theme' in data:
-        config_set(conn, 'f_theme', data['f_theme'])
-    
-    # n8n creds
+        config_set(conn, f'theme_{owner}', str(data['f_theme']))
+
+    # 3. n8n creds solo si se incluye en data
     if 'n8n_creds' in data:
         config_set(conn, 'n8n_creds', json.dumps(data['n8n_creds']))
-    
-    # Datos de transacciones por cliente
+
+    # 4. Validar y procesar transacciones y datos por cliente
     for key, value in data.items():
-        if key.startswith('f_data_') and isinstance(value, dict):
-            cid = key.replace('f_data_', '')
-            
-            for mod_name in ('ingresos', 'compras', 'gastos', 'costos', 'obras'):
-                mod_data = value.get(mod_name)
-                if not mod_data or not isinstance(mod_data, dict):
-                    continue
-                
-                rows = mod_data.get('rows', [])
-                
-                # Borrar transacciones existentes de este modulo para este cliente
-                conn.execute(
-                    "DELETE FROM transacciones WHERE cliente_id=? AND modulo=?",
-                    (cid, mod_name)
-                )
-                
-                # Insertar las nuevas
-                for row in rows:
-                    insert_transaccion(conn, cid, mod_name, row, origen='sync')
-            
-            # Activos: guardar como JSON blob
-            activos = value.get('activos')
-            if activos is not None and isinstance(activos, dict):
-                config_set(conn, f'activos_{cid}', json.dumps(activos, ensure_ascii=False))
-            
-            # Pasivos: guardar como JSON blob
-            pasivos = value.get('pasivos')
-            if pasivos is not None and isinstance(pasivos, dict):
-                config_set(conn, f'pasivos_{cid}', json.dumps(pasivos, ensure_ascii=False))
-            
-            # Patrimonio: guardar como JSON blob
-            patrimonio = value.get('patrimonio')
-            if patrimonio is not None and isinstance(patrimonio, dict):
-                config_set(conn, f'patrimonio_{cid}', json.dumps(patrimonio, ensure_ascii=False))
+        if not key.startswith('f_data_'):
+            continue
+        if not isinstance(value, dict):
+            continue
 
-            # NIIF: Cuentas bancarias
-            cuentas_b = value.get('cuentas_bancarias')
-            if cuentas_b and isinstance(cuentas_b, list):
-                for cb in cuentas_b:
-                    if isinstance(cb, dict) and cb.get('banco_nombre'):
-                        conn.execute("""
-                            INSERT OR REPLACE INTO cuentas_bancarias 
-                            (id, cliente_id, banco_nombre, numero_cuenta, moneda, cuenta_contable_codigo, saldo_inicial, activo)
-                            VALUES (?,?,?,?,?,?,?,?)
-                        """, (
-                            cb.get('id') or str(uuid.uuid4()), cid,
-                            cb['banco_nombre'], cb.get('numero_cuenta', ''),
-                            cb.get('moneda', 'CRC'), cb.get('cuenta_contable_codigo', '1.1.1.02.01'),
-                            float(cb.get('saldo_inicial', 0) or 0), int(cb.get('activo', 1))
-                        ))
+        cid = key[len('f_data_'):]  # Slicing directo, sin replace() y sin strip()
+        if not CLIENT_ID_RE.fullmatch(cid):
+            raise ValueError(f"Clave de sincronizacion invalida: {key}")
 
-            # NIIF: Asientos contables
-            asientos_in = value.get('asientos')
-            if asientos_in and isinstance(asientos_in, list):
-                for asnt in asientos_in:
-                    if isinstance(asnt, dict) and asnt.get('lineas'):
-                        aid = asnt.get('id')
-                        exist = conn.execute("SELECT id FROM asientos WHERE id=?", (aid,)).fetchone() if aid else None
-                        if not exist:
-                            try:
-                                asnt['cliente_id'] = cid
-                                insert_asiento(conn, asnt, asnt['lineas'])
-                            except Exception as ex:
-                                print(f"[SYNC] Error insertando asiento {aid}: {ex}")
+        row = conn.execute("SELECT cuenta_id FROM clientes WHERE id=?", (cid,)).fetchone()
+        if row is None or (row['cuenta_id'] or '').strip().lower() != owner:
+            # Si el cliente no existe en DB ni vino en f_clients de esta cuenta, rechazar inmediatamente
+            raise PermissionError(f"Acceso denegado a cliente {cid}")
+
+        for mod_name in ('ingresos', 'compras', 'gastos', 'costos', 'obras'):
+            mod_data = value.get(mod_name)
+            if not mod_data or not isinstance(mod_data, dict):
+                continue
+            
+            rows = mod_data.get('rows', [])
+            
+            # Borrar transacciones existentes de este modulo para este cliente
+            conn.execute(
+                "DELETE FROM transacciones WHERE cliente_id=? AND modulo=?",
+                (cid, mod_name)
+            )
+            
+            # Insertar las nuevas
+            for row_dict in rows:
+                insert_transaccion(conn, cid, mod_name, row_dict, origen='sync')
+        
+        # Activos: guardar como JSON blob
+        activos = value.get('activos')
+        if activos is not None and isinstance(activos, dict):
+            config_set(conn, f'activos_{cid}', json.dumps(activos, ensure_ascii=False))
+        
+        # Pasivos: guardar como JSON blob
+        pasivos = value.get('pasivos')
+        if pasivos is not None and isinstance(pasivos, dict):
+            config_set(conn, f'pasivos_{cid}', json.dumps(pasivos, ensure_ascii=False))
+        
+        # Patrimonio: guardar como JSON blob
+        patrimonio = value.get('patrimonio')
+        if patrimonio is not None and isinstance(patrimonio, dict):
+            config_set(conn, f'patrimonio_{cid}', json.dumps(patrimonio, ensure_ascii=False))
+
+        # NIIF: Cuentas bancarias (ON CONFLICT DO UPDATE WHERE cliente_id coincide)
+        cuentas_b = value.get('cuentas_bancarias')
+        if cuentas_b and isinstance(cuentas_b, list):
+            for cb in cuentas_b:
+                if isinstance(cb, dict) and cb.get('banco_nombre'):
+                    cb_id = str(cb.get('id') or uuid.uuid4())
+                    conn.execute("""
+                        INSERT INTO cuentas_bancarias 
+                        (id, cliente_id, banco_nombre, numero_cuenta, moneda, cuenta_contable_codigo, saldo_inicial, activo)
+                        VALUES (?,?,?,?,?,?,?,?)
+                        ON CONFLICT(id) DO UPDATE SET
+                            banco_nombre=excluded.banco_nombre,
+                            numero_cuenta=excluded.numero_cuenta,
+                            moneda=excluded.moneda,
+                            cuenta_contable_codigo=excluded.cuenta_contable_codigo,
+                            saldo_inicial=excluded.saldo_inicial,
+                            activo=excluded.activo
+                        WHERE cuentas_bancarias.cliente_id = excluded.cliente_id
+                    """, (
+                        cb_id, cid,
+                        cb['banco_nombre'], cb.get('numero_cuenta', ''),
+                        cb.get('moneda', 'CRC'), cb.get('cuenta_contable_codigo', '1.1.1.02.01'),
+                        float(cb.get('saldo_inicial', 0) or 0), int(cb.get('activo', 1))
+                    ))
+
+        # NIIF: Asientos contables
+        asientos_in = value.get('asientos')
+        if asientos_in and isinstance(asientos_in, list):
+            for asnt in asientos_in:
+                if isinstance(asnt, dict) and asnt.get('lineas'):
+                    aid = asnt.get('id')
+                    exist = conn.execute("SELECT id, cliente_id FROM asientos WHERE id=?", (aid,)).fetchone() if aid else None
+                    if not exist:
+                        try:
+                            asnt['cliente_id'] = cid
+                            insert_asiento(conn, asnt, asnt['lineas'])
+                        except Exception as ex:
+                            print(f"[SYNC] Error insertando asiento {aid}: {ex}")
 
 # ══════════════════════════════════════════════════════════════════════════
 #  Auto-init al importar

@@ -991,17 +991,25 @@ def registrar_pago_pasivo(cliente_id, pasivo, datos_pago, db_path=None):
 def anular_pago_pasivo(cliente_id, pasivo, pago_id, motivo="Anulación de pago de préstamo", db_path=None):
     """
     Reversa el asiento contable de un pago y restaura el estado y la versión del plan.
+    Verifica de forma estricta en base de datos la pertenencia del asiento contable al cliente.
     """
-    pagos = pasivo.get('pagos', [])
-    pago_obj = next((p for p in pagos if p['id'] == pago_id), None)
+    cid_str = str(cliente_id)
+    pagos = pasivo.get('pagos', []) if isinstance(pasivo, dict) else []
+    pago_obj = next((p for p in pagos if str(p.get('id') or p.get('pago_id')) == str(pago_id)), None)
     if not pago_obj:
         raise ValueError("Pago no encontrado.")
     if pago_obj.get('estado') == 'reversado':
         raise ValueError("El pago ya ha sido anulado previamente.")
         
     asiento_id = pago_obj.get('asiento_id')
+    if not asiento_id:
+        raise ValueError("El pago no tiene asiento_id asociado.")
+
     with database.get_db(db_path) as conn:
-        rev_id = database.reversar_asiento(conn, asiento_id, motivo)
+        asnt = conn.execute("SELECT id, cliente_id, estado FROM asientos WHERE id=? AND cliente_id=?", (asiento_id, cid_str)).fetchone()
+        if not asnt:
+            raise PermissionError("El asiento contable no pertenece al cliente especificado o no existe")
+        rev_id = database.reversar_asiento(conn, asiento_id, motivo, cliente_id=cid_str)
         
     pago_obj['estado'] = 'reversado'
     pago_obj['asiento_reversion_id'] = rev_id

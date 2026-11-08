@@ -8,8 +8,11 @@ Autorizacion (Fase 1):
 """
 import os
 import re
+import time
+from collections import defaultdict
 
 from flask import Blueprint, request, jsonify, send_file, redirect
+from flask_jwt_extended import get_jwt_identity
 
 from errors import success, error, created, conflict, handle_errors
 from services.auth_service import validate_n8n_token
@@ -24,6 +27,10 @@ HASH_RE = re.compile(r'[0-9a-f]{64}')
 DRIVE_ID_RE = re.compile(r'[A-Za-z0-9_-]{10,128}')
 DRIVE_HOSTS = ('https://drive.google.com/', 'https://docs.google.com/')
 NO_CLIENT = ('', 'all', '*', 'default', None)
+
+# Control de subidas: máximo 10 archivos por petición y 300 archivos por cuenta y hora (persistente en SQLite)
+MAX_FILES_PER_REQUEST = 10
+MAX_FILES_PER_HOUR = 300
 
 
 def _factura_o_error(factura_id):
@@ -76,17 +83,39 @@ def add_to_queue():
 
 
 def check_quota_for_client(client_id):
-    """Verifica si la cuenta a la que pertenece el cliente superó su cuota mensual."""
-    if not client_id or client_id == 'default':
-        return True, None
+    """Verifica si la cuenta a la que pertenece el cliente superó su cuota mensual (falla cerrado, unificado con _cuenta_activa)."""
+    if not client_id or client_id in NO_CLIENT:
+        return False, "Cliente inválido o no especificado"
     with database.get_db() as conn:
-        cli = conn.execute("SELECT cuenta_id FROM clientes WHERE id=?", (client_id,)).fetchone()
+        cli = conn.execute("SELECT cuenta_id FROM clientes WHERE id=?", (str(client_id).strip(),)).fetchone()
         if not cli or not cli['cuenta_id']:
-            return True, None
-        cuenta_id = cli['cuenta_id']
+            return False, f"Cliente {client_id} no registrado o sin cuenta asignada"
+        cuenta_id = str(cli['cuenta_id']).strip().lower()
         cuenta = database.get_cuenta(conn, cuenta_id)
+
+        # Si no está en SQLite, buscar en users.json (unificación con _cuenta_activa)
         if not cuenta:
+            try:
+                from services.auth_service import _load_users
+                users = _load_users()
+                u = next((x for x in users if (x.get('username') or '').strip().lower() == cuenta_id), None)
+            except Exception:
+                u = None
+            if not u:
+                return False, f"Cuenta de contador '{cuenta_id}' para cliente {client_id} no encontrada"
+            if not u.get('active', True):
+                return False, "La cuenta de contador está suspendida o inactiva"
+            role = u.get('role', 'contador')
+            if role == 'admin' or u.get('plan_id') == 'master':
+                return True, None
+            limite = int(u.get('limite_facturas_mes') or 3000)
             return True, None
+
+        # En SQLite: tratar activo NULL como 1 (consistente con _cuenta_activa para migraciones previas)
+        activo_val = cuenta.get('activo')
+        if activo_val is not None and int(activo_val) == 0:
+            return False, "La cuenta de contador está suspendida o inactiva"
+
         if cuenta.get('role') == 'admin' or cuenta.get('plan_id') == 'master':
             return True, None
         limite = int(cuenta.get('limite_facturas_mes') or 3000) + int(cuenta.get('creditos_extra') or 0)
@@ -140,6 +169,10 @@ def queue_count():
 @handle_errors
 def upload_pdf():
     """POST /api/facturas/upload - Envia PDFs/fotos al webhook de n8n (URL fija por entorno)."""
+    cuenta_id = get_jwt_identity()
+    if not cuenta_id:
+        return error('Identidad no encontrada en token', 401)
+
     if 'files' not in request.files:
         return error('No se enviaron archivos', 400)
 
@@ -147,11 +180,36 @@ def upload_pdf():
     if not files or files[0].filename == '':
         return error('Archivos vacios', 400)
 
+    if len(files) > MAX_FILES_PER_REQUEST:
+        return error(f'Excede el límite máximo de {MAX_FILES_PER_REQUEST} archivos por petición', 400)
+
+    with database.get_db() as conn:
+        allowed, total_usado, max_hora = database.check_and_record_upload_rate(
+            conn, cuenta_id, len(files), max_archivos_hora=MAX_FILES_PER_HOUR
+        )
+    if not allowed:
+        return error(
+            f'Límite de subidas por hora excedido para esta cuenta ({total_usado}/{max_hora} archivos en la última hora). Intente más tarde.',
+            429
+        )
+
     # El destino del webhook NUNCA viene del cliente (N8N_WEBHOOK_URL por entorno).
     client_id = request.form.get('client_id', '')
     denied = deny_unless_cliente(client_id)
     if denied:
         return denied
+
+    # Validar que el cliente tenga clientes_config con las 3 claves obligatorias
+    with database.get_db() as conn:
+        cfg = conn.execute(
+            "SELECT drive_folder_inbox, drive_folder_processed, razon_social_prompt FROM clientes_config WHERE cliente_id=? AND activo=1",
+            (client_id,)
+        ).fetchone()
+        if not cfg:
+            return error(f'El cliente {client_id} no tiene configuración de automatización en clientes_config', 400)
+        missing = [k for k in ('drive_folder_inbox', 'drive_folder_processed', 'razon_social_prompt') if not (cfg[k] or '').strip()]
+        if missing:
+            return error(f'Configuración incompleta en clientes_config para cliente {client_id}: faltan las claves {", ".join(missing)}', 400)
 
     allowed, msg = check_quota_for_client(client_id)
     if not allowed:
@@ -209,14 +267,17 @@ def get_factura_pdf(factura_id):
                         download_name=f"factura_{re.sub(r'[^A-Za-z0-9_.-]', '_', str(factura.get('factura', 'doc')))}{cand_ext}"
                     )
 
-    # 2. Fallback a Google Drive: solo hosts de Google (evita redireccion abierta).
+    # 2. Fallback a Google Drive: responde JSON con {"ok": True, "drive_url": ...} en lugar de redirect 302
     drive_id = str(factura.get('drive_id') or '').strip()
     if drive_id and drive_id not in ('N/A', '—', 'None', ''):
+        drive_url = None
         if drive_id.startswith('http'):
             if drive_id.startswith(DRIVE_HOSTS):
-                return redirect(drive_id)
+                drive_url = drive_id
         elif DRIVE_ID_RE.fullmatch(drive_id):
-            return redirect(f"https://drive.google.com/file/d/{drive_id}/preview")
+            drive_url = f"https://drive.google.com/file/d/{drive_id}/preview"
+        if drive_url:
+            return jsonify({'ok': True, 'drive_url': drive_url}), 200
 
     return error('Archivo PDF no disponible para esta factura', 404)
 

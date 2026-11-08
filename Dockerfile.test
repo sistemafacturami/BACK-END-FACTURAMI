@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt pytest
+
+COPY . .
+
+ENV JWT_SECRET_KEY=test-secret-key-fase1-authz-must-be-at-least-32-chars-long-123456
+ENV N8N_INTERNAL_SECRET=test-n8n-internal-secret-at-least-32-chars-long-abcdef123456789
+
+CMD ["python", "-m", "pytest", "tests/test_fase1_authz.py", "-v"]
+
