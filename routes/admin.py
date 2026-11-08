@@ -276,3 +276,25 @@ def reset_facturas_contador(username):
         'facturas_mes': cuenta.get('facturas_mes', 0),
         'contador_reset_at': cuenta.get('contador_reset_at', '')
     }, message=f"Contador de facturas de '{username}' reiniciado")
+
+
+@admin_bp.route('/api/admin/transferir-cliente', methods=['POST'])
+@role_required('admin')
+@handle_errors
+def transfer_cliente():
+    """POST /api/admin/transferir-cliente - Reasigna un cliente a otro contador (solo superadmin)."""
+    body = request.get_json(force=True, silent=True) or {}
+    cliente_id = body.get('cliente_id')
+    nuevo_cuenta_id = body.get('nuevo_cuenta_id')
+    if not cliente_id or not nuevo_cuenta_id:
+        return error("Se requiere cliente_id y nuevo_cuenta_id", 400)
+    with database.get_db() as conn:
+        cli = conn.execute("SELECT id, cuenta_id FROM clientes WHERE id=?", (cliente_id,)).fetchone()
+        if not cli:
+            return error(f"Cliente {cliente_id} no encontrado", 404)
+        cuenta = conn.execute("SELECT username FROM cuentas WHERE LOWER(TRIM(username))=LOWER(TRIM(?))", (str(nuevo_cuenta_id).strip(),)).fetchone()
+        if not cuenta:
+            return error(f"Cuenta de destino {nuevo_cuenta_id} no existe", 404)
+        conn.execute("UPDATE clientes SET cuenta_id=?, updated_at=datetime('now','localtime') WHERE id=?", (cuenta['username'], cliente_id))
+    print(f"[ADMIN] Cliente '{cliente_id}' transferido de '{cli['cuenta_id']}' a '{cuenta['username']}' por {get_jwt_identity()}")
+    return success(message=f"Cliente {cliente_id} transferido exitosamente a {cuenta['username']}")
