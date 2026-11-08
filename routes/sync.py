@@ -55,7 +55,7 @@ def push_data():
                 if not valid_client_id(cid):
                     return error(f'ID de cliente invalido: {cid}', 400)
                 existing = conn.execute("SELECT cuenta_id FROM clientes WHERE id=?", (cid,)).fetchone()
-                if existing and existing['cuenta_id'] and existing['cuenta_id'] != cuenta_id:
+                if existing and existing['cuenta_id'] and existing['cuenta_id'].strip().lower() != str(cuenta_id).strip().lower():
                     return error(f'Acceso denegado al cliente {cid}', 403)
 
         for key in list(data.keys()):
@@ -64,8 +64,14 @@ def push_data():
                 if not valid_client_id(cid):
                     return error(f'ID de cliente invalido en f_data: {cid}', 400)
                 existing = conn.execute("SELECT cuenta_id FROM clientes WHERE id=?", (cid,)).fetchone()
-                if existing and existing['cuenta_id'] and existing['cuenta_id'] != cuenta_id:
+                if existing and existing['cuenta_id'] and existing['cuenta_id'].strip().lower() != str(cuenta_id).strip().lower():
                     return error(f'Acceso denegado a cliente {cid}', 403)
+
+    # Evitar que contadores regulares sobrescriban configuraciones globales del sistema (n8n_creds)
+    from flask_jwt_extended import get_jwt
+    claims = get_jwt()
+    if claims.get('role') != 'admin':
+        data.pop('n8n_creds', None)
 
     # Forzar cuenta_id del token (no confiar en data.get('cuenta_id'))
     data['cuenta_id'] = cuenta_id

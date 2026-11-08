@@ -479,7 +479,7 @@ class TestFase1Seguridad(unittest.TestCase):
             '/FACTURAMI.html', '/faq', '/preguntas', '/preguntas-frecuentes',
             '/preguntas_frecuentes', '/Preguntas Frecuentes', '/Preguntas%20Frecuentes',
             '/favicon.ico', '/manifest.json', '/icon-192.png', '/icon-512.png',
-            '/<path:filename>', '/static/<path:filename>',
+            '/<filename>', '/static/<path:filename>',
             '/api/login',
             '/api/config/public'
         }
@@ -697,6 +697,97 @@ class TestFase1Seguridad(unittest.TestCase):
         body = res_fake.get_json()
         self.assertFalse(body.get('ok'))
         self.assertTrue(any('Formato no permitido' in d.get('error', '') for d in body.get('detalle', [])))
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  14. Bloqueante 1: Storage NUNCA es servido por catch-all estático
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_19_storage_no_servido_por_estaticos(self):
+        """
+        Verifica que ninguna subcarpeta de /storage/ sea accesible de forma anónima
+        o mediante el despachador de archivos estáticos. Debe responder 404.
+        """
+        # Crear un archivo de prueba en el storage del cliente
+        cli_dir = os.path.join(TEST_STORAGE, 'cli_tenant_1')
+        os.makedirs(cli_dir, exist_ok=True)
+        dummy_hash = 'd' * 64
+        with open(os.path.join(cli_dir, f"{dummy_hash}.jpg"), 'wb') as f:
+            f.write(b'\xff\xd8\xff\xe0' + b'\x00' * 50)
+
+        # 1. Petición anónima directa a /storage/<cid>/<hash>.jpg
+        res = self.client.get(f'/storage/cli_tenant_1/{dummy_hash}.jpg')
+        self.assertEqual(res.status_code, 404, "El storage no debe ser accesible como ruta estática")
+
+        # 2. Petición con path traversal simulado
+        res_trav = self.client.get(f'/storage/../storage/cli_tenant_1/{dummy_hash}.jpg')
+        self.assertEqual(res_trav.status_code, 404)
+
+        # 3. Petición anónima a un PDF cualquiera en storage
+        res_pdf = self.client.get('/storage/cli_tenant_1/factura.pdf')
+        self.assertEqual(res_pdf.status_code, 404)
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  15. Bloqueante 2: IDOR por Objeto (factura_id, asiento_id, pasivo_id)
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_20_idor_por_objeto_factura_y_asiento(self):
+        """
+        Verifica que un usuario no pueda actuar sobre objetos ajenos (facturas, asientos)
+        incluso si envía su propio cliente_id o no envía client_id en la petición.
+        El objeto debe ser protegido por derivación de propiedad desde la base de datos.
+        """
+        # Crear un asiento contable legítimo para cli_tenant_2 (de contador_2)
+        with database.get_db(TEST_DB) as conn:
+            asnt_body = {
+                'id': 'asnt_privado_c2',
+                'cliente_id': 'cli_tenant_2',
+                'concepto': 'Venta legítima de Contador 2'
+            }
+            lineas = [
+                {'cuenta_codigo': '1.1.1.02.01', 'cuenta_nombre': 'Banco', 'debito': 50000, 'credito': 0},
+                {'cuenta_codigo': '4.1.1.01.01', 'cuenta_nombre': 'Ventas', 'debito': 0, 'credito': 50000}
+            ]
+            database.insert_asiento(conn, asnt_body, lineas)
+
+        # 1. Contador 1 intenta DELETE a una factura de Contador 2 (/api/facturas/queue/<id>)
+        res_del = self.client.delete('/api/facturas/queue/factura_q_cli2', headers=self.auth_h(self.token_c1))
+        # 404 para no revelar existencia
+        self.assertEqual(res_del.status_code, 404)
+        # Verificar que la factura SIGUE en la base de datos
+        with database.get_db(TEST_DB) as conn:
+            fq = conn.execute("SELECT estado FROM facturas_queue WHERE id='factura_q_cli2'").fetchone()
+            self.assertEqual(fq['estado'], 'pendiente', "La factura de Contador 2 no debió ser afectada")
+
+        # 2. Contador 1 intenta descargar el PDF de la factura de Contador 2
+        res_pdf = self.client.get('/api/facturas/factura_q_cli2/pdf', headers=self.auth_h(self.token_c1))
+        self.assertEqual(res_pdf.status_code, 404)
+
+        # 3. Contador 1 intenta reversar el asiento de Contador 2 (/api/contabilidad/asientos/<id>/reversar)
+        res_rev = self.client.post('/api/contabilidad/asientos/asnt_privado_c2/reversar', json={}, headers=self.auth_h(self.token_c1))
+        self.assertEqual(res_rev.status_code, 404)
+        # Verificar que el asiento sigue en estado 'valido'
+        with database.get_db(TEST_DB) as conn:
+            asnt_row = conn.execute("SELECT estado FROM asientos WHERE id='asnt_privado_c2'").fetchone()
+            self.assertEqual(asnt_row['estado'], 'valido', "El asiento de Contador 2 no debió ser reversado")
+
+        # 4. Contador 1 intenta anular_pago_pasivo usando su propio cliente_id pero inyectando el asiento ajeno
+        malicious_pasivo_payload = {
+            'cliente_id': 'cli_tenant_1',
+            'pasivo': {
+                'id': 'pas_dummy',
+                'historial_pagos': [
+                    {'pago_id': 'pago_evil_1', 'asiento_id': 'asnt_privado_c2', 'estado': 'aplicado'}
+                ]
+            },
+            'pago_id': 'pago_evil_1'
+        }
+        res_anular = self.client.post('/api/contabilidad/pasivos/anular-pago', json=malicious_pasivo_payload, headers=self.auth_h(self.token_c1))
+        self.assertEqual(res_anular.status_code, 403, "Debe rechazar anular pago con asiento perteneciente a otro cliente")
+
+        # Verificar nuevamente que el asiento de Contador 2 sigue intacto
+        with database.get_db(TEST_DB) as conn:
+            asnt_row = conn.execute("SELECT estado FROM asientos WHERE id='asnt_privado_c2'").fetchone()
+            self.assertEqual(asnt_row['estado'], 'valido')
 
 
 if __name__ == '__main__':

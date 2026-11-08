@@ -114,9 +114,16 @@ def upload_to_n8n(files_list, client_id):
             with database.get_db() as conn:
                 tenant_cfg = database.get_cliente_config(conn, client_id_str) or {}
 
+            if not tenant_cfg or not tenant_cfg.get('drive_folder_inbox'):
+                errores.append({
+                    'file': fname,
+                    'error': f'El cliente {client_id_str} no tiene configurada su carpeta de almacenamiento'
+                })
+                continue
+
             # Enviar a n8n
             headers = {}
-            internal_token = os.environ.get('N8N_INTERNAL_SECRET') or os.environ.get('N8N_API_KEY')
+            internal_token = os.environ.get('N8N_INTERNAL_SECRET')
             if internal_token:
                 headers['X-N8N-Token'] = internal_token
 
@@ -125,9 +132,9 @@ def upload_to_n8n(files_list, client_id):
                 'client_id': client_id_str,
                 'hash_archivo': file_hash,
                 'origen': 'foto_manual' if es_foto else 'pdf_manual',
-                'drive_folder_inbox': tenant_cfg.get('drive_folder_inbox', '1pGhmiNt6fAchr0ACk0dhWyIlLRVyZdK5'),
-                'drive_folder_processed': tenant_cfg.get('drive_folder_processed', '19OBoRIXSdthtmuVMShgg8HuNwg4EWPV1'),
-                'razon_social_prompt': tenant_cfg.get('razon_social_prompt', 'Contabilidad LVM')
+                'drive_folder_inbox': tenant_cfg.get('drive_folder_inbox', ''),
+                'drive_folder_processed': tenant_cfg.get('drive_folder_processed', ''),
+                'razon_social_prompt': tenant_cfg.get('razon_social_prompt', '')
             }
 
             resp = requests.post(
@@ -135,7 +142,8 @@ def upload_to_n8n(files_list, client_id):
                 data=post_data,
                 files={'file': (fname, file_bytes, content_type)},
                 headers=headers,
-                timeout=120
+                timeout=120,
+                allow_redirects=False
             )
 
             if resp.status_code < 300:
@@ -147,8 +155,8 @@ def upload_to_n8n(files_list, client_id):
             errores.append({'file': fname, 'error': 'error de conexion'})
         except requests.Timeout:
             errores.append({'file': fname, 'error': 'error de conexion (tiempo de espera)'})
-        except Exception as e:
-            errores.append({'file': fname, 'error': str(e)})
+        except Exception:
+            errores.append({'file': fname, 'error': 'Error interno al procesar el archivo'})
 
     return {
         'ok': len(errores) == 0,

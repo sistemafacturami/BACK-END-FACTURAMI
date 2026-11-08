@@ -112,15 +112,15 @@ def valid_client_id(cliente_id):
 
 
 def can_access_cliente(cliente_id):
-    """True si el cliente pertenece a la cuenta del token."""
+    """True si el cliente pertenece a la cuenta del token (insensible a mayusculas)."""
     if not valid_client_id(cliente_id):
         return False
     if is_admin() and ADMIN_CONTENT_ACCESS:
         return True
     with database.get_db() as conn:
         row = conn.execute(
-            "SELECT 1 FROM clientes WHERE id = ? AND cuenta_id = ?",
-            (str(cliente_id), get_jwt_identity())
+            "SELECT 1 FROM clientes WHERE id = ? AND LOWER(TRIM(cuenta_id)) = LOWER(TRIM(?))",
+            (str(cliente_id), str(get_jwt_identity()))
         ).fetchone()
     return row is not None
 

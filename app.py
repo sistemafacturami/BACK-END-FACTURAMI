@@ -160,14 +160,21 @@ def create_app():
             return send_file(icon_path, mimetype='image/png')
         return ('', 404)
 
-    @app.route('/<path:filename>')
+    @app.route('/<filename>')
     def serve_static_root_files(filename):
-        safe_extensions = ('.png', '.jpg', '.jpeg', '.svg', '.webp', '.ico', '.heic')
-        if any(filename.lower().endswith(ext) for ext in safe_extensions):
-            real_base = os.path.realpath(BASE_DIR)
-            target = os.path.realpath(os.path.join(real_base, filename))
-            if target.startswith(real_base + os.sep) and os.path.isfile(target):
-                return send_file(target)
+        # Whitelist estricta de imagenes publicas en raiz. NUNCA sirve subdirectorios (como storage/)
+        PUBLIC_ROOT_FILES = {
+            'premium_abstract_background_1774919744694.png',
+            'sky_clouds_background_1774918448207.png',
+            'qr_facturami_movil.png',
+            'Declaracion D150 COMPRAS.png',
+            'Declaracion D150 VENTASS.png',
+            'Declaracion regimen simplificado.png',
+        }
+        if filename in PUBLIC_ROOT_FILES:
+            file_path = os.path.join(BASE_DIR, filename)
+            if os.path.isfile(file_path):
+                return send_file(file_path)
         return jsonify({'ok': False, 'error': 'Archivo no encontrado'}), 404
 
     # ── Error handlers globales ────────────────────────────────────────

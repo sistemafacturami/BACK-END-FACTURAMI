@@ -249,6 +249,14 @@ def anular_pago():
     if denied:
         return denied
 
+    # Proteccion contra IDOR de objeto: verificar que el asiento_id asociado al pago pertenezca al cliente
+    pago_obj = next((p for p in pasivo.get('historial_pagos', []) if p.get('pago_id') == pago_id), None)
+    if pago_obj and pago_obj.get('asiento_id'):
+        with database.get_db() as conn:
+            asnt = conn.execute("SELECT cliente_id FROM asientos WHERE id=?", (pago_obj['asiento_id'],)).fetchone()
+            if asnt and asnt['cliente_id'] != cliente_id:
+                return error("El asiento contable no pertenece al cliente especificado", 403)
+
     res = contabilidad_service.anular_pago_pasivo(cliente_id, pasivo, pago_id, motivo)
     return success(res, message="Pago anulado y asiento contable reversado con trazabilidad")
 
