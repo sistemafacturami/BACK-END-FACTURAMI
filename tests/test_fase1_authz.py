@@ -150,7 +150,12 @@ class TestFase1Seguridad(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        shutil.rmtree(TEST_TMP, ignore_errors=True)
+        try:
+            with database.get_db(TEST_DB) as conn:
+                conn.execute("DELETE FROM audit_log")
+                conn.execute("DELETE FROM uploads_log")
+        except Exception:
+            pass
 
     def auth_h(self, token):
         return {'Authorization': f'Bearer {token}'}
@@ -1549,6 +1554,53 @@ class TestFase1Seguridad(unittest.TestCase):
         res_data = r.get_json()
         self.assertFalse(res_data['ok'])
         self.assertEqual(res_data.get('cliente_id'), 'cli_tenant_1')
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  41. audit_log: Sanitización y Redacción Total de Contraseñas y Hashes
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_46_audit_log_redacts_passwords_and_hashes(self):
+        """Verifica que insert_audit_log nunca almacene contraseñas en texto claro ni hashes en detalles_json."""
+        sensitive_payload = {
+            'username': 'usuario_sensible',
+            'password': 'PasswordSuperSecreta123!',
+            'new_password': 'OtraPassword456!',
+            'password_hash': '$2b$12$eX4mpleBcryptHashThatMustNeverBeSavedInAuditLog12345678',
+            'api_secret': 'super_secret_token_value',
+            'plan_id': 'corporativo'
+        }
+
+        with database.get_db(TEST_DB) as conn:
+            database.insert_audit_log(
+                conn,
+                accion='test_sanitizacion',
+                actor='admin_user',
+                target_tipo='cuenta',
+                target_id='usuario_sensible',
+                detalles=sensitive_payload
+            )
+
+            row = conn.execute(
+                "SELECT detalles_json FROM audit_log WHERE accion='test_sanitizacion' ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+
+            self.assertIsNotNone(row)
+            detalles_raw = row['detalles_json']
+
+            # 1. Asegurar que ningún valor sensible aparezca en el JSON guardado
+            self.assertNotIn('PasswordSuperSecreta123!', detalles_raw)
+            self.assertNotIn('OtraPassword456!', detalles_raw)
+            self.assertNotIn('$2b$12$', detalles_raw)
+            self.assertNotIn('super_secret_token_value', detalles_raw)
+
+            # 2. Asegurar que las claves sensibles fueron redactadas a [REDACTED]
+            detalles = json.loads(detalles_raw)
+            self.assertEqual(detalles['password'], '[REDACTED]')
+            self.assertEqual(detalles['new_password'], '[REDACTED]')
+            self.assertEqual(detalles['password_hash'], '[REDACTED]')
+            self.assertEqual(detalles['api_secret'], '[REDACTED]')
+            # El campo no sensible debe mantenerse intacto
+            self.assertEqual(detalles['plan_id'], 'corporativo')
 
 
 if __name__ == '__main__':

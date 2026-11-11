@@ -136,6 +136,7 @@ def create_contador():
         'password_hash': pw_hash
     }
     with database.get_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         database.upsert_cuenta(conn, cuenta_dict)
         database.insert_audit_log(
             conn,
@@ -219,6 +220,7 @@ def update_contador(username):
 
     admin_username = get_jwt_identity()
     with database.get_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         database.upsert_cuenta(conn, cuenta_dict)
 
         # Bitácora de auditoría detallada
@@ -275,6 +277,7 @@ def extender_suscripcion_contador(username):
 
     admin_username = get_jwt_identity()
     with database.get_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         nueva_fecha = database.extender_suscripcion(conn, username, dias=dias, fecha_fija=fecha_hasta)
         if not nueva_fecha:
             return error(f"Contador '{username}' no encontrado", 404)
@@ -312,6 +315,7 @@ def delete_contador(username):
 
     admin_username = get_jwt_identity()
     with database.get_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         n = conn.execute(
             "SELECT COUNT(*) FROM clientes WHERE LOWER(TRIM(cuenta_id))=LOWER(TRIM(?))",
             (u_clean,)
@@ -347,6 +351,7 @@ def reset_facturas_contador(username):
 
     admin_username = get_jwt_identity()
     with database.get_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         if not database.reset_contador_facturas(conn, username):
             return error(f"Contador '{username}' no encontrado", 404)
         cuenta = database.get_cuenta(conn, username)

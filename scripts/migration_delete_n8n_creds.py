@@ -33,3 +33,4 @@ def run_migration(db_path=None):
 if __name__ == '__main__':
     path_arg = sys.argv[1] if len(sys.argv) > 1 else None
     sys.exit(run_migration(path_arg))
+

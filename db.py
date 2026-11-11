@@ -1065,8 +1065,18 @@ def config_set(conn, clave, valor):
     )
 
 def insert_audit_log(conn, accion, actor, target_tipo='', target_id='', detalles=None):
-    """Inserta una entrada inmutable en la bitácora append-only de auditoría."""
-    d_str = json.dumps(detalles or {}, ensure_ascii=False)
+    """Inserta una entrada inmutable en la bitácora append-only de auditoría sanitizando secretos."""
+    safe_detalles = {}
+    if detalles and isinstance(detalles, dict):
+        for k, v in detalles.items():
+            k_low = str(k).lower()
+            if any(term in k_low for term in ('pass', 'pw', 'hash', 'secret', 'token', 'key')):
+                safe_detalles[k] = '[REDACTED]'
+            elif isinstance(v, str) and (v.startswith('$2b$') or v.startswith('$2a$')):
+                safe_detalles[k] = '[REDACTED]'
+            else:
+                safe_detalles[k] = v
+    d_str = json.dumps(safe_detalles, ensure_ascii=False)
     conn.execute("""
         INSERT INTO audit_log (accion, actor, target_tipo, target_id, detalles_json, created_at)
         VALUES (?, ?, ?, ?, ?, datetime('now','localtime'))

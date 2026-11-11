@@ -30,8 +30,14 @@ database.DB_PATH = ISOLATED_DB_PATH
 
 @pytest.fixture(scope="session", autouse=True)
 def verify_test_db_isolation():
-    """Verifica categóricamente que ninguna prueba se ejecute contra facturami.db del repositorio."""
+    """Inicializa la BD temporal y verifica categóricamente que ninguna prueba se ejecute contra facturami.db, users.json ni storage del repositorio."""
+    repo_users = os.path.abspath(os.path.join(REPO_ROOT, 'users.json'))
+    repo_storage = os.path.abspath(os.path.join(REPO_ROOT, 'storage'))
+
     current_db = os.path.abspath(database.DB_PATH)
+    current_users = os.path.abspath(os.environ.get('FACTURAMI_USERS_FILE', ''))
+    current_storage = os.path.abspath(os.environ.get('FACTURAMI_STORAGE_PATH', ''))
+
     assert current_db != REPO_DB_PATH, (
         f"VIOLACION DE AISLAMIENTO: La base de pruebas ({current_db}) "
         f"coincide con la base del repositorio ({REPO_DB_PATH})!"
@@ -39,4 +45,18 @@ def verify_test_db_isolation():
     assert os.path.basename(current_db) != 'facturami.db' or current_db.startswith(tempfile.gettempdir()), (
         f"La base de datos de prueba debe residir en un directorio temporal seguro: {current_db}"
     )
+
+    assert current_users != repo_users, (
+        f"VIOLACION DE AISLAMIENTO: users.json de pruebas ({current_users}) coincide con el del repo ({repo_users})!"
+    )
+    assert current_storage != repo_storage, (
+        f"VIOLACION DE AISLAMIENTO: storage de pruebas ({current_storage}) coincide con el del repo ({repo_storage})!"
+    )
+
+    # Inicializar tablas e índices en la base temporal
+    os.makedirs(ISOLATED_STORAGE_PATH, exist_ok=True)
+    database.init_db(ISOLATED_DB_PATH)
+    from scripts.migrate_v2_niif import migrate
+    migrate(ISOLATED_DB_PATH)
     yield
+
