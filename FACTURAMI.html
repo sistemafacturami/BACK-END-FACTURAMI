@@ -7766,6 +7766,54 @@
       }
     }
 
+    function namespaceSaveAccountData(cuentaId) {
+      if (!cuentaId) return;
+      try {
+        const clients = localStorage.getItem('f_clients');
+        if (clients !== null) {
+          localStorage.setItem('f_clients_' + cuentaId, clients);
+        }
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith('f_data_') && !k.startsWith(`f_data_${cuentaId}_`)) {
+            const cid = k.substring('f_data_'.length);
+            localStorage.setItem(`f_data_${cuentaId}_${cid}`, localStorage.getItem(k));
+          }
+        });
+      } catch (e) {
+        console.warn('[NAMESPACING] Error guardando datos aislados de cuenta:', e);
+      }
+    }
+
+    function namespaceRestoreAccountData(cuentaId) {
+      if (!cuentaId) return;
+      try {
+        localStorage.removeItem('f_clients');
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith('f_data_') && !k.includes(`_${cuentaId}_`)) {
+            const parts = k.split('_');
+            if (parts.length === 3) {
+              localStorage.removeItem(k);
+            }
+          }
+        });
+        const savedClients = localStorage.getItem('f_clients_' + cuentaId);
+        if (savedClients !== null) {
+          localStorage.setItem('f_clients', savedClients);
+        } else {
+          localStorage.setItem('f_clients', '[]');
+        }
+        const prefix = `f_data_${cuentaId}_`;
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith(prefix)) {
+            const cid = k.substring(prefix.length);
+            localStorage.setItem('f_data_' + cid, localStorage.getItem(k));
+          }
+        });
+      } catch (e) {
+        console.warn('[NAMESPACING] Error restaurando datos aislados de cuenta:', e);
+      }
+    }
+
     let backendSyncTimer = null;
     function pushToBackend(silent = true) {
       try {
@@ -7869,12 +7917,20 @@
             const serverClients = Array.isArray(res.data.f_clients) ? res.data.f_clients : [];
             const localClients = JSON.parse(localStorage.getItem('f_clients') || '[]');
 
-            // Si el servidor viene vacío para esta cuenta pero tenemos clientes locales, NO sobreescribir a ciegas
+            // Si el servidor viene vacío para esta cuenta pero tenemos clientes locales, pedir confirmación antes de sobrescribir
             if (serverClients.length === 0 && localClients.length > 0) {
               const bKey = createLocalBackup('pull_empty_preserve');
               console.warn('[SYNC] Servidor devolvió 0 clientes pero existen datos locales. Se preservan datos locales. Respaldo:', bKey);
-              showToast(`⚠️ El servidor no reporta clientes para esta cuenta, pero existen ${localClients.length} cliente(s) locales. Se creó copia (${bKey}). Use Sincronizar para enviarlos si son nuevos.`);
-              return;
+              const confirmOverwrite = window.confirm(
+                `El servidor no reporta clientes para la cuenta "${cuentaId}", pero existen ${localClients.length} cliente(s) en este dispositivo.\n\n` +
+                `Se creó un respaldo de seguridad (${bKey}).\n\n` +
+                `¿Desea SOBRESCRIBIR y vaciar sus datos locales con los del servidor?\n` +
+                `(Presione Cancelar para conservar sus datos locales y sincronizarlos hacia el servidor).`
+              );
+              if (!confirmOverwrite) {
+                showToast(`⚠️ Se conservaron los ${localClients.length} cliente(s) locales. Respaldo en ${bKey}. Presione Sincronizar para enviarlos al servidor.`);
+                return;
+              }
             }
 
             // Crear respaldo previo a actualizacion
@@ -16284,11 +16340,13 @@
         }
 
         if (res.ok && data.token) {
-          // Limpiar clientes y datos cacheados previamente para evitar cruce entre perfiles
-          localStorage.removeItem('f_clients');
-          Object.keys(localStorage).forEach(k => {
-            if (k.startsWith('f_data_')) localStorage.removeItem(k);
-          });
+          const newCuenta = data.user.username;
+          const prevCuenta = getCurrentCuentaId();
+          if (prevCuenta && prevCuenta !== newCuenta) {
+            namespaceSaveAccountData(prevCuenta);
+          }
+          // Restaurar espacio de trabajo aislado (namespacing) para la cuenta ingresada
+          namespaceRestoreAccountData(newCuenta);
 
           sessionStorage.setItem('f_logged_in', 'true');
           sessionStorage.setItem('f_token', data.token);
@@ -16924,6 +16982,12 @@
       const c = (window.ADMIN_CONTADORES || []).find(item => item.username === username);
       if (!c) return;
 
+      const prevCuenta = getCurrentCuentaId();
+      if (prevCuenta && prevCuenta !== username) {
+        namespaceSaveAccountData(prevCuenta);
+      }
+      namespaceRestoreAccountData(username);
+
       window.IMPERSONATING = username;
       const apv = document.getElementById('admin-panel-view');
       apv.style.opacity = '0';
@@ -16937,7 +17001,15 @@
     }
 
     function exitImpersonation() {
+      const prevCuenta = getCurrentCuentaId();
+      if (prevCuenta) {
+        namespaceSaveAccountData(prevCuenta);
+      }
       window.IMPERSONATING = null;
+      const u = getCurrentUser();
+      if (u && u.username) {
+        namespaceRestoreAccountData(u.username);
+      }
       const clv = document.getElementById('client-list-view');
       clv.style.opacity = '0';
       setTimeout(() => {
@@ -17288,6 +17360,12 @@
     }
 
     function doLogout() {
+      const prevCuenta = getCurrentCuentaId();
+      if (prevCuenta) {
+        createLocalBackup('pre_logout');
+        namespaceSaveAccountData(prevCuenta);
+      }
+
       sessionStorage.removeItem('f_logged_in');
       sessionStorage.removeItem('f_token');
       sessionStorage.removeItem('f_user');
@@ -17297,10 +17375,12 @@
       window.IMPERSONATING = null;
       activeClient = null;
 
-      // Limpiar clientes y datos cacheados en localStorage para aislar completamente entre perfiles
+      // Limpiar clientes y datos activos del espacio de trabajo
       localStorage.removeItem('f_clients');
       Object.keys(localStorage).forEach(k => {
-        if (k.startsWith('f_data_')) localStorage.removeItem(k);
+        if (k.startsWith('f_data_') && k.split('_').length === 3) {
+          localStorage.removeItem(k);
+        }
       });
 
       const views = ['client-list-view', 'admin-panel-view', 'profile-menu-view', 'select-view', 'register-view', 'app-wrap'];

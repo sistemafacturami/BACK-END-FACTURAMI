@@ -23,7 +23,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app
 
 # Crear carpetas requeridas para almacenamiento y persistencia
-RUN mkdir -p /app/storage /app/tmp /app/backups
+RUN mkdir -p /app/storage /app/tmp /app/backups && \
+    groupadd -g 10001 facturami && \
+    useradd -u 10001 -g facturami -d /app -s /usr/sbin/nologin facturami && \
+    chown -R facturami:facturami /app
+
+# Ejecutar como usuario sin privilegios
+USER facturami
 
 # Exponer el puerto del backend
 EXPOSE 5001

@@ -5,7 +5,7 @@ Multi-tenant: No comparte archivos planos (usb_database.json) entre cuentas.
 """
 import db as database
 
-def pull(cuenta_id, include_creds=False):
+def pull(cuenta_id):
     """
     Genera el payload completo compatible con el frontend, filtrando por cuenta_id.
     Retorna (data, is_empty). Lanza ValueError si falta cuenta_id.
@@ -14,7 +14,7 @@ def pull(cuenta_id, include_creds=False):
         raise ValueError("cuenta_id requerido")
 
     with database.get_db() as conn:
-        data = database.sync_pull(conn, cuenta_id=cuenta_id, include_creds=include_creds)
+        data = database.sync_pull(conn, cuenta_id=cuenta_id)
     is_empty = len(data.get('f_clients', [])) == 0
     return data, is_empty
 
