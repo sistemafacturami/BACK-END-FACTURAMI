@@ -7737,32 +7737,6 @@
       return null;
     }
 
-    function createLocalBackup(reason = 'manual') {
-      try {
-        const d = new Date();
-        const bKey = 'fm_backup_' + d.toISOString().replace(/[:.]/g, '-');
-        const backup = {
-          timestamp: d.toISOString(),
-          reason: reason,
-          cuenta_id: getCurrentCuentaId(),
-          f_clients: JSON.parse(localStorage.getItem('f_clients') || '[]'),
-          f_theme: localStorage.getItem('f_theme') || 'light',
-          data: {}
-        };
-        Object.keys(localStorage).forEach(k => {
-          if (k.startsWith('f_data_')) {
-            backup.data[k] = JSON.parse(localStorage.getItem(k) || '{}');
-          }
-        });
-        localStorage.setItem(bKey, JSON.stringify(backup));
-        console.log('[BACKUP] Respaldo local creado exitosamente:', bKey);
-        return bKey;
-      } catch (e) {
-        console.warn('[BACKUP] No se pudo crear copia local:', e);
-        return 'fm_backup_error';
-      }
-    }
-
     function rotateLocalBackups(maxKeep = 5) {
       try {
         const backupKeys = Object.keys(localStorage)
