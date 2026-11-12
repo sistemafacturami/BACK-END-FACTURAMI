@@ -7773,11 +7773,62 @@
         });
         localStorage.setItem(bKey, JSON.stringify(backup));
         rotateLocalBackups(5);
+        getLocalStorageUsage();
         console.log('[BACKUP] Respaldo local creado exitosamente:', bKey);
         return bKey;
       } catch (e) {
         console.warn('[BACKUP] No se pudo crear copia local:', e);
         return 'fm_backup_error';
+      }
+    }
+
+    function getLocalStorageUsage() {
+      try {
+        let fTotal = 0;
+        let fmTotal = 0;
+        let backupTotal = 0;
+        let otherTotal = 0;
+
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (!k) continue;
+          const v = localStorage.getItem(k) || '';
+          const bytes = (k.length + v.length) * 2; // Estimación DOMString UTF-16
+          if (k.startsWith('fm_backup_')) {
+            backupTotal += bytes;
+          } else if (k.startsWith('fm:')) {
+            fmTotal += bytes;
+          } else if (k.startsWith('f_')) {
+            fTotal += bytes;
+          } else {
+            otherTotal += bytes;
+          }
+        }
+
+        const grandTotal = fTotal + fmTotal + backupTotal + otherTotal;
+        const ESTIMATED_MAX = 5 * 1024 * 1024; // Cuota estándar de 5 MB
+        const pct = (grandTotal / ESTIMATED_MAX) * 100;
+
+        const usage = {
+          f_active_kb: (fTotal / 1024).toFixed(1),
+          fm_namespaced_kb: (fmTotal / 1024).toFixed(1),
+          fm_backup_kb: (backupTotal / 1024).toFixed(1),
+          other_kb: (otherTotal / 1024).toFixed(1),
+          total_kb: (grandTotal / 1024).toFixed(1),
+          percentage: pct.toFixed(1),
+          over_threshold: pct >= 70
+        };
+
+        if (usage.over_threshold) {
+          console.warn(`[STORAGE WARNING] Uso de localStorage supera el 70%: ${usage.percentage}% utilizado (${usage.total_kb} KB de ~5120 KB). Desglose: f_*=${usage.f_active_kb}KB, fm:*=${usage.fm_namespaced_kb}KB, fm_backup_*=${usage.fm_backup_kb}KB`);
+          if (typeof showToast === 'function') {
+            showToast(`⚠️ Almacenamiento local al ${usage.percentage}% de capacidad (${usage.total_kb} KB). Se sugiere rotar o eliminar respaldos antiguos.`);
+          }
+        }
+        return usage;
+      } catch (e) {
+        console.warn('[STORAGE] Error calculando uso de localStorage:', e);
+        return null;
       }
     }
 
@@ -7815,6 +7866,8 @@
             localStorage.removeItem(k);
           }
         });
+        localStorage.removeItem('fm:active_owner');
+        getLocalStorageUsage();
         return true;
       } catch (err) {
         console.error('[STORAGE] Error en namespaceSaveAccountData (posible QuotaExceeded):', err);
@@ -7824,7 +7877,7 @@
     }
 
     function namespaceRestoreAccountData(cuentaId) {
-      if (!cuentaId) return;
+      if (!cuentaId) return false;
       try {
         // Limpiar llaves activas f_data_ y f_clients del espacio de trabajo
         localStorage.removeItem('f_clients');
@@ -7850,35 +7903,44 @@
             localStorage.setItem('f_data_' + cid, localStorage.getItem(k));
           }
         });
+        localStorage.setItem('fm:active_owner', cuentaId);
+        getLocalStorageUsage();
+        return true;
       } catch (err) {
         console.error('[STORAGE] Error en namespaceRestoreAccountData:', err);
+        return false;
       }
     }
 
     function checkLegacyOrphanDataOnLogin(newCuenta) {
       try {
+        const activeOwner = localStorage.getItem('fm:active_owner');
         const legacyClientsStr = localStorage.getItem('f_clients');
         const legacyClients = JSON.parse(legacyClientsStr || '[]');
         const hasLegacyData = Object.keys(localStorage).some(k => k.startsWith('f_data_'));
 
-        // Si existen clientes o datos no namespaced sin migrar
-        if ((legacyClients.length > 0) || hasLegacyData) {
-          const bKey = createLocalBackup('pre_migracion');
-          const assign = window.confirm(
-            `Se detectaron ${legacyClients.length} cliente(s) y datos contables en este navegador de una sesión anterior.\n\n` +
-            `Se creó un respaldo de seguridad (${bKey}).\n\n` +
-            `¿Desea asignar estos datos a la cuenta actual "${newCuenta}"?\n\n` +
-            `• Presione Aceptar para asociarlos a @${newCuenta}.\n` +
-            `• Presione Cancelar para conservarlos en el respaldo sin asociarlos a esta cuenta.`
-          );
-          if (assign) {
-            namespaceSaveAccountData(newCuenta);
-          } else {
-            namespaceSaveAccountData('huerfanos');
-          }
+        // Si ya hay un dueño registrado o no hay datos activos, no aplica migración huérfana
+        if (activeOwner || (!legacyClients.length && !hasLegacyData)) {
+          return true;
+        }
+
+        // Datos en workspace sin dueño asignado: crear respaldo y pedir confirmación
+        const bKey = createLocalBackup('pre_migracion');
+        const assign = window.confirm(
+          `Se detectaron ${legacyClients.length} cliente(s) y datos contables en este navegador de una sesión anterior sin cuenta asignada.\n\n` +
+          `Se creó un respaldo de seguridad (${bKey}).\n\n` +
+          `¿Desea asignar estos datos a la cuenta actual "${newCuenta}"?\n\n` +
+          `• Presione Aceptar para asociarlos a @${newCuenta}.\n` +
+          `• Presione Cancelar para conservarlos en el respaldo sin asociarlos a esta cuenta.`
+        );
+        if (assign) {
+          return namespaceSaveAccountData(newCuenta);
+        } else {
+          return namespaceSaveAccountData('huerfanos');
         }
       } catch (e) {
         console.warn('[MIGRACION] Error verificando datos huérfanos:', e);
+        return false;
       }
     }
 
@@ -16412,14 +16474,75 @@
 
         if (res.ok && data.token) {
           const newCuenta = data.user.username;
-          checkLegacyOrphanDataOnLogin(newCuenta);
-
+          const activeOwner = localStorage.getItem('fm:active_owner');
           const prevCuenta = getCurrentCuentaId();
-          if (prevCuenta && prevCuenta !== newCuenta) {
-            namespaceSaveAccountData(prevCuenta);
+          const clientsRaw = localStorage.getItem('f_clients');
+          const hasActiveData = (clientsRaw !== null && clientsRaw !== '[]') ||
+                                Object.keys(localStorage).some(k => k.startsWith('f_data_'));
+
+          // 1. Si el dueño del espacio de trabajo es la misma cuenta, no restaurar ni preguntar
+          if ((activeOwner && activeOwner === newCuenta) || (!activeOwner && prevCuenta === newCuenta && hasActiveData)) {
+            localStorage.setItem('fm:active_owner', newCuenta);
           }
-          // Restaurar espacio de trabajo aislado (namespacing) para la cuenta ingresada
-          namespaceRestoreAccountData(newCuenta);
+          // 2. Si el dueño es otra cuenta conocida, guardarlo a su nombre sin preguntar
+          else if (activeOwner && activeOwner !== newCuenta) {
+            const ok = namespaceSaveAccountData(activeOwner);
+            if (!ok) {
+              if (btnLogin) { btnLogin.disabled = false; btnLogin.style.opacity = '1'; }
+              return showToast('⚠️ No se pudieron asegurar los datos de la cuenta anterior. Inicio de sesión cancelado.');
+            }
+            const restOk = namespaceRestoreAccountData(newCuenta);
+            if (!restOk) {
+              if (btnLogin) { btnLogin.disabled = false; btnLogin.style.opacity = '1'; }
+              return showToast('⚠️ Error restaurando datos locales de la cuenta.');
+            }
+          }
+          // 3. Caso sin dueño con datos: pedir confirmación (el confirm solo para el caso sin dueño)
+          else if (!activeOwner && hasActiveData) {
+            const legacyClients = JSON.parse(clientsRaw || '[]');
+            const bKey = createLocalBackup('pre_migracion');
+            const assign = window.confirm(
+              `Se detectaron ${legacyClients.length} cliente(s) y datos contables en este navegador sin cuenta asignada.\n\n` +
+              `Se creó un respaldo de seguridad (${bKey}).\n\n` +
+              `¿Desea asignar estos datos a la cuenta "${newCuenta}"?\n\n` +
+              `• Aceptar: asociar a @${newCuenta}.\n` +
+              `• Cancelar: conservarlos en el respaldo como huérfanos sin asociar a esta cuenta.`
+            );
+            if (assign) {
+              const ok = namespaceSaveAccountData(newCuenta);
+              if (!ok) {
+                if (btnLogin) { btnLogin.disabled = false; btnLogin.style.opacity = '1'; }
+                return showToast('⚠️ No se pudieron asegurar los datos locales. Inicio de sesión cancelado.');
+              }
+            } else {
+              // Si prevCuenta es null y hay datos, guardarlos como 'huerfanos' antes de borrar
+              const ok = namespaceSaveAccountData('huerfanos');
+              if (!ok) {
+                if (btnLogin) { btnLogin.disabled = false; btnLogin.style.opacity = '1'; }
+                return showToast('⚠️ No se pudieron asegurar los datos huérfanos. Inicio de sesión cancelado.');
+              }
+            }
+            const restOk = namespaceRestoreAccountData(newCuenta);
+            if (!restOk) {
+              if (btnLogin) { btnLogin.disabled = false; btnLogin.style.opacity = '1'; }
+              return showToast('⚠️ Error restaurando datos locales.');
+            }
+          }
+          // 4. Espacio limpio o cambio normal
+          else {
+            if (prevCuenta && prevCuenta !== newCuenta) {
+              const ok = namespaceSaveAccountData(prevCuenta);
+              if (!ok) {
+                if (btnLogin) { btnLogin.disabled = false; btnLogin.style.opacity = '1'; }
+                return showToast('⚠️ No se pudieron guardar los datos de la sesión previa.');
+              }
+            }
+            const restOk = namespaceRestoreAccountData(newCuenta);
+            if (!restOk) {
+              if (btnLogin) { btnLogin.disabled = false; btnLogin.style.opacity = '1'; }
+              return showToast('⚠️ Error restaurando datos locales.');
+            }
+          }
 
           sessionStorage.setItem('f_logged_in', 'true');
           sessionStorage.setItem('f_token', data.token);
@@ -17057,15 +17180,45 @@
       const list = document.getElementById('backup-restore-list');
       if (!modal || !list) return;
 
+      const usage = getLocalStorageUsage() || {
+        f_active_kb: '0.0', fm_namespaced_kb: '0.0', fm_backup_kb: '0.0',
+        other_kb: '0.0', total_kb: '0.0', percentage: '0.0', over_threshold: false
+      };
+
       const keys = Object.keys(localStorage)
         .filter(k => k.startsWith('fm_backup_') && k !== 'fm_backup_error')
         .sort()
         .reverse();
 
+      const warningHtml = usage.over_threshold ? `
+        <div style="background:rgba(239,68,68,0.15); border:1px solid #ef4444; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12px; color:#fca5a5;">
+          ⚠️ <strong>Atención:</strong> El almacenamiento local supera el 70% de su capacidad (${usage.percentage}% utilizado). Considere purgar respaldos antiguos o sincronizar datos.
+        </div>
+      ` : '';
+
+      const usageHeader = `
+        <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:12px; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; font-size:12px; color:#e2e8f0; margin-bottom:6px;">
+            <span><strong>Uso de Almacenamiento Local:</strong> ${usage.total_kb} KB de ~5120 KB</span>
+            <span style="color:${usage.over_threshold ? '#ef4444' : '#38bdf8'}; font-weight:700;">${usage.percentage}%</span>
+          </div>
+          <div style="background:rgba(255,255,255,0.1); border-radius:4px; height:8px; overflow:hidden; margin-bottom:8px;">
+            <div style="background:${usage.over_threshold ? '#ef4444' : '#38bdf8'}; width:${Math.min(100, usage.percentage)}%; height:100%; transition:width 0.3s;"></div>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; font-size:11px; color:#94a3b8;">
+            <div>Activos (f_*): <strong style="color:#fff;">${usage.f_active_kb} KB</strong></div>
+            <div>Cuentas (fm:*): <strong style="color:#fff;">${usage.fm_namespaced_kb} KB</strong></div>
+            <div>Respaldos (fm_backup_*): <strong style="color:#fff;">${usage.fm_backup_kb} KB</strong></div>
+          </div>
+        </div>
+        ${warningHtml}
+      `;
+
+      let listContent = '';
       if (keys.length === 0) {
-        list.innerHTML = '<div style="padding:20px; text-align:center; color:#94a3b8; font-size:13px;">No hay respaldos locales disponibles todavía.</div>';
+        listContent = '<div style="padding:20px; text-align:center; color:#94a3b8; font-size:13px;">No hay respaldos locales disponibles todavía.</div>';
       } else {
-        list.innerHTML = keys.map(k => {
+        listContent = keys.map(k => {
           let b = {};
           try { b = JSON.parse(localStorage.getItem(k) || '{}'); } catch(e){}
           const numClients = Array.isArray(b.f_clients) ? b.f_clients.length : 0;
@@ -17085,6 +17238,7 @@
         }).join('');
       }
 
+      list.innerHTML = usageHeader + listContent;
       modal.style.display = 'flex';
     }
 
@@ -17455,10 +17609,33 @@
     }
 
     function doLogout() {
-      const prevCuenta = getCurrentCuentaId();
+      const activeOwner = localStorage.getItem('fm:active_owner');
+      const prevCuenta = getCurrentCuentaId() || activeOwner;
+      const clientsRaw = localStorage.getItem('f_clients');
+      const hasActiveData = (clientsRaw !== null && clientsRaw !== '[]') ||
+                            Object.keys(localStorage).some(k => k.startsWith('f_data_'));
+
       if (prevCuenta) {
         createLocalBackup('pre_logout');
-        namespaceSaveAccountData(prevCuenta);
+        const ok = namespaceSaveAccountData(prevCuenta);
+        if (!ok) {
+          showToast('⚠️ No se pudo asegurar el respaldo local por falta de espacio. No se cerró la sesión para evitar pérdida de datos.');
+          return;
+        }
+      } else if (hasActiveData) {
+        // Si prevCuenta es null y hay datos, guardarlos como 'huerfanos' antes de borrar
+        createLocalBackup('pre_logout_huerfanos');
+        const ok = namespaceSaveAccountData('huerfanos');
+        if (!ok) {
+          showToast('⚠️ No se pudo asegurar el respaldo local de datos huérfanos. No se cerró la sesión.');
+          return;
+        }
+      } else {
+        localStorage.removeItem('f_clients');
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith('f_data_')) localStorage.removeItem(k);
+        });
+        localStorage.removeItem('fm:active_owner');
       }
 
       sessionStorage.removeItem('f_logged_in');
@@ -17468,14 +17645,6 @@
       sessionStorage.removeItem('f_active_view');
       sessionStorage.removeItem('f_active_mod');
       activeClient = null;
-
-      // Limpiar clientes y datos activos del espacio de trabajo
-      localStorage.removeItem('f_clients');
-      Object.keys(localStorage).forEach(k => {
-        if (k.startsWith('f_data_')) {
-          localStorage.removeItem(k);
-        }
-      });
 
       const views = ['client-list-view', 'admin-panel-view', 'profile-menu-view', 'select-view', 'register-view', 'app-wrap'];
       views.forEach(v => { const el = document.getElementById(v); if (el) el.style.opacity = '0'; });
