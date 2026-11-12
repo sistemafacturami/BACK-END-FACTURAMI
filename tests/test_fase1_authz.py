@@ -1632,7 +1632,7 @@ class TestFase1Seguridad(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         body = r.get_json()
         self.assertGreater(len(body['clientes']), 0)
-        permitidos = {'id', 'nombre', 'tipo', 'activo', 'facturas_pendientes'}
+        permitidos = {'id', 'nombre', 'tipo', 'automatizacion_activa', 'facturas_pendientes'}
         for c in body['clientes']:
             self.assertEqual(set(c.keys()), permitidos)
         raw = r.get_data(as_text=True)

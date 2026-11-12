@@ -306,7 +306,10 @@ def init_db(db_path=None):
                 """, (cid, prompt_name, mail, inbox_f, proc_f, inbox_f))
                 print(f"[DB] Seed configuracion automatica creada para cliente: {nom} ({cid})")
 
-    print("[DB] Base de datos inicializada correctamente.")
+        n_cuentas = conn.execute("SELECT COUNT(*) FROM cuentas").fetchone()[0]
+        n_clientes = conn.execute("SELECT COUNT(*) FROM clientes").fetchone()[0]
+    target_path = db_path or DB_PATH
+    print(f"[DB] Base de datos inicializada: {target_path} (cuentas={n_cuentas}, clientes={n_clientes})")
 
 # ══════════════════════════════════════════════════════════════════════════
 #  CRUD: Clientes
@@ -379,11 +382,11 @@ def get_all_clientes_admin(conn):
 
 def get_clientes_metadata_admin(conn, cuenta_id):
     """Solo metadatos de los clientes de una cuenta (para soporte admin).
-    Devuelve unicamente id, nombre, tipo, activo y conteo de facturas pendientes.
+    Devuelve unicamente id, nombre, tipo, automatizacion_activa y conteo de facturas pendientes.
     NUNCA transacciones, asientos, telefono, correo, direccion ni webhook."""
     rows = conn.execute("""
         SELECT c.id AS id, c.nombre AS nombre, c.tipo AS tipo,
-               COALESCE(cc.activo, 0) AS activo,
+               COALESCE(cc.activo, 0) AS automatizacion_activa,
                (SELECT COUNT(*) FROM facturas_queue fq
                  WHERE fq.cliente_id = c.id AND fq.estado = 'pendiente') AS facturas_pendientes
         FROM clientes c
@@ -393,7 +396,7 @@ def get_clientes_metadata_admin(conn, cuenta_id):
     """, (str(cuenta_id).strip(),)).fetchall()
     return [{
         'id': r['id'], 'nombre': r['nombre'], 'tipo': r['tipo'],
-        'activo': int(r['activo']), 'facturas_pendientes': int(r['facturas_pendientes'])
+        'automatizacion_activa': int(r['automatizacion_activa']), 'facturas_pendientes': int(r['facturas_pendientes'])
     } for r in rows]
 
 # ══════════════════════════════════════════════════════════════════════════
