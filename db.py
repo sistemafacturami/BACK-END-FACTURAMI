@@ -377,6 +377,25 @@ def get_all_clientes_admin(conn):
     rows = conn.execute("SELECT * FROM clientes ORDER BY nombre").fetchall()
     return [dict(r) for r in rows]
 
+def get_clientes_metadata_admin(conn, cuenta_id):
+    """Solo metadatos de los clientes de una cuenta (para soporte admin).
+    Devuelve unicamente id, nombre, tipo, activo y conteo de facturas pendientes.
+    NUNCA transacciones, asientos, telefono, correo, direccion ni webhook."""
+    rows = conn.execute("""
+        SELECT c.id AS id, c.nombre AS nombre, c.tipo AS tipo,
+               COALESCE(cc.activo, 0) AS activo,
+               (SELECT COUNT(*) FROM facturas_queue fq
+                 WHERE fq.cliente_id = c.id AND fq.estado = 'pendiente') AS facturas_pendientes
+        FROM clientes c
+        LEFT JOIN clientes_config cc ON cc.cliente_id = c.id
+        WHERE LOWER(TRIM(c.cuenta_id)) = LOWER(TRIM(?))
+        ORDER BY c.nombre
+    """, (str(cuenta_id).strip(),)).fetchall()
+    return [{
+        'id': r['id'], 'nombre': r['nombre'], 'tipo': r['tipo'],
+        'activo': int(r['activo']), 'facturas_pendientes': int(r['facturas_pendientes'])
+    } for r in rows]
+
 # ══════════════════════════════════════════════════════════════════════════
 #  CRUD: Cuentas de Contadores (Multi-Tenant SaaS)
 # ══════════════════════════════════════════════════════════════════════════

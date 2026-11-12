@@ -5262,25 +5262,6 @@
   <div id="client-list-view" class="auth-view" style="display:none; opacity:0">
     <div style="width:100%; display:flex; flex-direction:column; align-items:center">
 
-      <!-- Impersonation Banner for SuperAdmin -->
-      <div id="impersonation-banner"
-        style="display:none; width:100%; max-width:960px; margin-bottom:16px; background:linear-gradient(135deg, rgba(234, 179, 8, 0.22) 0%, rgba(202, 138, 4, 0.35) 100%); border:1px solid rgba(234, 179, 8, 0.5); border-radius:14px; padding:12px 20px; align-items:center; justify-content:space-between; box-shadow:0 8px 24px rgba(0,0,0,0.4); box-sizing:border-box;">
-        <div style="display:flex; align-items:center; gap:10px;">
-          <span style="font-size:20px;">⚡</span>
-          <div>
-            <strong style="color:#fef08a; font-size:13px;" id="impersonation-text">Modo Administrador: Viendo
-              clientes</strong>
-            <p style="color:rgba(255,255,255,0.7); font-size:11px; margin:1px 0 0 0;">Estás operando en el entorno
-              aislado de este contador.</p>
-          </div>
-        </div>
-        <button class="btn-login-primary"
-          style="width:auto; padding:8px 16px; font-size:11px; background:#eab308; color:#000; font-weight:700; border:none;"
-          onclick="exitImpersonation()">
-          Volver al Panel Master
-        </button>
-      </div>
-
       <!-- Accountant Session Header Pill -->
       <div id="accountant-header-pill" style="display:none; margin-bottom:12px;">
         <div
@@ -7743,7 +7724,6 @@
     // ── MULTI-TENANT & SYNC HELPERS ────────────────────────────────
     window.ADMIN_CONTADORES = [];
     window.ADMIN_FILTER = 'todos';
-    window.IMPERSONATING = null;
 
     function getCurrentUser() {
       try {
@@ -7752,7 +7732,6 @@
     }
 
     function getCurrentCuentaId() {
-      if (window.IMPERSONATING) return window.IMPERSONATING;
       const u = getCurrentUser();
       if (u && u.username) return u.username;
       return null;
@@ -16502,7 +16481,6 @@
 
     // ── SUPERADMIN CONSOLE FUNCTIONS ────────────────────────────────
     function showAdminPanel() {
-      window.IMPERSONATING = null;
       const app = document.getElementById('app-wrap');
       const views = ['login-view', 'register-view', 'select-view', 'profile-menu-view', 'client-list-view'];
       if (app) app.style.display = 'none';
@@ -16741,9 +16719,6 @@
         </div>
 
         <div class="contador-actions">
-          <button class="btn-action-card btn-action-primary" title="Abrir y gestionar clientes de este contador" onclick="impersonateContador('${c.username}')">
-            <span>👁️ Clientes</span>
-          </button>
           <button class="btn-action-card" style="background:rgba(16,185,129,0.16); color:#34d399; border:1px solid rgba(16,185,129,0.35); font-weight:700;" title="Habilitar o renovar período de suscripción" onclick="openExtenderSuscripcionModal('${c.username}')">
             <span>⏱️ Habilitar Tiempo</span>
           </button>
@@ -17098,46 +17073,6 @@
       }
     }
 
-    function impersonateContador(username) {
-      const c = (window.ADMIN_CONTADORES || []).find(item => item.username === username);
-      if (!c) return;
-
-      const prevCuenta = getCurrentCuentaId();
-      if (prevCuenta && prevCuenta !== username) {
-        namespaceSaveAccountData(prevCuenta);
-      }
-      namespaceRestoreAccountData(username);
-
-      window.IMPERSONATING = username;
-      const apv = document.getElementById('admin-panel-view');
-      apv.style.opacity = '0';
-
-      setTimeout(() => {
-        apv.style.display = 'none';
-        syncFromBackend(username).then(() => {
-          showClientList();
-        });
-      }, 300);
-    }
-
-    function exitImpersonation() {
-      const prevCuenta = getCurrentCuentaId();
-      if (prevCuenta) {
-        namespaceSaveAccountData(prevCuenta);
-      }
-      window.IMPERSONATING = null;
-      const u = getCurrentUser();
-      if (u && u.username) {
-        namespaceRestoreAccountData(u.username);
-      }
-      const clv = document.getElementById('client-list-view');
-      clv.style.opacity = '0';
-      setTimeout(() => {
-        clv.style.display = 'none';
-        showAdminPanel();
-      }, 300);
-    }
-
     function filterClients() {
       const query = (document.getElementById('client-search').value || '').toLowerCase().trim();
       showClientList(query);
@@ -17227,23 +17162,12 @@
       const clv = document.getElementById('client-list-view');
       clv.style.display = 'flex';
 
-      // Configurar banner de impersonacion si aplica
-      const impBanner = document.getElementById('impersonation-banner');
-      const impText = document.getElementById('impersonation-text');
       const headerPill = document.getElementById('accountant-header-pill');
       const headerName = document.getElementById('accountant-header-name');
       const headerPlan = document.getElementById('accountant-header-plan');
       const headerQuota = document.getElementById('accountant-header-quota');
 
-      if (window.IMPERSONATING) {
-        const c = (window.ADMIN_CONTADORES || []).find(item => item.username === window.IMPERSONATING) || { nombre: window.IMPERSONATING, username: window.IMPERSONATING };
-        if (impBanner) {
-          impBanner.style.display = 'flex';
-          if (impText) impText.textContent = `Modo Administrador: Viendo clientes de ${c.nombre} (@${c.username})`;
-        }
-        if (headerPill) headerPill.style.display = 'none';
-      } else {
-        if (impBanner) impBanner.style.display = 'none';
+      {
         const u = getCurrentUser();
         if (u && u.role === 'contador') {
           if (headerPill) {
@@ -17308,7 +17232,7 @@
 
     function showRegSelect() {
       const u = getCurrentUser();
-      if (!window.IMPERSONATING && u && u.role === 'contador' && u.max_clientes < 9999) {
+      if (u && u.role === 'contador' && u.max_clientes < 9999) {
         const clients = JSON.parse(localStorage.getItem('f_clients') || '[]');
         if (clients.length >= u.max_clientes) {
           showToast(`⚠️ Has alcanzado el límite de ${u.max_clientes} clientes de tu plan. Contacta al administrador para subir de suscripción.`);
@@ -17569,7 +17493,6 @@
       sessionStorage.removeItem('f_active_idx');
       sessionStorage.removeItem('f_active_view');
       sessionStorage.removeItem('f_active_mod');
-      window.IMPERSONATING = null;
       activeClient = null;
 
       // Limpiar clientes y datos activos del espacio de trabajo
@@ -17639,7 +17562,7 @@
 
       if (logged === 'true') {
         const user = getCurrentUser();
-        if (user && user.role === 'admin' && !window.IMPERSONATING && activeIdx === null) {
+        if (user && user.role === 'admin' && activeIdx === null) {
           showAdminPanel();
           return;
         }
@@ -19411,7 +19334,7 @@
       if (!fmpFilaActual || !fmpTipoActual) return;
 
       const u = getCurrentUser();
-      if (!window.IMPERSONATING && u && u.role === 'contador') {
+      if (u && u.role === 'contador') {
         const consumidas = u.facturas_mes || 0;
         const limite = (u.limite_facturas_mes || 3000) + (u.creditos_extra || 0);
         if (consumidas >= limite) {
@@ -19839,7 +19762,7 @@
 
     function fmAbrirUploadPanel() {
       const u = getCurrentUser();
-      if (!window.IMPERSONATING && u && u.role === 'contador') {
+      if (u && u.role === 'contador') {
         const consumidas = u.facturas_mes || 0;
         const limite = (u.limite_facturas_mes || 3000) + (u.creditos_extra || 0);
         if (consumidas >= limite) {

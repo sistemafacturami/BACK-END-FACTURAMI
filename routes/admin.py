@@ -55,6 +55,30 @@ def list_contadores():
     return success(cuentas)
 
 
+@admin_bp.route('/api/admin/contadores/<username>/clientes', methods=['GET'])
+@role_required('admin')
+@handle_errors
+def list_clientes_contador(username):
+    """GET /api/admin/contadores/<u>/clientes - Solo metadatos (id, nombre, tipo, activo,
+    facturas pendientes). Registra cada consulta en audit_log, incluso si la cuenta no existe."""
+    u_clean = (username or '').strip().lower()
+    admin_username = get_jwt_identity()
+    with database.get_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        cuenta = database.get_cuenta(conn, u_clean)
+        clientes = database.get_clientes_metadata_admin(conn, u_clean) if cuenta else []
+        database.insert_audit_log(
+            conn,
+            accion='consulta_clientes_contador',
+            actor=admin_username,
+            target_tipo='cuenta',
+            target_id=u_clean[:64],
+            detalles={'cuenta_existe': bool(cuenta), 'num_clientes': len(clientes)}
+        )
+    if not cuenta:
+        return error(f"Contador '{u_clean[:64]}' no encontrado", 404)
+    return success({'cuenta_id': u_clean, 'clientes': clientes})
+
 @admin_bp.route('/api/admin/contadores', methods=['POST'])
 @role_required('admin')
 @handle_errors

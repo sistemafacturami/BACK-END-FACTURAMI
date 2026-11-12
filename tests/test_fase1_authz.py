@@ -1603,5 +1603,59 @@ class TestFase1Seguridad(unittest.TestCase):
             self.assertEqual(detalles['plan_id'], 'corporativo')
 
 
+    # ══════════════════════════════════════════════════════════════════════
+    #  42. Ruta de soporte admin: solo metadatos de clientes + audit_log
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_47_admin_clientes_contador_solo_metadatos_y_auditoria(self):
+        """Contador 403, anonimo 401, audit_log escrito (tambien si no existe) y sin campos de contenido."""
+        url = '/api/admin/contadores/contador_1/clientes'
+
+        # Anonimo -> 401
+        self.assertEqual(self.client.get(url).status_code, 401)
+        # Contador regular -> 403
+        r_c = self.client.get(url, headers=self.auth_h(self.token_c1))
+        self.assertEqual(r_c.status_code, 403)
+
+        with database.get_db(TEST_DB) as conn:
+            antes = conn.execute(
+                "SELECT COUNT(*) FROM audit_log WHERE accion='consulta_clientes_contador'"
+            ).fetchone()[0]
+            conn.execute(
+                "UPDATE clientes SET telefono='8888-0000', email='secreto@ficticio.test', "
+                "direccion='Calle Ficticia 1', webhook_url='http://ficticio.test/hook' "
+                "WHERE LOWER(TRIM(cuenta_id))='contador_1'"
+            )
+
+        # Admin -> 200, solo campos permitidos
+        r = self.client.get(url, headers=self.auth_h(self.token_admin))
+        self.assertEqual(r.status_code, 200)
+        body = r.get_json()
+        self.assertGreater(len(body['clientes']), 0)
+        permitidos = {'id', 'nombre', 'tipo', 'activo', 'facturas_pendientes'}
+        for c in body['clientes']:
+            self.assertEqual(set(c.keys()), permitidos)
+        raw = r.get_data(as_text=True)
+        for prohibido in ('8888-0000', 'secreto@ficticio.test', 'Calle Ficticia', 'ficticio.test/hook',
+                          'telefono', 'email', 'direccion', 'webhook', 'transacciones', 'asientos'):
+            self.assertNotIn(prohibido, raw)
+
+        # Cuenta inexistente -> 404 y tambien se audita
+        r404 = self.client.get('/api/admin/contadores/cuenta_que_no_existe/clientes',
+                               headers=self.auth_h(self.token_admin))
+        self.assertEqual(r404.status_code, 404)
+
+        with database.get_db(TEST_DB) as conn:
+            filas = conn.execute(
+                "SELECT target_id, actor, detalles_json FROM audit_log "
+                "WHERE accion='consulta_clientes_contador' ORDER BY id"
+            ).fetchall()
+            self.assertEqual(len(filas) - antes, 2)
+            self.assertEqual(filas[-2]['target_id'], 'contador_1')
+            self.assertEqual(filas[-2]['actor'], 'admin_user')
+            self.assertEqual(filas[-1]['target_id'], 'cuenta_que_no_existe')
+            self.assertNotIn('8888-0000', filas[-2]['detalles_json'])
+
+
 if __name__ == '__main__':
     unittest.main()
