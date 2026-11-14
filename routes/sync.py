@@ -28,11 +28,7 @@ def pull_data():
     if not cuenta_id:
         return error('Identidad no encontrada en token', 401)
 
-    from flask_jwt_extended import get_jwt
-    claims = get_jwt()
-    is_admin = (claims.get('role') == 'admin')
-
-    data, is_empty = pull(cuenta_id=cuenta_id, include_creds=is_admin)
+    data, is_empty = pull(cuenta_id=cuenta_id)
 
     return success({'empty': is_empty, 'data': data, 'cuenta_id': cuenta_id})
 
@@ -50,12 +46,6 @@ def push_data():
     if not data or not isinstance(data, dict):
         return error('Se requiere un body JSON valido', 400)
 
-    # Evitar que contadores regulares sobrescriban configuraciones globales del sistema (n8n_creds)
-    from flask_jwt_extended import get_jwt
-    claims = get_jwt()
-    if claims.get('role') != 'admin':
-        data.pop('n8n_creds', None)
-
     # Forzar cuenta_id del token (no confiar en data.get('cuenta_id'))
     data['cuenta_id'] = cuenta_id
 
@@ -63,7 +53,10 @@ def push_data():
     try:
         push(data, cuenta_id=cuenta_id)
     except PermissionError as pe:
-        return error(str(pe) or 'Acceso denegado a cliente', 403)
+        cid = str(pe).strip()
+        if ' ' in cid:
+            cid = cid.split()[-1].strip('()')
+        return error(f"Acceso denegado a cliente {cid}", 403, cliente_id=cid)
     except ValueError as ve:
         return error(str(ve) or 'Datos de sincronizacion invalidos', 400)
 

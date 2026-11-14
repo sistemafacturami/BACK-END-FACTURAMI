@@ -195,6 +195,14 @@ def create_app():
     def internal_error(e):
         return jsonify({'ok': False, 'error': 'Error interno del servidor'}), 500
 
+    try:
+        with database.get_db() as conn:
+            n_cuentas = conn.execute("SELECT COUNT(*) FROM cuentas").fetchone()[0]
+            n_clientes = conn.execute("SELECT COUNT(*) FROM clientes").fetchone()[0]
+        print(f"[Startup] DB={database.DB_PATH} cuentas={n_cuentas} clientes={n_clientes}")
+    except Exception as e:
+        print(f"[Startup] DB={database.DB_PATH} (conteo pendiente: {e})")
+
     return app
 
 

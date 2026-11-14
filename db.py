@@ -194,6 +194,19 @@ CREATE INDEX IF NOT EXISTS idx_queue_cli_estado ON facturas_queue(cliente_id, es
 CREATE INDEX IF NOT EXISTS idx_uploads_cuenta ON uploads_log(cuenta_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_audit_log_target ON audit_log(target_tipo, target_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at);
+
+-- Triggers de inmutabilidad append-only para audit_log
+CREATE TRIGGER IF NOT EXISTS trg_audit_log_no_update
+BEFORE UPDATE ON audit_log
+BEGIN
+    SELECT RAISE(ABORT, 'audit_log es una bitacora inmutable append-only: no se permite UPDATE');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_audit_log_no_delete
+BEFORE DELETE ON audit_log
+BEGIN
+    SELECT RAISE(ABORT, 'audit_log es una bitacora inmutable append-only: no se permite DELETE');
+END;
 """
 
 def init_db(db_path=None):
@@ -293,7 +306,10 @@ def init_db(db_path=None):
                 """, (cid, prompt_name, mail, inbox_f, proc_f, inbox_f))
                 print(f"[DB] Seed configuracion automatica creada para cliente: {nom} ({cid})")
 
-    print("[DB] Base de datos inicializada correctamente.")
+        n_cuentas = conn.execute("SELECT COUNT(*) FROM cuentas").fetchone()[0]
+        n_clientes = conn.execute("SELECT COUNT(*) FROM clientes").fetchone()[0]
+    target_path = db_path or DB_PATH
+    print(f"[DB] Base de datos inicializada: {target_path} (cuentas={n_cuentas}, clientes={n_clientes})")
 
 # ══════════════════════════════════════════════════════════════════════════
 #  CRUD: Clientes
@@ -338,31 +354,49 @@ def get_clientes(conn, cuenta_id=None):
     """Devuelve todos los clientes en formato compatible con el frontend, filtrando por cuenta."""
     if not cuenta_id or not str(cuenta_id).strip():
         return []
-    if cuenta_id == '__all__':
-        rows = conn.execute("SELECT * FROM clientes ORDER BY nombre").fetchall()
-    else:
-        rows = conn.execute(
-            "SELECT * FROM clientes WHERE LOWER(TRIM(cuenta_id))=LOWER(TRIM(?)) ORDER BY nombre",
-            (str(cuenta_id).strip(),)
-        ).fetchall()
+    rows = conn.execute(
+        "SELECT * FROM clientes WHERE LOWER(TRIM(cuenta_id))=LOWER(TRIM(?)) ORDER BY nombre",
+        (str(cuenta_id).strip(),)
+    ).fetchall()
     return [dict(r) for r in rows]
 
 def get_clientes_legacy(conn, cuenta_id=None):
     """Devuelve clientes en el formato original del frontend (f_clients) filtrados por cuenta."""
     if not cuenta_id or not str(cuenta_id).strip():
         return []
-    if cuenta_id == '__all__':
-        rows = conn.execute("SELECT * FROM clientes ORDER BY rowid").fetchall()
-    else:
-        rows = conn.execute(
-            "SELECT * FROM clientes WHERE LOWER(TRIM(cuenta_id))=LOWER(TRIM(?)) ORDER BY rowid",
-            (str(cuenta_id).strip(),)
-        ).fetchall()
+    rows = conn.execute(
+        "SELECT * FROM clientes WHERE LOWER(TRIM(cuenta_id))=LOWER(TRIM(?)) ORDER BY rowid",
+        (str(cuenta_id).strip(),)
+    ).fetchall()
     return [{
         'type': r['tipo'], 'name': r['nombre'], 'id': r['id'],
         'tel': r['telefono'], 'mail': r['email'], 'dir': r['direccion'],
         'act': r['actividad'], 'rep': r['representante'],
         'webhook': r['webhook_url'], 'cuenta_id': r['cuenta_id'] if 'cuenta_id' in r.keys() else cuenta_id
+    } for r in rows]
+
+def get_all_clientes_admin(conn):
+    """Función administrativa: obtiene todos los clientes del sistema. Inalcanzable desde endpoints regulares."""
+    rows = conn.execute("SELECT * FROM clientes ORDER BY nombre").fetchall()
+    return [dict(r) for r in rows]
+
+def get_clientes_metadata_admin(conn, cuenta_id):
+    """Solo metadatos de los clientes de una cuenta (para soporte admin).
+    Devuelve unicamente id, nombre, tipo, automatizacion_activa y conteo de facturas pendientes.
+    NUNCA transacciones, asientos, telefono, correo, direccion ni webhook."""
+    rows = conn.execute("""
+        SELECT c.id AS id, c.nombre AS nombre, c.tipo AS tipo,
+               COALESCE(cc.activo, 0) AS automatizacion_activa,
+               (SELECT COUNT(*) FROM facturas_queue fq
+                 WHERE fq.cliente_id = c.id AND fq.estado = 'pendiente') AS facturas_pendientes
+        FROM clientes c
+        LEFT JOIN clientes_config cc ON cc.cliente_id = c.id
+        WHERE LOWER(TRIM(c.cuenta_id)) = LOWER(TRIM(?))
+        ORDER BY c.nombre
+    """, (str(cuenta_id).strip(),)).fetchall()
+    return [{
+        'id': r['id'], 'nombre': r['nombre'], 'tipo': r['tipo'],
+        'automatizacion_activa': int(r['automatizacion_activa']), 'facturas_pendientes': int(r['facturas_pendientes'])
     } for r in rows]
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -1053,8 +1087,18 @@ def config_set(conn, clave, valor):
     )
 
 def insert_audit_log(conn, accion, actor, target_tipo='', target_id='', detalles=None):
-    """Inserta una entrada inmutable en la bitácora append-only de auditoría."""
-    d_str = json.dumps(detalles or {}, ensure_ascii=False)
+    """Inserta una entrada inmutable en la bitácora append-only de auditoría sanitizando secretos."""
+    safe_detalles = {}
+    if detalles and isinstance(detalles, dict):
+        for k, v in detalles.items():
+            k_low = str(k).lower()
+            if any(term in k_low for term in ('pass', 'pw', 'hash', 'secret', 'token', 'key')):
+                safe_detalles[k] = '[REDACTED]'
+            elif isinstance(v, str) and (v.startswith('$2b$') or v.startswith('$2a$')):
+                safe_detalles[k] = '[REDACTED]'
+            else:
+                safe_detalles[k] = v
+    d_str = json.dumps(safe_detalles, ensure_ascii=False)
     conn.execute("""
         INSERT INTO audit_log (accion, actor, target_tipo, target_id, detalles_json, created_at)
         VALUES (?, ?, ?, ?, ?, datetime('now','localtime'))
@@ -1075,11 +1119,10 @@ def get_audit_log(conn, target_tipo=None, target_id=None, limit=100):
 #  Sync: Pull/Push compatibles con frontend
 # ══════════════════════════════════════════════════════════════════════════
 
-def sync_pull(conn, cuenta_id, include_creds=False):
+def sync_pull(conn, cuenta_id):
     """
     Genera el payload completo compatible con el frontend, filtrando por cuenta.
     Lanza ValueError si falta cuenta_id.
-    Solo incluye n8n_creds si include_creds es True.
     """
     if not cuenta_id or not str(cuenta_id).strip():
         raise ValueError("cuenta_id requerido")
@@ -1093,14 +1136,6 @@ def sync_pull(conn, cuenta_id, include_creds=False):
     # Tema aislado por cuenta
     theme_key = f'theme_{owner}'
     data['f_theme'] = config_get(conn, theme_key, config_get(conn, 'f_theme', 'light'))
-    
-    # n8n creds solo si se solicita explícitamente (solo para administradores)
-    if include_creds:
-        creds_str = config_get(conn, 'n8n_creds', '{}')
-        try:
-            data['n8n_creds'] = json.loads(creds_str)
-        except Exception:
-            data['n8n_creds'] = {}
     
     # Datos por cliente
     for client in data['f_clients']:
@@ -1186,7 +1221,7 @@ def sync_push(conn, data, cuenta_id=None):
                 raise ValueError(f"ID de cliente invalido en f_clients: {cid}")
             row = conn.execute("SELECT cuenta_id FROM clientes WHERE id=?", (cid,)).fetchone()
             if row and row['cuenta_id'] and row['cuenta_id'].strip().lower() != owner:
-                raise PermissionError(f"Acceso denegado al cliente {cid} (pertenece a otra cuenta)")
+                raise PermissionError(cid)
             upsert_cliente(conn, {**c, 'id': cid}, cuenta_id=owner)
             valid_pushed_cids.add(cid)
 
@@ -1194,11 +1229,7 @@ def sync_push(conn, data, cuenta_id=None):
     if 'f_theme' in data:
         config_set(conn, f'theme_{owner}', str(data['f_theme']))
 
-    # 3. n8n creds solo si se incluye en data
-    if 'n8n_creds' in data:
-        config_set(conn, 'n8n_creds', json.dumps(data['n8n_creds']))
-
-    # 4. Validar y procesar transacciones y datos por cliente
+    # 3. Validar y procesar transacciones y datos por cliente
     for key, value in data.items():
         if not key.startswith('f_data_'):
             continue
@@ -1212,7 +1243,7 @@ def sync_push(conn, data, cuenta_id=None):
         row = conn.execute("SELECT cuenta_id FROM clientes WHERE id=?", (cid,)).fetchone()
         if row is None or (row['cuenta_id'] or '').strip().lower() != owner:
             # Si el cliente no existe en DB ni vino en f_clients de esta cuenta, rechazar inmediatamente
-            raise PermissionError(f"Acceso denegado a cliente {cid}")
+            raise PermissionError(cid)
 
         for mod_name in ('ingresos', 'compras', 'gastos', 'costos', 'obras'):
             mod_data = value.get(mod_name)

@@ -149,6 +149,7 @@ class TestPasivosFinancierosFase4(unittest.TestCase):
             'monto_principal': 5000000.0,
             'tasa_anual': 10.0,
             'plazo_meses': 6,
+            'fecha_inicio': '2026-10-01',
             'contrapartida': 'banco',
             'cuenta_banco_codigo': '1.1.1.02.01'
         }

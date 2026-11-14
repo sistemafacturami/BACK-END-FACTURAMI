@@ -9,9 +9,28 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install -r requirements.txt pytest
+        run: |
+          pip install -r requirements-dev.txt
+          python -m playwright install --with-deps chromium
       - name: Run test suite
-        run: python -m pytest tests/test_fase1_authz.py -v
+        run: python -m pytest tests -v
         env:
           JWT_SECRET_KEY: ci-only-jwt-key-0123456789-0123456789-abcdef
           N8N_INTERNAL_SECRET: ci-only-n8n-key-0123456789-0123456789-abcd
+
+  docker-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production docker image
+        run: docker build -t facturami-app:test .
+      - name: Verify non-root user and run tests inside container
+        run: |
+          docker run --rm \
+            -e JWT_SECRET_KEY=ci-only-jwt-key-0123456789-0123456789-abcdef \
+            -e N8N_INTERNAL_SECRET=ci-only-n8n-key-0123456789-0123456789-abcd \
+            facturami-app:test whoami | grep facturami
+          docker run --rm \
+            -e JWT_SECRET_KEY=ci-only-jwt-key-0123456789-0123456789-abcdef \
+            -e N8N_INTERNAL_SECRET=ci-only-n8n-key-0123456789-0123456789-abcd \
+            facturami-app:test python -m unittest tests/test_fase1_authz.py -v

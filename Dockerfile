@@ -19,11 +19,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el código fuente y activos
-COPY . /app
+# Crear usuario y grupo sin privilegios
+RUN groupadd -g 10001 facturami && \
+    useradd -u 10001 -g facturami -d /app -s /usr/sbin/nologin facturami
 
-# Crear carpetas requeridas para almacenamiento y persistencia
-RUN mkdir -p /app/storage /app/tmp /app/backups
+# Copiar el código fuente y activos con permisos del usuario sin privilegios
+COPY --chown=facturami:facturami . /app
+
+# Crear carpetas requeridas para almacenamiento y persistencia con permisos adecuados
+RUN mkdir -p /app/storage /app/tmp /app/backups && \
+    chown -R facturami:facturami /app
+
+# Ejecutar como usuario sin privilegios
+USER facturami
 
 # Exponer el puerto del backend
 EXPOSE 5001

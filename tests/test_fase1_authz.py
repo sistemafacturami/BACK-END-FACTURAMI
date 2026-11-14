@@ -150,7 +150,12 @@ class TestFase1Seguridad(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        shutil.rmtree(TEST_TMP, ignore_errors=True)
+        try:
+            with database.get_db(TEST_DB) as conn:
+                conn.execute("DELETE FROM audit_log")
+                conn.execute("DELETE FROM uploads_log")
+        except Exception:
+            pass
 
     def auth_h(self, token):
         return {'Authorization': f'Bearer {token}'}
@@ -1022,11 +1027,11 @@ class TestFase1Seguridad(unittest.TestCase):
         data_c1 = r_c1.get_json().get('data', {})
         self.assertNotIn('n8n_creds', data_c1, "n8n_creds NUNCA debe entregarse a contadores no-admin")
 
-        # Admin pide pull por HTTP
+        # Admin pide pull por HTTP: n8n_creds no se entrega tampoco
         r_admin = self.client.get('/api/sync/pull', headers=self.auth_h(self.token_admin))
         self.assertEqual(r_admin.status_code, 200)
         data_admin = r_admin.get_json().get('data', {})
-        self.assertIn('n8n_creds', data_admin, "Admin legítimo sí puede recibir n8n_creds")
+        self.assertNotIn('n8n_creds', data_admin, "n8n_creds debe estar totalmente ausente de sync_pull")
 
     # ══════════════════════════════════════════════════════════════════════
     #  24. Admin Transferir Cliente: validación atómica y tabla audit_log
@@ -1389,6 +1394,267 @@ class TestFase1Seguridad(unittest.TestCase):
         ok_zero, err_zero = check_quota_for_client('cli_null_act')
         self.assertFalse(ok_zero, "activo=0 debe rechazarse")
         self.assertIn('inactiva', err_zero.lower())
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  36. Aislamiento estricto: La BD de pruebas NUNCA debe ser la del repo
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_41_database_path_must_not_match_repository_db(self):
+        """Verifica que la base de datos usada por los tests sea temporal y no coincida con facturami.db del repo."""
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        repo_db = os.path.abspath(os.path.join(repo_root, 'facturami.db'))
+        active_db = os.path.abspath(database.DB_PATH)
+
+        self.assertNotEqual(
+            active_db, repo_db,
+            f"FALLO CRÍTICO DE AISLAMIENTO: Los tests están usando la BD del repo: {active_db}"
+        )
+        self.assertTrue(
+            active_db.startswith(tempfile.gettempdir()) or 'test' in os.path.basename(active_db),
+            f"La ruta de BD activa ({active_db}) no reside en un directorio temporal seguro"
+        )
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  37. Cuenta '__all__' y eliminación de bypass en get_clientes_legacy
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_42_cuenta_all_no_recibe_clientes_ajenos(self):
+        """Verifica que una cuenta o consulta con '__all__' no devuelva clientes de otros contadores."""
+        with database.get_db(TEST_DB) as conn:
+            # 1. get_clientes con cuenta_id='__all__' no debe devolver los clientes de contador_1 ni contador_2
+            cli_all = database.get_clientes(conn, cuenta_id='__all__')
+            self.assertEqual(cli_all, [], "cuenta_id='__all__' NO debe ser un bypass global")
+
+            # 2. get_clientes_legacy con '__all__' debe devolver lista vacía si no existe cliente con cuenta_id='__all__'
+            legacy_all = database.get_clientes_legacy(conn, cuenta_id='__all__')
+            self.assertEqual(legacy_all, [], "get_clientes_legacy con '__all__' NO debe devolver clientes ajenos")
+
+            # 3. get_all_clientes_admin() sí devuelve todos los clientes
+            all_admin = database.get_all_clientes_admin(conn)
+            self.assertGreater(len(all_admin), 0, "get_all_clientes_admin debe listar clientes para administración")
+
+        # 4. Validar regex de nombres de usuario en create_contador
+        r_bad_user = self.client.post(
+            '/api/admin/contadores',
+            headers=self.auth_h(self.token_admin),
+            json={'username': 'INVALID USER!', 'password': 'password123', 'nombre': 'Bad User'}
+        )
+        self.assertEqual(r_bad_user.status_code, 400)
+        self.assertIn('entre 3 y 32 caracteres', r_bad_user.get_json().get('error', ''))
+
+        r_short_user = self.client.post(
+            '/api/admin/contadores',
+            headers=self.auth_h(self.token_admin),
+            json={'username': 'ab', 'password': 'password123', 'nombre': 'Short'}
+        )
+        self.assertEqual(r_short_user.status_code, 400)
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  38. audit_log: Inmutabilidad append-only mediante triggers SQLite
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_43_audit_log_append_only_triggers(self):
+        """Verifica que los triggers de SQLite bloqueen cualquier intento de UPDATE o DELETE en audit_log."""
+        with database.get_db(TEST_DB) as conn:
+            database.insert_audit_log(
+                conn,
+                accion='test_inmutabilidad',
+                actor='admin_test',
+                target_tipo='cuenta',
+                target_id='c_target',
+                detalles={'prueba': True}
+            )
+            row = conn.execute("SELECT id FROM audit_log WHERE accion='test_inmutabilidad'").fetchone()
+            log_id = row['id']
+
+            # Intentar UPDATE debe fallar por el trigger
+            with self.assertRaises((sqlite3.IntegrityError, sqlite3.OperationalError)) as ctx_update:
+                conn.execute("UPDATE audit_log SET accion='manipulado' WHERE id=?", (log_id,))
+            self.assertIn('inmutable append-only', str(ctx_update.exception))
+
+            # Intentar DELETE debe fallar por el trigger
+            with self.assertRaises((sqlite3.IntegrityError, sqlite3.OperationalError)) as ctx_delete:
+                conn.execute("DELETE FROM audit_log WHERE id=?", (log_id,))
+            self.assertIn('inmutable append-only', str(ctx_delete.exception))
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  39. Registro de auditoría en todas las rutas administrativas
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_44_admin_routes_audit_log_entries(self):
+        """Verifica que todas las operaciones admin (alta, suspensión, password, extender, reset, baja) registren en audit_log."""
+        target_u = "contador_audit_test"
+
+        # 1. Alta (create_contador)
+        r_create = self.client.post(
+            '/api/admin/contadores',
+            headers=self.auth_h(self.token_admin),
+            json={'username': target_u, 'password': 'secret_password_123', 'nombre': 'Audit Test User', 'plan_id': 'emprendedor'}
+        )
+        self.assertEqual(r_create.status_code, 201)
+
+        # 2. Suspensión y cambio de contraseña (update_contador)
+        r_up = self.client.put(
+            f'/api/admin/contadores/{target_u}',
+            headers=self.auth_h(self.token_admin),
+            json={'activo': 0, 'password': 'new_secret_password_456'}
+        )
+        self.assertEqual(r_up.status_code, 200)
+
+        # 3. Extender suscripción
+        r_ext = self.client.post(
+            f'/api/admin/contadores/{target_u}/extender-suscripcion',
+            headers=self.auth_h(self.token_admin),
+            json={'dias': 60}
+        )
+        self.assertEqual(r_ext.status_code, 200)
+
+        # 4. Reset facturas
+        r_res = self.client.post(
+            f'/api/admin/contadores/{target_u}/reset-facturas',
+            headers=self.auth_h(self.token_admin)
+        )
+        self.assertEqual(r_res.status_code, 200)
+
+        # 5. Baja (delete_contador)
+        r_del = self.client.delete(
+            f'/api/admin/contadores/{target_u}',
+            headers=self.auth_h(self.token_admin)
+        )
+        self.assertEqual(r_del.status_code, 200)
+
+        # Verificar que todas las acciones quedaron en audit_log
+        with database.get_db(TEST_DB) as conn:
+            logs = conn.execute(
+                "SELECT accion FROM audit_log WHERE target_id=? ORDER BY id ASC",
+                (target_u,)
+            ).fetchall()
+            acciones = [r['accion'] for r in logs]
+
+            self.assertIn('crear_cuenta', acciones)
+            self.assertIn('suspender_cuenta', acciones)
+            self.assertIn('cambio_password', acciones)
+            self.assertIn('actualizar_cuenta', acciones)
+            self.assertIn('extender_suscripcion', acciones)
+            self.assertIn('reset_facturas', acciones)
+            self.assertIn('eliminar_cuenta', acciones)
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  40. sync_push: Respuesta 403 incluye cliente_id ofensor
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_45_sync_push_403_returns_cliente_id(self):
+        """Verifica que cuando sync/push rechaza un cliente ajeno, devuelva 403 y el campo cliente_id."""
+        r = self.client.post(
+            '/api/sync/push',
+            headers=self.auth_h(self.token_c2),
+            json={'f_data_cli_tenant_1': {'ingresos': {'rows': []}}}
+        )
+        self.assertEqual(r.status_code, 403)
+        res_data = r.get_json()
+        self.assertFalse(res_data['ok'])
+        self.assertEqual(res_data.get('cliente_id'), 'cli_tenant_1')
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  41. audit_log: Sanitización y Redacción Total de Contraseñas y Hashes
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_46_audit_log_redacts_passwords_and_hashes(self):
+        """Verifica que insert_audit_log nunca almacene contraseñas en texto claro ni hashes en detalles_json."""
+        sensitive_payload = {
+            'username': 'usuario_sensible',
+            'password': 'PasswordSuperSecreta123!',
+            'new_password': 'OtraPassword456!',
+            'password_hash': '$2b$12$eX4mpleBcryptHashThatMustNeverBeSavedInAuditLog12345678',
+            'api_secret': 'super_secret_token_value',
+            'plan_id': 'corporativo'
+        }
+
+        with database.get_db(TEST_DB) as conn:
+            database.insert_audit_log(
+                conn,
+                accion='test_sanitizacion',
+                actor='admin_user',
+                target_tipo='cuenta',
+                target_id='usuario_sensible',
+                detalles=sensitive_payload
+            )
+
+            row = conn.execute(
+                "SELECT detalles_json FROM audit_log WHERE accion='test_sanitizacion' ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+
+            self.assertIsNotNone(row)
+            detalles_raw = row['detalles_json']
+
+            # 1. Asegurar que ningún valor sensible aparezca en el JSON guardado
+            self.assertNotIn('PasswordSuperSecreta123!', detalles_raw)
+            self.assertNotIn('OtraPassword456!', detalles_raw)
+            self.assertNotIn('$2b$12$', detalles_raw)
+            self.assertNotIn('super_secret_token_value', detalles_raw)
+
+            # 2. Asegurar que las claves sensibles fueron redactadas a [REDACTED]
+            detalles = json.loads(detalles_raw)
+            self.assertEqual(detalles['password'], '[REDACTED]')
+            self.assertEqual(detalles['new_password'], '[REDACTED]')
+            self.assertEqual(detalles['password_hash'], '[REDACTED]')
+            self.assertEqual(detalles['api_secret'], '[REDACTED]')
+            # El campo no sensible debe mantenerse intacto
+            self.assertEqual(detalles['plan_id'], 'corporativo')
+
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  42. Ruta de soporte admin: solo metadatos de clientes + audit_log
+    # ══════════════════════════════════════════════════════════════════════
+
+    def test_47_admin_clientes_contador_solo_metadatos_y_auditoria(self):
+        """Contador 403, anonimo 401, audit_log escrito (tambien si no existe) y sin campos de contenido."""
+        url = '/api/admin/contadores/contador_1/clientes'
+
+        # Anonimo -> 401
+        self.assertEqual(self.client.get(url).status_code, 401)
+        # Contador regular -> 403
+        r_c = self.client.get(url, headers=self.auth_h(self.token_c1))
+        self.assertEqual(r_c.status_code, 403)
+
+        with database.get_db(TEST_DB) as conn:
+            antes = conn.execute(
+                "SELECT COUNT(*) FROM audit_log WHERE accion='consulta_clientes_contador'"
+            ).fetchone()[0]
+            conn.execute(
+                "UPDATE clientes SET telefono='8888-0000', email='secreto@ficticio.test', "
+                "direccion='Calle Ficticia 1', webhook_url='http://ficticio.test/hook' "
+                "WHERE LOWER(TRIM(cuenta_id))='contador_1'"
+            )
+
+        # Admin -> 200, solo campos permitidos
+        r = self.client.get(url, headers=self.auth_h(self.token_admin))
+        self.assertEqual(r.status_code, 200)
+        body = r.get_json()
+        self.assertGreater(len(body['clientes']), 0)
+        permitidos = {'id', 'nombre', 'tipo', 'automatizacion_activa', 'facturas_pendientes'}
+        for c in body['clientes']:
+            self.assertEqual(set(c.keys()), permitidos)
+        raw = r.get_data(as_text=True)
+        for prohibido in ('8888-0000', 'secreto@ficticio.test', 'Calle Ficticia', 'ficticio.test/hook',
+                          'telefono', 'email', 'direccion', 'webhook', 'transacciones', 'asientos'):
+            self.assertNotIn(prohibido, raw)
+
+        # Cuenta inexistente -> 404 y tambien se audita
+        r404 = self.client.get('/api/admin/contadores/cuenta_que_no_existe/clientes',
+                               headers=self.auth_h(self.token_admin))
+        self.assertEqual(r404.status_code, 404)
+
+        with database.get_db(TEST_DB) as conn:
+            filas = conn.execute(
+                "SELECT target_id, actor, detalles_json FROM audit_log "
+                "WHERE accion='consulta_clientes_contador' ORDER BY id"
+            ).fetchall()
+            self.assertEqual(len(filas) - antes, 2)
+            self.assertEqual(filas[-2]['target_id'], 'contador_1')
+            self.assertEqual(filas[-2]['actor'], 'admin_user')
+            self.assertEqual(filas[-1]['target_id'], 'cuenta_que_no_existe')
+            self.assertNotIn('8888-0000', filas[-2]['detalles_json'])
 
 
 if __name__ == '__main__':

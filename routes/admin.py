@@ -13,6 +13,8 @@ from flask_jwt_extended import get_jwt_identity, get_jwt
 
 from services.authz import role_required, CLIENT_ID_RE
 
+USERNAME_RE = re.compile(r'^[a-z0-9._-]{3,32}$')
+
 import db as database
 from errors import success, error, handle_errors
 
@@ -30,8 +32,17 @@ def _load_users():
 
 
 def _save_users(users):
-    with open(USERS_FILE, 'w', encoding='utf-8') as f:
+    """Guarda usuarios en users.json de forma atomica usando archivo temporal + rename."""
+    dirname = os.path.dirname(USERS_FILE) or '.'
+    tmp_path = os.path.join(dirname, f".users.json.tmp.{os.getpid()}")
+    with open(tmp_path, 'w', encoding='utf-8') as f:
         json.dump(users, f, ensure_ascii=False, indent=2)
+        f.flush()
+        try:
+            os.fsync(f.fileno())
+        except OSError:
+            pass
+    os.replace(tmp_path, USERS_FILE)
 
 
 PLANES_DEF = {
@@ -53,6 +64,30 @@ def list_contadores():
     return success(cuentas)
 
 
+@admin_bp.route('/api/admin/contadores/<username>/clientes', methods=['GET'])
+@role_required('admin')
+@handle_errors
+def list_clientes_contador(username):
+    """GET /api/admin/contadores/<u>/clientes - Solo metadatos (id, nombre, tipo, activo,
+    facturas pendientes). Registra cada consulta en audit_log, incluso si la cuenta no existe."""
+    u_clean = (username or '').strip().lower()
+    admin_username = get_jwt_identity()
+    with database.get_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        cuenta = database.get_cuenta(conn, u_clean)
+        clientes = database.get_clientes_metadata_admin(conn, u_clean) if cuenta else []
+        database.insert_audit_log(
+            conn,
+            accion='consulta_clientes_contador',
+            actor=admin_username,
+            target_tipo='cuenta',
+            target_id=u_clean[:64],
+            detalles={'cuenta_existe': bool(cuenta), 'num_clientes': len(clientes)}
+        )
+    if not cuenta:
+        return error(f"Contador '{u_clean[:64]}' no encontrado", 404)
+    return success({'cuenta_id': u_clean, 'clientes': clientes})
+
 @admin_bp.route('/api/admin/contadores', methods=['POST'])
 @role_required('admin')
 @handle_errors
@@ -69,8 +104,8 @@ def create_contador():
     if not username or not password:
         return error('Usuario y contraseña son requeridos', 400)
 
-    if len(username) < 3:
-        return error('El nombre de usuario debe tener al menos 3 caracteres', 400)
+    if not USERNAME_RE.fullmatch(username):
+        return error('El nombre de usuario debe tener entre 3 y 32 caracteres (solo minúsculas, números, puntos, guiones y guiones bajos)', 400)
 
     users = _load_users()
     if any(u['username'].lower() == username for u in users):
@@ -118,6 +153,7 @@ def create_contador():
     _save_users(users)
 
     # Guardar en base de datos SQLite
+    admin_username = get_jwt_identity()
     cuenta_dict = {
         'username': username,
         'nombre': nombre or username,
@@ -133,7 +169,16 @@ def create_contador():
         'password_hash': pw_hash
     }
     with database.get_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         database.upsert_cuenta(conn, cuenta_dict)
+        database.insert_audit_log(
+            conn,
+            accion='crear_cuenta',
+            actor=admin_username,
+            target_tipo='cuenta',
+            target_id=username,
+            detalles={'plan_id': plan_id, 'nombre': nombre or username, 'email': email, 'max_clientes': max_cli}
+        )
 
     print(f"[ADMIN] Contador creado exitosamente: {username} ({plan_id})")
     return success(cuenta_dict, message=f"Contador '{nombre or username}' creado exitosamente", status=201)
@@ -206,8 +251,38 @@ def update_contador(username):
     if new_pw_hash:
         cuenta_dict['password_hash'] = new_pw_hash
 
+    admin_username = get_jwt_identity()
     with database.get_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         database.upsert_cuenta(conn, cuenta_dict)
+
+        # Bitácora de auditoría detallada
+        if 'activo' in data and (cuenta is None or cuenta.get('activo') != activo):
+            database.insert_audit_log(
+                conn,
+                accion='suspender_cuenta' if activo == 0 else 'reactivar_cuenta',
+                actor=admin_username,
+                target_tipo='cuenta',
+                target_id=username,
+                detalles={'activo': activo}
+            )
+        if new_pw_hash:
+            database.insert_audit_log(
+                conn,
+                accion='cambio_password',
+                actor=admin_username,
+                target_tipo='cuenta',
+                target_id=username,
+                detalles={'motivo': 'admin_reset'}
+            )
+        database.insert_audit_log(
+            conn,
+            accion='actualizar_cuenta',
+            actor=admin_username,
+            target_tipo='cuenta',
+            target_id=username,
+            detalles={'plan_id': plan_id, 'activo': activo, 'limite': limite, 'max_clientes': max_cli}
+        )
 
     print(f"[ADMIN] Contador '{username}' actualizado.")
     return success(cuenta_dict, message="Contador actualizado correctamente")
@@ -233,11 +308,21 @@ def extender_suscripcion_contador(username):
     elif not fecha_hasta:
         dias = 30  # Por defecto +30 dias (+1 mes)
 
+    admin_username = get_jwt_identity()
     with database.get_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         nueva_fecha = database.extender_suscripcion(conn, username, dias=dias, fecha_fija=fecha_hasta)
         if not nueva_fecha:
             return error(f"Contador '{username}' no encontrado", 404)
         cuenta = database.get_cuenta(conn, username)
+        database.insert_audit_log(
+            conn,
+            accion='extender_suscripcion',
+            actor=admin_username,
+            target_tipo='cuenta',
+            target_id=username,
+            detalles={'nueva_fecha': nueva_fecha, 'dias': dias, 'fecha_hasta': fecha_hasta}
+        )
 
     # Mantener sincronizado users.json
     users = _load_users()
@@ -263,6 +348,7 @@ def delete_contador(username):
 
     admin_username = get_jwt_identity()
     with database.get_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         n = conn.execute(
             "SELECT COUNT(*) FROM clientes WHERE LOWER(TRIM(cuenta_id))=LOWER(TRIM(?))",
             (u_clean,)
@@ -296,10 +382,20 @@ def reset_facturas_contador(username):
     if get_jwt().get('role') != 'admin':
         return error('Solo el administrador puede reiniciar contadores', 403)
 
+    admin_username = get_jwt_identity()
     with database.get_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         if not database.reset_contador_facturas(conn, username):
             return error(f"Contador '{username}' no encontrado", 404)
         cuenta = database.get_cuenta(conn, username)
+        database.insert_audit_log(
+            conn,
+            accion='reset_facturas',
+            actor=admin_username,
+            target_tipo='cuenta',
+            target_id=username,
+            detalles={'facturas_mes': cuenta.get('facturas_mes', 0), 'reset_at': cuenta.get('contador_reset_at', '')}
+        )
 
     print(f"[ADMIN] Contador de facturas reiniciado para '{username}' por {get_jwt_identity()}")
     return success({
