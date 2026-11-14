@@ -346,3 +346,124 @@ def test_escenario_e_403_cedula_ajena_resto_sigue_sincronizando(browser_context)
     assert any(b.get('reason') == 'push_403_conflict' for b in backups)
 
     page.close()
+
+
+def test_escenario_f_pendientes_y_push_fallido_datos_locales_no_cambian(browser_context):
+    """
+    (f) Con fm_pending_sync y push fallido, syncFromBackend NO hace el pull
+    y los datos locales no cambian.
+    """
+    page = browser_context.new_page()
+
+    pull_called = []
+    def mock_pull(route):
+        pull_called.append(True)
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({
+                "ok": True,
+                "data": {
+                    "f_clients": [{"id": "CLI-SERVER-99", "name": "Sobrescrito del Servidor"}],
+                    "f_theme": "dark"
+                }
+            })
+        )
+
+    def mock_push_failing(route):
+        route.fulfill(
+            status=500,
+            content_type="application/json",
+            body=json.dumps({"ok": False, "error": "Error interno del servidor"})
+        )
+
+    setup_mock_routes(page, push_handler=mock_push_failing)
+    page.route("**/api/sync/pull*", mock_pull)
+    page.goto(PAGE_URL)
+
+    # Iniciar sesión
+    perform_login(page, "contador_a")
+
+    # Preparar datos locales pendientes
+    page.evaluate("""() => {
+        const local = [{'id': 'CLI-LOCAL-1', 'name': 'Cliente Local Intacto'}];
+        localStorage.setItem('f_clients', JSON.stringify(local));
+        localStorage.setItem('f_data_CLI-LOCAL-1', JSON.stringify({notas: 'No debe perderse'}));
+        localStorage.setItem('fm_pending_sync_contador_a', '1');
+    }""")
+
+    # Limpiar llamadas del pull del login inicial para evaluar estrictamente syncFromBackend con pendientes
+    pull_called.clear()
+
+    # Ejecutar syncFromBackend con pendientes activos y push fallido
+    result = page.evaluate("() => syncFromBackend('contador_a', false)")
+    page.wait_for_timeout(800)
+
+    # 1. El pull NO debió ser ejecutado porque el push falló
+    assert len(pull_called) == 0, "No debió ejecutar pull si el push de pendientes falló"
+    assert result is False
+
+    # 2. Los datos locales NO cambiaron
+    clients_after = page.evaluate("() => JSON.parse(localStorage.getItem('f_clients') || '[]')")
+    assert len(clients_after) == 1
+    assert clients_after[0]['id'] == 'CLI-LOCAL-1'
+    assert clients_after[0]['name'] == 'Cliente Local Intacto'
+
+    data_after = page.evaluate("() => localStorage.getItem('f_data_CLI-LOCAL-1')")
+    assert 'No debe perderse' in data_after
+
+    # 3. La bandera de pendientes sigue en '1'
+    assert page.evaluate("() => localStorage.getItem('fm_pending_sync_contador_a')") == '1'
+
+    page.close()
+
+
+def test_rotacion_respaldos_10_pulls_no_expulsan_pre_migracion(browser_context):
+    """
+    (2) Retención por motivo: 10 pulls sucesivos (pre_pull_sync) NO expulsan
+    un respaldo protegido pre_migracion.
+    """
+    page = browser_context.new_page()
+    page.goto(PAGE_URL)
+
+    # Crear manualmente un respaldo de motivo protegido 'pre_migracion'
+    page.evaluate("""() => {
+        localStorage.clear();
+        const bPreMigracion = {
+            timestamp: '2026-01-01T00:00:00.000Z',
+            reason: 'pre_migracion',
+            cuenta_id: 'contador_a',
+            f_clients: [{'id': 'CLI-ANTIGUO', 'name': 'Cliente Protegido'}],
+            data: {}
+        };
+        localStorage.setItem('fm_backup_2026-01-01T00-00-00-000Z', JSON.stringify(bPreMigracion));
+
+        // Simular 10 operaciones de pull que generan respaldos de rutina pre_pull_sync
+        for (let i = 1; i <= 10; i++) {
+            const pad = String(i).padStart(2, '0');
+            const bRoutine = {
+                timestamp: `2026-02-01T00:00:${pad}.000Z`,
+                reason: 'pre_pull_sync',
+                cuenta_id: 'contador_a',
+                f_clients: [{'id': `CLI-PULL-${i}`, 'name': `Pull ${i}`}],
+                data: {}
+            };
+            localStorage.setItem(`fm_backup_2026-02-01T00-00-${pad}-000Z`, JSON.stringify(bRoutine));
+            rotateLocalBackups();
+        }
+    }""")
+
+    # Verificar que el respaldo pre_migracion sigue existiendo intacto
+    pre_mig = page.evaluate("() => localStorage.getItem('fm_backup_2026-01-01T00-00-00-000Z')")
+    assert pre_mig is not None, "El respaldo protegido pre_migracion NO debe haber sido expulsado por los 10 pulls"
+
+    # Verificar que los respaldos rutinarios se limitaron al máximo de rutina (2)
+    routine_backups = page.evaluate("""() => {
+        return Object.keys(localStorage)
+            .filter(k => k.startsWith('fm_backup_'))
+            .map(k => JSON.parse(localStorage.getItem(k) || '{}'))
+            .filter(b => b.reason === 'pre_pull_sync');
+    }""")
+    assert len(routine_backups) <= 2, f"Los respaldos pre_pull_sync debieron rotar a máximo 2, pero hay {len(routine_backups)}"
+
+    page.close()

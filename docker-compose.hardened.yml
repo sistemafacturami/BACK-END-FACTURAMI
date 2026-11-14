@@ -1,14 +1,3 @@
-# ==============================================================================
-# FACTURAMI - Docker Compose Hardened (Alternativo, Sin Aplicar)
-# ==============================================================================
-# Mejoras respecto al compose actual:
-# 1. Base de datos aislada en carpeta ./data montada a /app/data (permite a SQLite
-#    crear facturami.db-wal y facturami.db-shm con permisos de directorio).
-# 2. Montaje de código y plantillas como Solo Lectura (:ro) para prevenir cualquier
-#    modificación o inyección en tiempo de ejecución.
-# 3. Mantiene persistencia de storage/, tmp/ y backups/ con usuario no root (10001).
-# ==============================================================================
-
 services:
   # ── Backend & Web App FACTURAMI (Flask + Gunicorn) ───────────
   app:
@@ -22,24 +11,20 @@ services:
       - FLASK_HOST=0.0.0.0
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?define JWT_SECRET_KEY en .env}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      - N8N_API_KEY=${N8N_API_KEY:-}
       - N8N_WEBHOOK_URL=http://n8n:5678/webhook/importar-facturas
       - N8N_BASE_URL=http://n8n:5678
       - N8N_INTERNAL_SECRET=${N8N_INTERNAL_SECRET:?define N8N_INTERNAL_SECRET en .env}
-      - CORS_ORIGINS=*
+      - CORS_ORIGINS=https://${DOMAIN_NAME:-facturami.app}
       - FACTURAMI_STORAGE_PATH=/app/storage
       - FACTURAMI_TMP_PATH=/app/tmp
       - FACTURAMI_DB_PATH=/app/data/facturami.db
     volumes:
-      # Base de datos aislada en directorio dedicado
+      # Persistencia en el disco del host
       - ./data:/app/data
-      # Archivo de usuarios (autenticación)
       - ./users.json:/app/users.json
-      # Almacenamiento y temporales de subida
       - ./storage:/app/storage
       - ./tmp:/app/tmp
       - ./backups:/app/backups
-      # Código fuente y vistas montadas estrictamente como SOLO LECTURA (:ro)
       - ./landing.html:/app/landing.html:ro
       - ./FACTURAMI.html:/app/FACTURAMI.html:ro
       - ./app.py:/app/app.py:ro
@@ -64,17 +49,21 @@ services:
       - N8N_PROTOCOL=https
       - NODE_ENV=production
       - WEBHOOK_URL=https://${N8N_DOMAIN:-n8n.facturami.app}/
+      - N8N_WEBHOOK_URL=https://${N8N_DOMAIN:-n8n.facturami.app}/
+      - N8N_EDITOR_BASE_URL=https://${N8N_DOMAIN:-n8n.facturami.app}/
       - GENERIC_TIMEZONE=America/Costa_Rica
-      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:?define N8N_ENCRYPTION_KEY en .env}
-      - N8N_USER_MANAGEMENT_DISABLED=false
-      - EXECUTIONS_DATA_PRUNE=true
-      - EXECUTIONS_DATA_MAX_AGE=336
+      - TZ=America/Costa_Rica
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_HIRING_BANNER_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      - N8N_DIAGNOSTICS_ENABLED=false
     volumes:
       - n8n_data:/home/node/.n8n
+      - ./storage:/data/storage:ro
     networks:
       - facturami_net
 
-  # ── Reverse Proxy Caddy (TLS Automático) ───────────────────────
+  # ── Reverse Proxy & Certificados SSL Automáticos (Caddy) ──────
   caddy:
     image: caddy:2-alpine
     container_name: facturami_caddy
@@ -82,6 +71,11 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "443:443/udp" # HTTP/3 QUIC
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME:-facturami.app}
+      - N8N_DOMAIN=${N8N_DOMAIN:-n8n.facturami.app}
+      - ACME_EMAIL=${ACME_EMAIL:-soporte@facturami.app}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

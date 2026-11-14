@@ -7737,18 +7737,54 @@
       return null;
     }
 
-    function rotateLocalBackups(maxKeep = 5) {
+    function triggerJsonDownload(filename, dataObj) {
+      try {
+        const str = JSON.stringify(dataObj, null, 2);
+        const blob = new Blob([str], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log('[BACKUP] Descarga automática de archivo completada:', filename);
+      } catch (err) {
+        console.warn('[BACKUP] Error en descarga automática:', err);
+      }
+    }
+
+    function rotateLocalBackups() {
       try {
         const backupKeys = Object.keys(localStorage)
           .filter(k => k.startsWith('fm_backup_') && k !== 'fm_backup_error')
           .sort()
           .reverse();
 
-        if (backupKeys.length > maxKeep) {
-          const toRemove = backupKeys.slice(maxKeep);
-          toRemove.forEach(k => localStorage.removeItem(k));
-          console.log(`[BACKUP] Rotación: conservados los últimos ${maxKeep} respaldos. Eliminados:`, toRemove);
-        }
+        const PROTECTED_REASONS = new Set(['pre_migracion', 'push_403_conflict', 'pull_empty_preserve', 'pre_logout_huerfanos']);
+        const MAX_PROTECTED = 3;
+        const MAX_ROUTINE = 2;
+
+        const byReason = {};
+        backupKeys.forEach(k => {
+          let reason = 'manual';
+          try {
+            const b = JSON.parse(localStorage.getItem(k) || '{}');
+            if (b.reason) reason = b.reason;
+          } catch (e) {}
+          if (!byReason[reason]) byReason[reason] = [];
+          byReason[reason].push(k);
+        });
+
+        Object.entries(byReason).forEach(([reason, keys]) => {
+          const limit = PROTECTED_REASONS.has(reason) ? MAX_PROTECTED : MAX_ROUTINE;
+          if (keys.length > limit) {
+            const toRemove = keys.slice(limit);
+            toRemove.forEach(k => localStorage.removeItem(k));
+            console.log(`[BACKUP] Rotación (${reason}): conservados los ${limit} más recientes. Eliminados:`, toRemove);
+          }
+        });
       } catch (e) {
         console.warn('[BACKUP] Error al rotar respaldos:', e);
       }
@@ -7756,25 +7792,58 @@
 
     function createLocalBackup(reason = 'manual') {
       try {
+        const clientsStr = localStorage.getItem('f_clients');
+        const clients = JSON.parse(clientsStr || '[]');
+        const dataKeys = Object.keys(localStorage).filter(k => k.startsWith('f_data_'));
+        const hasClients = clients.length > 0;
+        const hasData = dataKeys.some(k => {
+          const v = localStorage.getItem(k);
+          return v && v !== '{}' && v !== '[]';
+        });
+
+        // 1. No crear respaldo si el espacio de trabajo está vacío
+        if (!hasClients && !hasData) {
+          console.log('[BACKUP] Espacio de trabajo activo vacío, no se genera respaldo innecesario.');
+          return null;
+        }
+
+        const currentData = {};
+        dataKeys.forEach(k => {
+          currentData[k] = JSON.parse(localStorage.getItem(k) || '{}');
+        });
+
+        // 2. No crear si el contenido es idéntico al último respaldo existente
+        const existingKeys = Object.keys(localStorage)
+          .filter(k => k.startsWith('fm_backup_') && k !== 'fm_backup_error')
+          .sort()
+          .reverse();
+
+        if (existingKeys.length > 0) {
+          try {
+            const latest = JSON.parse(localStorage.getItem(existingKeys[0]) || '{}');
+            if (JSON.stringify(latest.f_clients || []) === JSON.stringify(clients) &&
+                JSON.stringify(latest.data || {}) === JSON.stringify(currentData)) {
+              console.log(`[BACKUP] Contenido idéntico al último respaldo (${existingKeys[0]}), omitiendo creación duplicada.`);
+              return existingKeys[0];
+            }
+          } catch (e) {}
+        }
+
         const d = new Date();
         const bKey = 'fm_backup_' + d.toISOString().replace(/[:.]/g, '-');
         const backup = {
           timestamp: d.toISOString(),
           reason: reason,
           cuenta_id: getCurrentCuentaId(),
-          f_clients: JSON.parse(localStorage.getItem('f_clients') || '[]'),
+          f_clients: clients,
           f_theme: localStorage.getItem('f_theme') || 'light',
-          data: {}
+          data: currentData
         };
-        Object.keys(localStorage).forEach(k => {
-          if (k.startsWith('f_data_')) {
-            backup.data[k] = JSON.parse(localStorage.getItem(k) || '{}');
-          }
-        });
+
         localStorage.setItem(bKey, JSON.stringify(backup));
-        rotateLocalBackups(5);
+        rotateLocalBackups();
         getLocalStorageUsage();
-        console.log('[BACKUP] Respaldo local creado exitosamente:', bKey);
+        console.log('[BACKUP] Respaldo local creado exitosamente:', bKey, `(motivo: ${reason})`);
         return bKey;
       } catch (e) {
         console.warn('[BACKUP] No se pudo crear copia local:', e);
@@ -7835,15 +7904,20 @@
     function namespaceSaveAccountData(cuentaId) {
       if (!cuentaId) return true;
       try {
+        const isHuerfanos = (cuentaId === 'huerfanos' || String(cuentaId).startsWith('huerfanos:'));
+        const targetNamespace = isHuerfanos 
+          ? (String(cuentaId).startsWith('huerfanos:') ? cuentaId : ('huerfanos:' + new Date().toISOString().replace(/[:.]/g, '-')))
+          : cuentaId;
+
         const toWrite = {};
         const clientsStr = localStorage.getItem('f_clients');
         if (clientsStr !== null) {
-          toWrite[`fm:${cuentaId}:clients`] = clientsStr;
+          toWrite[`fm:${targetNamespace}:clients`] = clientsStr;
         }
         Object.keys(localStorage).forEach(k => {
           if (k.startsWith('f_data_')) {
             const cid = k.substring('f_data_'.length);
-            toWrite[`fm:${cuentaId}:data:${cid}`] = localStorage.getItem(k);
+            toWrite[`fm:${targetNamespace}:data:${cid}`] = localStorage.getItem(k);
           }
         });
 
@@ -7859,7 +7933,21 @@
           }
         }
 
-        // Paso 3: Solo entonces limpiar espacio de trabajo activo
+        // Paso 3: Eliminar fm:<cuenta>:data:* de clientes que ya no existen en f_clients
+        const activeClients = JSON.parse(clientsStr || '[]');
+        const activeCids = new Set(activeClients.map(c => String(c.id).trim()));
+        const prefix = `fm:${targetNamespace}:data:`;
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith(prefix)) {
+            const cid = k.substring(prefix.length);
+            if (!activeCids.has(cid)) {
+              localStorage.removeItem(k);
+              console.log(`[STORAGE] Eliminada clave de cliente inexistente en ${targetNamespace}: ${k}`);
+            }
+          }
+        });
+
+        // Paso 4: Solo entonces limpiar espacio de trabajo activo
         localStorage.removeItem('f_clients');
         Object.keys(localStorage).forEach(k => {
           if (k.startsWith('f_data_')) {
@@ -7924,17 +8012,32 @@
           return true;
         }
 
-        // Datos en workspace sin dueño asignado: crear respaldo y pedir confirmación
+        // Datos en workspace sin dueño asignado: crear respaldo y descarga automática en .json
         const bKey = createLocalBackup('pre_migracion');
+        let backupData = {};
+        try { backupData = JSON.parse(localStorage.getItem(bKey) || '{}'); } catch(e){}
+        const dateStr = new Date().toISOString().replace(/[:.]/g, '-');
+        triggerJsonDownload(`facturami_respaldo_pre_migracion_${dateStr}.json`, backupData);
+
+        // Confirmar listando NOMBRES de clientes y advertencia de otro usuario
+        const clientNames = legacyClients.map(c => `• ${c.name || 'Sin nombre'} (${c.id})`).join('\n');
         const assign = window.confirm(
-          `Se detectaron ${legacyClients.length} cliente(s) y datos contables en este navegador de una sesión anterior sin cuenta asignada.\n\n` +
-          `Se creó un respaldo de seguridad (${bKey}).\n\n` +
+          `⚠️ ADVERTENCIA DE SEGURIDAD - DATOS LOCALES DETECTADOS\n\n` +
+          `Se detectaron ${legacyClients.length} cliente(s) y registros contables en este navegador sin cuenta asignada:\n` +
+          `${clientNames}\n\n` +
+          `⚠️ IMPORTANTE: Estos datos podrían pertenecer a otro usuario o contador de una sesión previa en este equipo.\n\n` +
+          `Se ha descargado automáticamente una copia de seguridad en su equipo (${bKey}.json).\n\n` +
           `¿Desea asignar estos datos a la cuenta actual "${newCuenta}"?\n\n` +
           `• Presione Aceptar para asociarlos a @${newCuenta}.\n` +
           `• Presione Cancelar para conservarlos en el respaldo sin asociarlos a esta cuenta.`
         );
+
         if (assign) {
-          return namespaceSaveAccountData(newCuenta);
+          const ok = namespaceSaveAccountData(newCuenta);
+          if (ok) {
+            localStorage.setItem('fm_post_migracion_compare_' + newCuenta, '1');
+          }
+          return ok;
         } else {
           return namespaceSaveAccountData('huerfanos');
         }
@@ -7945,10 +8048,10 @@
     }
 
     let backendSyncTimer = null;
-    function pushToBackend(silent = true) {
+    async function pushToBackend(silent = true) {
       try {
         const cuentaId = getCurrentCuentaId();
-        if (!cuentaId) return Promise.resolve();
+        if (!cuentaId) return false;
         const clients = JSON.parse(localStorage.getItem('f_clients') || '[]');
         // Filtrar clientes marcados con bloqueo de sincronizacion para no trabar el lote completo
         const syncableClients = clients.filter(c => !c._sync_blocked);
@@ -7968,71 +8071,70 @@
         const token = sessionStorage.getItem('f_token');
         if (token) headers['Authorization'] = 'Bearer ' + token;
 
-        return fetch(`${window.API_BASE}/api/sync/push`, {
+        const r = await fetch(`${window.API_BASE}/api/sync/push`, {
           method: 'POST',
           headers: headers,
           body: JSON.stringify(payload)
-        }).then(async r => {
-          if (r.status === 401) {
-            showToast('⚠️ Sesión expirada. Sus cambios locales están a salvo. Inicie sesión nuevamente para sincronizar.');
-            return;
-          }
-          if (r.status === 413) {
-            showToast('⚠️ El volumen de datos excede 15 MB. No se pudo sincronizar.');
-            return;
-          }
-          if (r.status === 403) {
-            const errData = await r.json().catch(() => ({}));
-            const bKey = createLocalBackup('push_403_conflict');
-            const offenderId = (errData && errData.cliente_id) ? String(errData.cliente_id).trim() : null;
-            
-            if (offenderId) {
-              const allClients = JSON.parse(localStorage.getItem('f_clients') || '[]');
-              const offender = allClients.find(c => String(c.id).trim() === offenderId);
-              if (offender && !offender._sync_blocked) {
-                offender._sync_blocked = true;
-                localStorage.setItem('f_clients', JSON.stringify(allClients));
-                const offName = offender.name || offender.id;
-                showToast(`⚠️ El cliente "${offName}" (${offenderId}) no pertenece a su cuenta o está en conflicto. Se conservaron sus datos locales y se creó respaldo (${bKey}). Reintentando sincronización de los demás clientes...`);
-                // Reintentar de inmediato con los demas clientes
-                setTimeout(() => { pushToBackend(silent); }, 500);
-                return;
-              }
-            }
-
-            const msg = (errData && errData.error) ? (typeof errData.error === 'string' ? errData.error : (errData.error.message || 'Acceso denegado')) : 'Acceso denegado';
-            showToast(`⚠️ Sincronización rechazada (403): ${msg}. Sus datos locales se preservaron en copia (${bKey}).`);
-            localStorage.removeItem('fm_pending_sync_' + cuentaId);
-            return;
-          }
-          if (!r.ok) {
-            const errData = await r.json().catch(() => ({}));
-            const msg = (errData && errData.error) ? (typeof errData.error === 'string' ? errData.error : (errData.error.message || '')) : ('Código ' + r.status);
-            showToast('⚠️ Error al sincronizar: ' + msg);
-            return;
-          }
-          // Sincronización confirmada: limpiar bandera pendiente
-          localStorage.removeItem('fm_pending_sync_' + cuentaId);
-          if (!silent) showToast('Datos sincronizados');
-        }).catch(e => {
-          if (!silent) showToast('⚠️ Sin conexión con el servidor. Sus datos permanecen seguros localmente.');
         });
+
+        if (r.status === 401) {
+          showToast('⚠️ Sesión expirada. Sus cambios locales están a salvo. Inicie sesión nuevamente para sincronizar.');
+          return false;
+        }
+        if (r.status === 413) {
+          showToast('⚠️ El volumen de datos excede 15 MB. No se pudo sincronizar.');
+          return false;
+        }
+        if (r.status === 403) {
+          const errData = await r.json().catch(() => ({}));
+          const bKey = createLocalBackup('push_403_conflict');
+          const offenderId = (errData && errData.cliente_id) ? String(errData.cliente_id).trim() : null;
+          
+          if (offenderId) {
+            const allClients = JSON.parse(localStorage.getItem('f_clients') || '[]');
+            const offender = allClients.find(c => String(c.id).trim() === offenderId);
+            if (offender && !offender._sync_blocked) {
+              offender._sync_blocked = true;
+              localStorage.setItem('f_clients', JSON.stringify(allClients));
+              const offName = offender.name || offender.id;
+              showToast(`⚠️ El cliente "${offName}" (${offenderId}) no pertenece a su cuenta o está en conflicto. Se conservaron sus datos locales y se creó respaldo (${bKey}). Reintentando sincronización de los demás clientes...`);
+              // Reintentar de inmediato con los demas clientes y retornar su resultado
+              return await pushToBackend(silent);
+            }
+          }
+
+          const msg = (errData && errData.error) ? (typeof errData.error === 'string' ? errData.error : (errData.error.message || 'Acceso denegado')) : 'Acceso denegado';
+          showToast(`⚠️ Sincronización rechazada (403): ${msg}. Sus datos locales se preservaron en copia (${bKey}).`);
+          return false;
+        }
+        if (!r.ok) {
+          const errData = await r.json().catch(() => ({}));
+          const msg = (errData && errData.error) ? (typeof errData.error === 'string' ? errData.error : (errData.error.message || '')) : ('Código ' + r.status);
+          showToast('⚠️ Error al sincronizar: ' + msg);
+          return false;
+        }
+
+        // Sincronización confirmada: limpiar bandera pendiente
+        localStorage.removeItem('fm_pending_sync_' + cuentaId);
+        if (!silent) showToast('Datos sincronizados');
+        return true;
       } catch (err) {
         console.error('[SYNC] Error en pushToBackend:', err);
-        return Promise.resolve();
+        if (!silent) showToast('⚠️ Sin conexión con el servidor. Sus datos permanecen seguros localmente.');
+        return false;
       }
     }
 
     async function syncFromBackend(targetCuenta = null, skipPush = false) {
       const cuentaId = targetCuenta || getCurrentCuentaId();
-      if (!cuentaId) return Promise.resolve();
+      if (!cuentaId) return Promise.resolve(false);
 
       // Si hay cambios locales pendientes de sincronizar, empujar antes de descargar para no sobrescribir (salvo skipPush forzado)
       if (!skipPush && localStorage.getItem('fm_pending_sync_' + cuentaId) === '1') {
-        try {
-          await pushToBackend(true);
-        } catch (e) {
-          console.warn('[SYNC] No se pudieron sincronizar cambios locales pendientes antes del pull:', e);
+        const pushOk = await pushToBackend(true);
+        if (!pushOk) {
+          showToast('⚠️ No se pudieron sincronizar los cambios locales pendientes hacia el servidor. Se canceló la descarga para proteger sus datos.');
+          return false;
         }
       }
 
@@ -8040,83 +8142,139 @@
       const headers = {};
       if (token) headers['Authorization'] = 'Bearer ' + token;
       const url = `${window.API_BASE}/api/sync/pull?cuenta_id=${encodeURIComponent(cuentaId)}`;
-      return fetch(url, { headers: headers })
-        .then(r => r.json())
-        .then(res => {
-          if (res && res.ok && res.data) {
-            const serverClients = Array.isArray(res.data.f_clients) ? res.data.f_clients : [];
-            const localClients = JSON.parse(localStorage.getItem('f_clients') || '[]');
+      try {
+        const r = await fetch(url, { headers: headers });
+        const res = await r.json();
+        if (res && res.ok && res.data) {
+          const serverClients = Array.isArray(res.data.f_clients) ? res.data.f_clients : [];
+          const localClients = JSON.parse(localStorage.getItem('f_clients') || '[]');
 
-            // Si el servidor viene vacío para esta cuenta pero tenemos clientes locales, pedir confirmación antes de sobrescribir
-            if (serverClients.length === 0 && localClients.length > 0) {
-              const bKey = createLocalBackup('pull_empty_preserve');
-              console.warn('[SYNC] Servidor devolvió 0 clientes pero existen datos locales. Se preservan datos locales. Respaldo:', bKey);
-              const confirmOverwrite = window.confirm(
-                `El servidor no reporta clientes para la cuenta "${cuentaId}", pero existen ${localClients.length} cliente(s) en este dispositivo.\n\n` +
-                `Se creó un respaldo de seguridad (${bKey}).\n\n` +
-                `¿Desea SOBRESCRIBIR y vaciar sus datos locales con los del servidor?\n` +
-                `(Presione Cancelar para conservar sus datos locales y sincronizarlos hacia el servidor).`
-              );
-              if (!confirmOverwrite) {
-                showToast(`⚠️ Se conservaron los ${localClients.length} cliente(s) locales. Respaldo en ${bKey}. Presione Sincronizar para enviarlos al servidor.`);
-                return;
-              }
-            }
+          // Comparación local vs servidor tras asignación o conflicto
+          if (localClients.length > 0 && serverClients.length > 0) {
+            const localModules = { ingresos: 0, compras: 0, activos: 0, pasivos: 0 };
+            const serverModules = { ingresos: 0, compras: 0, activos: 0, pasivos: 0 };
 
-            // Crear respaldo previo a actualizacion
-            createLocalBackup('pre_pull_sync');
-
-            // 1. Conservar clientes locales marcados como bloqueados para no perder su trabajo offline
-            const blockedLocal = localClients.filter(c => c._sync_blocked);
-            const mergedClients = [...serverClients];
-            blockedLocal.forEach(bc => {
-              if (!mergedClients.some(c => c.id === bc.id)) {
-                mergedClients.push(bc);
-              }
-            });
-            localStorage.setItem('f_clients', JSON.stringify(mergedClients));
-
-            // 2. Limpiar f_data_ unicamente de clientes que no existan ni en servidor ni en bloqueados locales
-            const validIds = new Set(mergedClients.map(c => c.id));
             Object.keys(localStorage).forEach(k => {
               if (k.startsWith('f_data_')) {
-                const cid = k.replace('f_data_', '');
-                if (!validIds.has(cid)) {
-                  localStorage.removeItem(k);
-                }
+                try {
+                  const d = JSON.parse(localStorage.getItem(k) || '{}');
+                  ['ingresos', 'compras', 'activos', 'pasivos'].forEach(m => {
+                    if (d[m] && Array.isArray(d[m].rows)) localModules[m] += d[m].rows.length;
+                  });
+                } catch (e) {}
               }
             });
 
-            // 3. Cargar datos de transacciones de los clientes de esta cuenta
-            let needsRerender = false;
             Object.keys(res.data).forEach(k => {
               if (k.startsWith('f_data_')) {
-                localStorage.setItem(k, JSON.stringify(res.data[k]));
-                needsRerender = true;
+                const d = res.data[k] || {};
+                ['ingresos', 'compras', 'activos', 'pasivos'].forEach(m => {
+                  if (d[m] && Array.isArray(d[m].rows)) serverModules[m] += d[m].rows.length;
+                });
               }
             });
 
-            if (res.data.f_theme) localStorage.setItem('f_theme', res.data.f_theme);
-            if (res.data.sync_creds) localStorage.setItem('fm_sync_creds', JSON.stringify(res.data.sync_creds));
+            const clientsDiffer = (localClients.length !== serverClients.length) ||
+              localClients.some(lc => !serverClients.some(sc => sc.id === lc.id));
+            const rowsDiffer = Object.keys(localModules).some(m => localModules[m] !== serverModules[m]);
 
-            const clv = document.getElementById('client-list-view');
-            if (clv && clv.style.display !== 'none' && typeof showClientList === 'function') {
-              showClientList();
-            }
-
-            if (needsRerender && activeClient) {
-              const activeKey = 'f_data_' + activeClient.id;
-              const fresh = JSON.parse(localStorage.getItem(activeKey) || '{}');
-              Object.assign(MODS, fresh);
-              ensureActivosStructure();
-              updateAssetTotals();
-              if (document.getElementById('pg-activos')?.classList.contains('on')) renderActivos();
-              if (typeof bgCalc === 'function') bgCalc();
+            // Tras asignar en pre_migracion, comparar local contra servidor y dejar elegir si difieren
+            if (localStorage.getItem('fm_post_migracion_compare_' + cuentaId) === '1' && (clientsDiffer || rowsDiffer)) {
+              localStorage.removeItem('fm_post_migracion_compare_' + cuentaId);
+              const msg =
+                `📊 RESUMEN DE DIFERENCIAS ENTRE DATOS LOCALES Y SERVIDOR:\n\n` +
+                `• Clientes: Local = ${localClients.length} vs Servidor = ${serverClients.length}\n` +
+                `• Filas Ingresos: Local = ${localModules.ingresos} vs Servidor = ${serverModules.ingresos}\n` +
+                `• Filas Compras: Local = ${localModules.compras} vs Servidor = ${serverModules.compras}\n` +
+                `• Filas Activos: Local = ${localModules.activos} vs Servidor = ${serverModules.activos}\n` +
+                `• Filas Pasivos: Local = ${localModules.pasivos} vs Servidor = ${serverModules.pasivos}\n\n` +
+                `¿Cómo desea proceder?\n\n` +
+                `• Aceptar: Mantener y priorizar datos LOCALES (se enviarán al servidor).\n` +
+                `• Cancelar: Usar datos del SERVIDOR (se sobrescribirán los datos locales).`;
+              const keepLocal = window.confirm(msg);
+              if (keepLocal) {
+                createLocalBackup('pre_merge_preserve_local');
+                await pushToBackend(false);
+                return true;
+              }
+            } else {
+              localStorage.removeItem('fm_post_migracion_compare_' + cuentaId);
             }
           }
-        }).catch(e => {
-          console.warn('[SYNC] Error en syncFromBackend:', e);
-        });
+
+          // Si el servidor viene vacío para esta cuenta pero tenemos clientes locales, pedir confirmación antes de sobrescribir
+          if (serverClients.length === 0 && localClients.length > 0) {
+            const bKey = createLocalBackup('pull_empty_preserve');
+            console.warn('[SYNC] Servidor devolvió 0 clientes pero existen datos locales. Se preservan datos locales. Respaldo:', bKey);
+            const confirmOverwrite = window.confirm(
+              `El servidor no reporta clientes para la cuenta "${cuentaId}", pero existen ${localClients.length} cliente(s) en este dispositivo.\n\n` +
+              `Se creó un respaldo de seguridad (${bKey}).\n\n` +
+              `¿Desea SOBRESCRIBIR y vaciar sus datos locales con los del servidor?\n` +
+              `(Presione Cancelar para conservar sus datos locales y sincronizarlos hacia el servidor).`
+            );
+            if (!confirmOverwrite) {
+              showToast(`⚠️ Se conservaron los ${localClients.length} cliente(s) locales. Respaldo en ${bKey}. Presione Sincronizar para enviarlos al servidor.`);
+              return false;
+            }
+          }
+
+          // Crear respaldo previo a actualizacion
+          createLocalBackup('pre_pull_sync');
+
+          // 1. Conservar clientes locales marcados como bloqueados para no perder su trabajo offline
+          const blockedLocal = localClients.filter(c => c._sync_blocked);
+          const mergedClients = [...serverClients];
+          blockedLocal.forEach(bc => {
+            if (!mergedClients.some(c => c.id === bc.id)) {
+              mergedClients.push(bc);
+            }
+          });
+          localStorage.setItem('f_clients', JSON.stringify(mergedClients));
+
+          // 2. Limpiar f_data_ unicamente de clientes que no existan ni en servidor ni en bloqueados locales
+          const validIds = new Set(mergedClients.map(c => c.id));
+          Object.keys(localStorage).forEach(k => {
+            if (k.startsWith('f_data_')) {
+              const cid = k.replace('f_data_', '');
+              if (!validIds.has(cid)) {
+                localStorage.removeItem(k);
+              }
+            }
+          });
+
+          // 3. Cargar datos de transacciones de los clientes de esta cuenta
+          let needsRerender = false;
+          Object.keys(res.data).forEach(k => {
+            if (k.startsWith('f_data_')) {
+              localStorage.setItem(k, JSON.stringify(res.data[k]));
+              needsRerender = true;
+            }
+          });
+
+          if (res.data.f_theme) localStorage.setItem('f_theme', res.data.f_theme);
+          if (res.data.sync_creds) localStorage.setItem('fm_sync_creds', JSON.stringify(res.data.sync_creds));
+
+          const clv = document.getElementById('client-list-view');
+          if (clv && clv.style.display !== 'none' && typeof showClientList === 'function') {
+            showClientList();
+          }
+
+          if (needsRerender && activeClient) {
+            const activeKey = 'f_data_' + activeClient.id;
+            const fresh = JSON.parse(localStorage.getItem(activeKey) || '{}');
+            Object.assign(MODS, fresh);
+            ensureActivosStructure();
+            updateAssetTotals();
+            if (document.getElementById('pg-activos')?.classList.contains('on')) renderActivos();
+            if (typeof bgCalc === 'function') bgCalc();
+          }
+          return true;
+        }
+        return false;
+      } catch (e) {
+        console.warn('[SYNC] Error en syncFromBackend:', e);
+        return false;
+      }
     }
 
     const IVA_COLS = ['No Sujetas', 'Exentas', '0.5%', '1%', '2%', '4%', '8%', '13%', 'Total'];
@@ -16497,30 +16655,12 @@
               return showToast('⚠️ Error restaurando datos locales de la cuenta.');
             }
           }
-          // 3. Caso sin dueño con datos: pedir confirmación (el confirm solo para el caso sin dueño)
+          // 3. Caso sin dueño con datos: ejecutar checkLegacyOrphanDataOnLogin
           else if (!activeOwner && hasActiveData) {
-            const legacyClients = JSON.parse(clientsRaw || '[]');
-            const bKey = createLocalBackup('pre_migracion');
-            const assign = window.confirm(
-              `Se detectaron ${legacyClients.length} cliente(s) y datos contables en este navegador sin cuenta asignada.\n\n` +
-              `Se creó un respaldo de seguridad (${bKey}).\n\n` +
-              `¿Desea asignar estos datos a la cuenta "${newCuenta}"?\n\n` +
-              `• Aceptar: asociar a @${newCuenta}.\n` +
-              `• Cancelar: conservarlos en el respaldo como huérfanos sin asociar a esta cuenta.`
-            );
-            if (assign) {
-              const ok = namespaceSaveAccountData(newCuenta);
-              if (!ok) {
-                if (btnLogin) { btnLogin.disabled = false; btnLogin.style.opacity = '1'; }
-                return showToast('⚠️ No se pudieron asegurar los datos locales. Inicio de sesión cancelado.');
-              }
-            } else {
-              // Si prevCuenta es null y hay datos, guardarlos como 'huerfanos' antes de borrar
-              const ok = namespaceSaveAccountData('huerfanos');
-              if (!ok) {
-                if (btnLogin) { btnLogin.disabled = false; btnLogin.style.opacity = '1'; }
-                return showToast('⚠️ No se pudieron asegurar los datos huérfanos. Inicio de sesión cancelado.');
-              }
+            const ok = checkLegacyOrphanDataOnLogin(newCuenta);
+            if (!ok) {
+              if (btnLogin) { btnLogin.disabled = false; btnLogin.style.opacity = '1'; }
+              return showToast('⚠️ No se pudieron asegurar los datos locales. Inicio de sesión cancelado.');
             }
             const restOk = namespaceRestoreAccountData(newCuenta);
             if (!restOk) {
