@@ -9,7 +9,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install -r requirements.txt pytest
+        run: |
+          pip install -r requirements.txt pytest playwright
+          python -m playwright install --with-deps chromium
       - name: Run test suite
         run: python -m pytest tests -v
         env:
