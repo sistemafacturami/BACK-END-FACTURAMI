@@ -8,7 +8,7 @@ Uso:
 import json, os, sys
 import bcrypt
 
-USERS_FILE = os.path.join(os.path.dirname(__file__), 'users.json')
+USERS_FILE = os.environ.get('FACTURAMI_USERS_FILE') or os.path.join(os.path.dirname(__file__), 'users.json')
 
 def load_users():
     if not os.path.exists(USERS_FILE):
@@ -17,17 +17,8 @@ def load_users():
         return json.load(f)
 
 def save_users(users):
-    """Guarda usuarios en users.json de forma atomica con archivo temporal + replace."""
-    dirname = os.path.dirname(USERS_FILE) or '.'
-    tmp_path = os.path.join(dirname, f".users.json.tmp.{os.getpid()}")
-    with open(tmp_path, 'w', encoding='utf-8') as f:
-        json.dump(users, f, ensure_ascii=False, indent=2)
-        f.flush()
-        try:
-            os.fsync(f.fileno())
-        except OSError:
-            pass
-    os.replace(tmp_path, USERS_FILE)
+    from services.users_store import save_users as _store_save
+    _store_save(users, USERS_FILE)
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')

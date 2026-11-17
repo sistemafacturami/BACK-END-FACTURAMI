@@ -18,10 +18,10 @@ services:
       - FACTURAMI_STORAGE_PATH=/app/storage
       - FACTURAMI_TMP_PATH=/app/tmp
       - FACTURAMI_DB_PATH=/app/data/facturami.db
+      - FACTURAMI_USERS_FILE=/app/data/users.json
     volumes:
       # Persistencia en el disco del host
       - ./data:/app/data
-      - ./users.json:/app/users.json
       - ./storage:/app/storage
       - ./tmp:/app/tmp
       - ./backups:/app/backups

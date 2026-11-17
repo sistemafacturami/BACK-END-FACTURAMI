@@ -31,3 +31,4 @@ storage/
 backups/
 usb_database.json
 .pytest_cache/
+users.json.*

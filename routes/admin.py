@@ -32,17 +32,8 @@ def _load_users():
 
 
 def _save_users(users):
-    """Guarda usuarios en users.json de forma atomica usando archivo temporal + rename."""
-    dirname = os.path.dirname(USERS_FILE) or '.'
-    tmp_path = os.path.join(dirname, f".users.json.tmp.{os.getpid()}")
-    with open(tmp_path, 'w', encoding='utf-8') as f:
-        json.dump(users, f, ensure_ascii=False, indent=2)
-        f.flush()
-        try:
-            os.fsync(f.fileno())
-        except OSError:
-            pass
-    os.replace(tmp_path, USERS_FILE)
+    from services.users_store import save_users as _store_save
+    _store_save(users, USERS_FILE)
 
 
 PLANES_DEF = {
