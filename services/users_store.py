@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import threading
+import time
 
 try:
     import fcntl            # Linux (produccion)
@@ -51,3 +52,18 @@ def save_users(users, path):
                 f.flush()
                 with contextlib.suppress(OSError):
                     os.fsync(f.fileno())
+
+
+def load_users(path):
+    """Lee users.json; reintenta si lo encuentra a medio escribir (escritura en sitio)."""
+    last = None
+    for _ in range(4):
+        if not os.path.exists(path):
+            return []
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except ValueError as e:      # JSONDecodeError hereda de ValueError
+            last = e
+            time.sleep(0.05)
+    raise last

@@ -60,3 +60,26 @@ def test_escrituras_concurrentes(tmp_path):
     assert not errores
     data = json.loads(p.read_text(encoding='utf-8'))
     assert isinstance(data, list) and len(data) == 1
+
+
+def test_lectura_reintenta_si_json_parcial(tmp_path):
+    p = tmp_path / 'users.json'
+    p.write_text('[{"user', encoding='utf-8')
+
+    def arreglar(_):
+        p.write_text('[{"username": "z"}]', encoding='utf-8')
+
+    with mock.patch('services.users_store.time.sleep', arreglar):
+        assert users_store.load_users(str(p)) == [{'username': 'z'}]
+
+
+def test_lectura_json_corrupto_persistente(tmp_path):
+    p = tmp_path / 'users.json'
+    p.write_text('[{"user', encoding='utf-8')
+    with mock.patch('services.users_store.time.sleep', lambda _: None):
+        with pytest.raises(ValueError):
+            users_store.load_users(str(p))
+
+
+def test_lectura_archivo_inexistente(tmp_path):
+    assert users_store.load_users(str(tmp_path / 'nope.json')) == []

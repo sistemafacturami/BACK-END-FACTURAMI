@@ -12,10 +12,8 @@ USERS_FILE = os.environ.get('FACTURAMI_USERS_FILE') or os.path.join(BASE_DIR, 'u
 
 def _load_users():
     """Carga usuarios desde users.json."""
-    if not os.path.exists(USERS_FILE):
-        return []
-    with open(USERS_FILE, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    from services.users_store import load_users as _store_load
+    return _store_load(USERS_FILE)
 
 
 def authenticate(username, password):
