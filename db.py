@@ -308,6 +308,11 @@ def init_db(db_path=None):
 
         n_cuentas = conn.execute("SELECT COUNT(*) FROM cuentas").fetchone()[0]
         n_clientes = conn.execute("SELECT COUNT(*) FROM clientes").fetchone()[0]
+    try:
+        from services.ventas_service import init_ventas_schema
+        init_ventas_schema(db_path)
+    except Exception as e:
+        print(f"[DB] Aviso inicializando esquema de ventas: {e}")
     target_path = db_path or DB_PATH
     print(f"[DB] Base de datos inicializada: {target_path} (cuentas={n_cuentas}, clientes={n_clientes})")
 

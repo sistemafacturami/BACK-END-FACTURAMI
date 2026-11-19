@@ -81,12 +81,14 @@ def create_app():
     from routes.sync import sync_bp
     from routes.admin import admin_bp
     from routes.contabilidad import contabilidad_bp
+    from routes.ventas import ventas_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(facturas_bp)
     app.register_blueprint(sync_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(contabilidad_bp)
+    app.register_blueprint(ventas_bp)
 
     # ── Encabezados Globales de Seguridad ───────────────────────────────
     @app.after_request
