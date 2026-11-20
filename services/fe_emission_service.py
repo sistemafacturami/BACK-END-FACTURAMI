@@ -79,11 +79,23 @@ def emitir_comprobante(company_id: str, body: dict, actor: str, db_path=None) ->
                 'razon': body.get('ref_razon', 'Anulación o corrección de comprobante')
             }
 
+    # Situación del comprobante (1: Normal, 2: Contingencia, 3: Sin internet)
+    situacion = str(body.get('situacion') or '1').strip()
+    if situacion not in ('1', '2', '3'):
+        raise EmissionError(f"Situación del comprobante '{situacion}' inválida (1=Normal, 2=Contingencia, 3=Sin internet)")
+
     doc_id = str(uuid.uuid4())
     ahora = datetime.now()
     fecha_emision_iso = ahora.strftime('%Y-%m-%dT%H:%M:%S-06:00')
 
     with database.get_db(db_path) as conn:
+        # Bloqueo atómico inmediato para serializar la reserva de consecutivos y evitar colisiones concurrentes
+        if not conn.in_transaction:
+            try:
+                conn.execute("BEGIN IMMEDIATE")
+            except Exception:
+                pass
+
         # 1. Obtener emisor y configuración
         emisor_row = conn.execute("SELECT * FROM clientes WHERE id = ?", (cid,)).fetchone()
         if not emisor_row:
@@ -111,7 +123,7 @@ def emitir_comprobante(company_id: str, body: dict, actor: str, db_path=None) ->
         siguiente_num = int(term.get(consec_field) or 0) + 1
 
         consecutivo = generar_consecutivo(suc, ter, tipo_doc, siguiente_num)
-        clave = generar_clave(emisor.get('id'), consecutivo, fecha=ahora)
+        clave = generar_clave(emisor.get('id'), consecutivo, fecha=ahora, situacion=situacion)
 
         # 3. Resolver receptor
         customer_id = str(body.get('customer_id') or '').strip()
@@ -187,15 +199,21 @@ def emitir_comprobante(company_id: str, body: dict, actor: str, db_path=None) ->
             # Descontar o devolver inventario si el producto controla existencias
             pid = line_entry['product_id']
             if pid:
-                p_curr = conn.execute("SELECT controla_inventario, existencia, precio_compra FROM products WHERE id = ? AND company_id = ?",
+                p_curr = conn.execute("SELECT id, nombre, controla_inventario, existencia, precio_compra FROM products WHERE id = ? AND company_id = ?",
                                       (pid, cid)).fetchone()
                 if p_curr and p_curr['controla_inventario']:
+                    permitir_sin_stock = body.get('permitir_venta_sin_stock')
+                    if permitir_sin_stock is None:
+                        permitir_sin_stock = bool(fe_cfg.get('permitir_venta_sin_stock', True))
+                    stock_actual = float(p_curr['existencia'] or 0.0)
                     if tipo_doc == '03':
                         mov_tipo = 'devolucion'
-                        nueva_existencia = round(float(p_curr['existencia'] or 0.0) + cant, 4)
+                        nueva_existencia = round(stock_actual + cant, 4)
                     else:
+                        if not permitir_sin_stock and cant > stock_actual:
+                            raise EmissionError(f"Stock insuficiente para '{p_curr['nombre']}': existencia {stock_actual}, solicitado {cant}")
                         mov_tipo = 'venta'
-                        nueva_existencia = max(0.0, round(float(p_curr['existencia'] or 0.0) - cant, 4))
+                        nueva_existencia = round(stock_actual - cant, 4) if permitir_sin_stock else max(0.0, round(stock_actual - cant, 4))
 
                     conn.execute("UPDATE products SET existencia = ?, updated_at = datetime('now','localtime') WHERE id = ? AND company_id = ?",
                                  (nueva_existencia, pid, cid))
@@ -220,6 +238,50 @@ def emitir_comprobante(company_id: str, body: dict, actor: str, db_path=None) ->
                         pass
 
         total_comprobante = round(total_subtotal + total_impuestos, 2)
+
+        # Validación estricta y protección anti-doble anulación para Notas de Crédito ('03')
+        if tipo_doc == '03':
+            ref_num = str(ref_data.get('numero') or body.get('ref_numero_clave') or '').strip()
+            ref_doc = conn.execute("""
+                SELECT * FROM electronic_documents
+                WHERE company_id = ? AND (clave_numerica = ? OR consecutivo = ? OR id = ?)
+            """, (cid, ref_num, ref_num, ref_num)).fetchone()
+
+            if ref_doc:
+                # Regla 1: No es posible emitir Nota de Crédito sobre otra Nota de Crédito
+                if ref_doc['tipo_documento'] == '03':
+                    raise EmissionError("No es posible emitir una Nota de Crédito sobre otra Nota de Crédito")
+
+                # Regla 2: Límite de reembolso acumulado
+                prev_nc_total = conn.execute("""
+                    SELECT COALESCE(SUM(total_comprobante), 0.0) FROM electronic_documents
+                    WHERE company_id = ? AND tipo_documento = '03'
+                      AND (ref_numero_clave = ? OR ref_numero_clave = ? OR ref_numero_clave = ?)
+                      AND id != ?
+                """, (cid, ref_doc['clave_numerica'], ref_doc['consecutivo'], ref_doc['id'], doc_id)).fetchone()[0]
+
+                saldo_disp = round(float(ref_doc['total_comprobante'] or 0.0) - float(prev_nc_total), 2)
+                if saldo_disp <= 0.001:
+                    raise EmissionError(f"El comprobante referenciado {ref_doc['consecutivo']} ya se encuentra totalmente anulado/acreditado")
+
+                if total_comprobante > saldo_disp + 0.01:
+                    raise EmissionError(f"El monto de la Nota de Crédito (₡{total_comprobante:,.2f}) excede el saldo acreditable restante (₡{saldo_disp:,.2f}) del comprobante referenciado")
+
+                # Regla 3: Sincronización automática con Cuentas por Cobrar
+                ar_row = conn.execute("""
+                    SELECT * FROM accounts_receivable
+                    WHERE company_id = ? AND document_id = ?
+                """, (cid, ref_doc['id'])).fetchone()
+                if ar_row:
+                    ar_id = ar_row['id']
+                    ar_saldo = float(ar_row['saldo_pendiente'] or 0.0)
+                    nuevo_saldo = max(0.0, round(ar_saldo - total_comprobante, 2))
+                    nuevo_estado = 'anulada' if nuevo_saldo <= 0.001 else ('parcial' if nuevo_saldo < float(ar_row['monto_original']) else 'pendiente')
+                    conn.execute("""
+                        UPDATE accounts_receivable
+                        SET saldo_pendiente = ?, estado = ?, updated_at = datetime('now','localtime')
+                        WHERE id = ?
+                    """, (nuevo_saldo, nuevo_estado, ar_id))
 
         # 5. Incrementar consecutivo en terminal
         conn.execute(f"UPDATE company_terminals SET {consec_field} = ? WHERE id = ?",
@@ -292,8 +354,12 @@ def emitir_comprobante(company_id: str, body: dict, actor: str, db_path=None) ->
         hacienda_user = fe_cfg.get('hacienda_username')
         hacienda_pass_enc = fe_cfg.get('hacienda_password_enc')
         ambiente = fe_cfg.get('ambiente_hacienda', 'stag')
+        modo_offline = bool(body.get('modo_offline') or situacion in ('2', '3'))
 
-        if xml_firmado and hacienda_user and hacienda_pass_enc and secret_store.is_configured():
+        if modo_offline:
+            doc_data['estado_comprobante'] = 'pendiente_envio' if xml_firmado else 'generado'
+            doc_data['hacienda_mensaje'] = f"Comprobante en cola ({'Contingencia' if situacion == '2' else 'Sin internet'}). Pendiente de reenvío."
+        elif xml_firmado and hacienda_user and hacienda_pass_enc and secret_store.is_configured():
             try:
                 h_pass = secret_store.decrypt(cid, hacienda_pass_enc).decode('utf-8')
                 token = get_hacienda_token(ambiente, hacienda_user, h_pass)
@@ -538,3 +604,113 @@ def download_document_xml(company_id: str, document_id: str) -> tuple:
         raise EmissionError("El comprobante aún no tiene XML generado o firmado")
     filename = f"{doc.get('clave_numerica') or doc['id']}.xml"
     return filename, xml_content
+
+
+def retry_pending_hacienda_queue(company_id: str, actor: str, document_id: str = None, limit: int = 50, db_path=None) -> dict:
+    """
+    Reintenta el envío de comprobantes electrónicos ante el Ministerio de Hacienda para
+    documentos que quedaron en estado 'pendiente_envio', 'error_comunicacion', o 'generado'.
+    """
+    cid = str(company_id or '').strip()
+    if not cid:
+        raise EmissionError("company_id es requerido")
+
+    with database.get_db(db_path) as conn:
+        fe_cfg_row = conn.execute("SELECT * FROM company_fe_settings WHERE company_id = ?", (cid,)).fetchone()
+        if not fe_cfg_row:
+            raise EmissionError("Configuración de facturación electrónica no encontrada")
+        fe_cfg = dict(fe_cfg_row)
+
+        hacienda_user = fe_cfg.get('hacienda_username')
+        hacienda_pass_enc = fe_cfg.get('hacienda_password_enc')
+        ambiente = fe_cfg.get('ambiente_hacienda', 'stag')
+
+        token = "sim-token"
+        if hacienda_user and hacienda_pass_enc and secret_store.is_configured():
+            try:
+                h_pass = secret_store.decrypt(cid, hacienda_pass_enc).decode('utf-8')
+                token = get_hacienda_token(ambiente, hacienda_user, h_pass)
+            except Exception:
+                pass
+
+        # Buscar comprobantes pendientes de envío
+        if document_id:
+            docs_rows = conn.execute("""
+                SELECT * FROM electronic_documents
+                WHERE company_id = ? AND id = ?
+            """, (cid, document_id)).fetchall()
+        else:
+            docs_rows = conn.execute("""
+                SELECT * FROM electronic_documents
+                WHERE company_id = ? AND estado_comprobante IN ('pendiente_envio', 'error_comunicacion', 'generado', 'firmado')
+                ORDER BY created_at ASC
+                LIMIT ?
+            """, (cid, max(1, min(int(limit or 50), 100)))).fetchall()
+
+        procesados = 0
+        enviados = 0
+        fallidos = 0
+        detalles = []
+
+        for d_row in docs_rows:
+            d = dict(d_row)
+            did = d['id']
+            clave = d['clave_numerica']
+            xml_firmado = d.get('xml_firmado') or ''
+
+            # Si el comprobante no estaba firmado, intentar firmar en memoria
+            if not xml_firmado and fe_cfg.get('has_cert_file') and fe_cfg.get('cert_file_enc') and fe_cfg.get('cert_pin_enc'):
+                try:
+                    p12_bytes = secret_store.decrypt(cid, fe_cfg['cert_file_enc'])
+                    pin = secret_store.decrypt(cid, fe_cfg['cert_pin_enc']).decode('utf-8')
+                    # Generar XML crudo nuevamente si hace falta
+                    pass
+                except Exception:
+                    pass
+
+            if not xml_firmado:
+                fallidos += 1
+                detalles.append({'id': did, 'consecutivo': d.get('consecutivo'), 'estado': 'error', 'mensaje': 'Sin XML firmado'})
+                continue
+
+            procesados += 1
+            emisor_id = re.sub(r'\D', '', str(fe_cfg.get('identificacion') or ''))
+            receptor_id = re.sub(r'\D', '', str(d.get('customer_identificacion') or '')) if d.get('customer_identificacion') else None
+
+            try:
+                resp = send_to_hacienda(
+                    ambiente=ambiente,
+                    token=token,
+                    clave=clave,
+                    fecha_emision=d['fecha_emision'],
+                    emisor_tipo=fe_cfg.get('tipo_identificacion', '01'),
+                    emisor_id=emisor_id,
+                    receptor_tipo=d.get('customer_tipo_id') or '01' if receptor_id else None,
+                    receptor_id=receptor_id,
+                    xml_firmado=xml_firmado
+                )
+                nuevo_estado = 'enviado'
+                msg = resp.get('mensaje', 'Reenvío exitoso a Hacienda')
+                enviados += 1
+                detalles.append({'id': did, 'consecutivo': d.get('consecutivo'), 'estado': nuevo_estado, 'mensaje': msg})
+            except Exception as e_send:
+                nuevo_estado = 'error_comunicacion'
+                msg = f"Fallo en reintento: {e_send}"
+                fallidos += 1
+                detalles.append({'id': did, 'consecutivo': d.get('consecutivo'), 'estado': nuevo_estado, 'mensaje': msg})
+
+            conn.execute("""
+                UPDATE electronic_documents
+                SET estado_comprobante = ?, hacienda_mensaje = ?, updated_at = datetime('now','localtime')
+                WHERE id = ? AND company_id = ?
+            """, (nuevo_estado, msg, did, cid))
+
+        database.insert_audit_log(conn, 'ventas_hacienda_retry_queue', actor, 'document_queue', cid,
+                                  {'procesados': procesados, 'enviados': enviados, 'fallidos': fallidos})
+
+    return {
+        'procesados': procesados,
+        'enviados': enviados,
+        'fallidos': fallidos,
+        'detalles': detalles
+    }

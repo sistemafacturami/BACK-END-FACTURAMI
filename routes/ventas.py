@@ -598,6 +598,30 @@ def documents_sync_hacienda(document_id):
     return success({'data': updated}, message=f"Estado de comprobante actualizado: {updated.get('estado_comprobante')}")
 
 
+@ventas_bp.route('/api/ventas/documents/retry-queue', methods=['POST'])
+@auth_required
+@handle_errors
+def documents_retry_queue():
+    body = _body()
+    company_id = _company_id_from(body) or _company_id_from(request.args)
+    if not company_id:
+        return error("Se requiere company_id", 400)
+    _role, denied = require_company_permission(company_id, 'sales.create')
+    if denied:
+        return denied
+    ventas_service.get_or_init_company_context(company_id)
+    try:
+        res = emission_service.retry_pending_hacienda_queue(
+            company_id=company_id,
+            actor=get_jwt_identity() or '',
+            document_id=body.get('document_id'),
+            limit=body.get('limit', 50)
+        )
+    except emission_service.EmissionError as e:
+        return error(str(e), 400)
+    return success({'data': res}, message=f"Cola procesada: {res.get('enviados', 0)} enviados, {res.get('fallidos', 0)} pendientes")
+
+
 @ventas_bp.route('/api/ventas/documents/<document_id>/xml', methods=['GET'])
 @auth_required
 @handle_errors

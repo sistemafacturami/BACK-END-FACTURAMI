@@ -7899,6 +7899,7 @@
               <button type="button" class="top-btn" id="btn-fe-nav-nota_credito" onclick="vOpenFacturacionSub('nota_credito')">Nota de Crédito (03)</button>
               <button type="button" class="top-btn" id="btn-fe-nav-nota_debito" onclick="vOpenFacturacionSub('nota_debito')">Nota de Débito (02)</button>
               <button type="button" class="top-btn" id="btn-fe-nav-historial" onclick="vOpenFacturacionSub('historial')">📋 Historial</button>
+              <button type="button" class="top-btn" id="btn-fe-retry-queue" onclick="vRetryHaciendaQueue()" title="Reintentar comprobantes pendientes o en contingencia">🔄 Reintentar Cola</button>
             </div>
           </div>
 
@@ -7951,6 +7952,14 @@
                     </select>
                     <input type="number" step="0.01" id="v_fe_tipo_cambio" class="finp" value="1.0" style="flex:1; display:none;" placeholder="T.C.">
                   </div>
+                </div>
+                <div class="fc">
+                  <div class="flbl">Situación Comprobante</div>
+                  <select id="v_fe_situacion" class="finp">
+                    <option value="1" selected>1 - Normal</option>
+                    <option value="2">2 - Contingencia (Hacienda caído)</option>
+                    <option value="3">3 - Sin internet (Offline)</option>
+                  </select>
                 </div>
               </div>
 
@@ -21403,10 +21412,12 @@
       const medioPago = document.getElementById('v_fe_medio_pago')?.value || '01';
       const moneda = document.getElementById('v_fe_moneda')?.value || 'CRC';
       const tc = parseFloat(document.getElementById('v_fe_tipo_cambio')?.value || '1.0');
+      const situacion = document.getElementById('v_fe_situacion')?.value || '1';
 
       const payload = {
         company_id: activeClient.id,
         tipo_documento: tipoDoc,
+        situacion: situacion,
         customer_id: cliId,
         condicion_venta: condVenta,
         plazo_credito: plazo,
@@ -21528,6 +21539,25 @@
       `;
 
       modal.showModal();
+    }
+
+    async function vRetryHaciendaQueue() {
+      if (!activeClient) return showToast('⚠️ Seleccione una empresa activa');
+      showToast('⏳ Reintentando comprobantes en cola...');
+      try {
+        const r = await vApi('/api/ventas/documents/retry-queue', {
+          method: 'POST',
+          body: JSON.stringify({ company_id: activeClient.id })
+        });
+        if (r && r.ok) {
+          showToast(`✅ ${r.json?.message || 'Cola procesada exitosamente'}`);
+          vLoadFeDocuments();
+        } else {
+          showToast(`❌ Error: ${vErrMsg(r?.json, 'No se pudo reintentar la cola')}`);
+        }
+      } catch (err) {
+        showToast(`❌ Error en reintento: ${err.message}`);
+      }
     }
 
     async function vLoadFeDocuments() {
