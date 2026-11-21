@@ -1,31 +1,32 @@
 """
-FACTURAMI - Firmado Digital de Comprobantes Electrónicos (XAdES-BES).
-====================================================================
+FACTURAMI - Firmado Digital de Comprobantes Electrónicos (XAdES-BES / XAdES-EPES).
+==================================================================================
 Estándar oficial del Ministerio de Hacienda de Costa Rica (DGT).
 Utiliza el certificado criptográfico en formato PKCS#12 (.p12) y su PIN,
 descifrados en memoria desde `secret_store` (nunca se guardan en texto plano en disco).
-Produce una firma digital XML Enveloped estándar XAdES-BES (ETSI TS 101 903).
+Produce una firma digital XML Enveloped estándar XAdES (ETSI TS 101 903)
+con Exclusive Canonicalization (W3C xml-exc-c14n#) y política de firma oficial de Costa Rica.
 """
 import base64
 import hashlib
-import re
 import uuid
 from datetime import datetime, timezone
-import xml.etree.ElementTree as ET
 
-from cryptography.hazmat.primitives import hashes
+from lxml import etree
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.serialization import pkcs12
+from cryptography import x509
 
-C14N_ALGO = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
+C14N_EXC = "http://www.w3.org/2001/10/xml-exc-c14n#"
 SIG_ALGO = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
 DIGEST_ALGO = "http://www.w3.org/2001/04/xmlenc#sha256"
 ENVELOPED_SIG = "http://www.w3.org/2000/09/xmldsig#enveloped-signature"
 XADES_NS = "http://uri.etsi.org/01903/v1.3.2#"
 DS_NS = "http://www.w3.org/2000/09/xmldsig#"
 
-ET.register_namespace('ds', DS_NS)
-ET.register_namespace('xades', XADES_NS)
+POLICY_ID = "https://tribunet.hacienda.go.cr/docs/esquemas/2016/v4.2/ResolucionComprobantesElectronicosDGT-R-48-2016_4.2.pdf"
+POLICY_DIGEST = "NmI5Njk1ZThkNzI0MmIzMGJmZDAyNDc4YjUwNzkzODM2NTBiOWUxNTBkMmI2YjgzYzZjM2I5NTZlNDQ4OWQzMQ=="
 
 
 class SignerError(ValueError):
@@ -46,36 +47,28 @@ def load_p12_credentials(p12_bytes: bytes, pin: str):
     return key, cert
 
 
-def _c14n(element_or_xml) -> bytes:
-    """Canonicaliza un elemento o XML string según W3C C14N."""
-    if isinstance(element_or_xml, ET.Element):
-        xml_str = ET.tostring(element_or_xml, encoding='utf-8').decode('utf-8')
-    else:
-        xml_str = str(element_or_xml)
-    return ET.canonicalize(xml_str).encode('utf-8')
-
-
-def _b64(b: bytes) -> str:
-    return base64.b64encode(b).decode('ascii')
-
-
 def sign_xml_xades_bes(xml_content: str, p12_bytes: bytes, pin: str) -> str:
     """
-    Firma un comprobante electrónico XML con estándar XAdES-BES de Costa Rica.
+    Firma un comprobante electrónico XML con estándar XAdES-BES/EPES de Costa Rica.
     Inserta el bloque <ds:Signature> al final del elemento raíz preservando
-    los prefijos oficiales de Hacienda y W3C XMLDSig.
+    la integridad criptográfica exacta y los esquemas oficiales de Hacienda.
     """
     key, cert = load_p12_credentials(p12_bytes, pin)
 
-    if isinstance(xml_content, bytes):
-        xml_content = xml_content.decode('utf-8')
+    if isinstance(xml_content, str):
+        xml_bytes = xml_content.encode('utf-8')
+    else:
+        xml_bytes = xml_content
 
-    # Remover cualquier firma previa si existiera
-    clean_xml = re.sub(r'<ds:Signature.*?</ds:Signature>', '', xml_content, flags=re.DOTALL).strip()
+    parser = etree.XMLParser(remove_blank_text=True)
     try:
-        root = ET.fromstring(clean_xml.encode('utf-8'))
+        doc = etree.fromstring(xml_bytes, parser)
     except Exception as e:
         raise SignerError(f"Error parseando XML para firma: {e}")
+
+    # Remover cualquier firma previa si existiera
+    for old_sig in doc.findall(f".//{{{DS_NS}}}Signature"):
+        doc.remove(old_sig)
 
     # Identificadores únicos para los nodos de firma
     uid = uuid.uuid4().hex[:12]
@@ -84,152 +77,169 @@ def sign_xml_xades_bes(xml_content: str, p12_bytes: bytes, pin: str) -> str:
     key_info_id = f"KeyInfo-{uid}"
     signed_props_id = f"SignedProperties-{uid}"
 
-    # 1. Digest del documento raíz (Enveloped Signature: raíz canonizada sin ds:Signature)
-    doc_c14n = _c14n(clean_xml)
-    doc_digest = _b64(hashlib.sha256(doc_c14n).digest())
+    # 1. Digest del documento raíz (Enveloped: canonizado antes de insertar ds:Signature)
+    doc_c14n = etree.tostring(doc, method="c14n", exclusive=True, with_comments=False)
+    doc_digest = base64.b64encode(hashlib.sha256(doc_c14n).digest()).decode('ascii')
 
     # 2. Metadatos del certificado del emisor
-    der_cert = cert.public_bytes(hashes.serialization.Encoding.DER) if hasattr(hashes, 'serialization') else cert.public_bytes(ET.sys.modules['cryptography.hazmat.primitives.serialization'].Encoding.DER)
-    cert_digest = _b64(hashlib.sha256(der_cert).digest())
-    cert_b64 = _b64(der_cert)
+    der_cert = cert.public_bytes(serialization.Encoding.DER)
+    cert_digest = base64.b64encode(hashlib.sha256(der_cert).digest()).decode('ascii')
+    cert_b64 = base64.b64encode(der_cert).decode('ascii')
     signing_time = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
     issuer_str = cert.issuer.rfc4514_string()
     serial_str = str(cert.serial_number)
 
-    # 3. Construir <xades:SignedProperties>
-    signed_props_xml = (
-        f'<xades:SignedProperties xmlns:xades="{XADES_NS}" xmlns:ds="{DS_NS}" Id="{signed_props_id}">'
-        f'<xades:SignedSignatureProperties>'
-        f'<xades:SigningTime>{signing_time}</xades:SigningTime>'
-        f'<xades:SigningCertificate>'
-        f'<xades:Cert>'
-        f'<xades:CertDigest>'
-        f'<ds:DigestMethod Algorithm="{DIGEST_ALGO}"/>'
-        f'<ds:DigestValue>{cert_digest}</ds:DigestValue>'
-        f'</xades:CertDigest>'
-        f'<xades:IssuerSerial>'
-        f'<ds:X509IssuerName>{issuer_str}</ds:X509IssuerName>'
-        f'<ds:X509SerialNumber>{serial_str}</ds:X509SerialNumber>'
-        f'</xades:IssuerSerial>'
-        f'</xades:Cert>'
-        f'</xades:SigningCertificate>'
-        f'<xades:SignaturePolicyIdentifier>'
-        f'<xades:SignaturePolicyId>'
-        f'<xades:SigPolicyId>'
-        f'<xades:Identifier>https://tribunet.hacienda.go.cr/docs/esquemas/2016/v4.2/ResolucionComprobantesElectronicosDGT-R-48-2016_4.2.pdf</xades:Identifier>'
-        f'<xades:Description/>'
-        f'</xades:SigPolicyId>'
-        f'<xades:SigPolicyHash>'
-        f'<ds:DigestMethod Algorithm="{DIGEST_ALGO}"/>'
-        f'<ds:DigestValue>NmI5Njk1ZThkNzI0MmIzMGJmZDAyNDc4YjUwNzkzODM2NTBiOWUxNTBkMmI2YjgzYzZjM2I5NTZlNDQ4OWQzMQ==</ds:DigestValue>'
-        f'</xades:SigPolicyHash>'
-        f'</xades:SignaturePolicyId>'
-        f'</xades:SignaturePolicyIdentifier>'
-        f'</xades:SignedSignatureProperties>'
-        f'</xades:SignedProperties>'
-    )
-    signed_props_c14n = _c14n(signed_props_xml)
-    signed_props_digest = _b64(hashlib.sha256(signed_props_c14n).digest())
+    # 3. Construir la estructura completa de firma en el DOM
+    sig_elem = etree.SubElement(doc, f"{{{DS_NS}}}Signature", nsmap={'ds': DS_NS}, Id=sig_id)
 
-    # 4. Construir <ds:SignedInfo>
-    signed_info_xml = (
-        f'<ds:SignedInfo xmlns:ds="{DS_NS}">'
-        f'<ds:CanonicalizationMethod Algorithm="{C14N_ALGO}"/>'
-        f'<ds:SignatureMethod Algorithm="{SIG_ALGO}"/>'
-        f'<ds:Reference Id="Reference-Document" URI="">'
-        f'<ds:Transforms>'
-        f'<ds:Transform Algorithm="{ENVELOPED_SIG}"/>'
-        f'<ds:Transform Algorithm="{C14N_ALGO}"/>'
-        f'</ds:Transforms>'
-        f'<ds:DigestMethod Algorithm="{DIGEST_ALGO}"/>'
-        f'<ds:DigestValue>{doc_digest}</ds:DigestValue>'
-        f'</ds:Reference>'
-        f'<ds:Reference Id="Reference-SignedProperties" Type="http://uri.etsi.org/01903#SignedProperties" URI="#{signed_props_id}">'
-        f'<ds:Transforms>'
-        f'<ds:Transform Algorithm="{C14N_ALGO}"/>'
-        f'</ds:Transforms>'
-        f'<ds:DigestMethod Algorithm="{DIGEST_ALGO}"/>'
-        f'<ds:DigestValue>{signed_props_digest}</ds:DigestValue>'
-        f'</ds:Reference>'
-        f'</ds:SignedInfo>'
-    )
-    signed_info_c14n = _c14n(signed_info_xml)
+    # Construir Object y QualifyingProperties con SignedProperties
+    obj_elem = etree.SubElement(sig_elem, f"{{{DS_NS}}}Object", nsmap={'ds': DS_NS}, Id=f"Object-{uid}")
+    qp_elem = etree.SubElement(obj_elem, f"{{{XADES_NS}}}QualifyingProperties", nsmap={'xades': XADES_NS}, Target=f"#{sig_id}")
+    sp_elem = etree.SubElement(qp_elem, f"{{{XADES_NS}}}SignedProperties", nsmap={'xades': XADES_NS, 'ds': DS_NS}, Id=signed_props_id)
+    ssp_elem = etree.SubElement(sp_elem, f"{{{XADES_NS}}}SignedSignatureProperties", nsmap={'xades': XADES_NS, 'ds': DS_NS})
 
-    # 5. Firmar criptográficamente el SignedInfo con la llave privada RSA
-    sig_bytes = key.sign(
-        signed_info_c14n,
-        padding.PKCS1v15(),
-        hashes.SHA256()
-    )
-    sig_value_b64 = _b64(sig_bytes)
+    # SigningTime
+    st_elem = etree.SubElement(ssp_elem, f"{{{XADES_NS}}}SigningTime", nsmap={'xades': XADES_NS})
+    st_elem.text = signing_time
 
-    # 6. Ensamblar el bloque completo <ds:Signature>
-    signature_xml = (
-        f'<ds:Signature xmlns:ds="{DS_NS}" Id="{sig_id}">'
-        f'{signed_info_xml}'
-        f'<ds:SignatureValue Id="{sig_val_id}">{sig_value_b64}</ds:SignatureValue>'
-        f'<ds:KeyInfo Id="{key_info_id}">'
-        f'<ds:X509Data>'
-        f'<ds:X509Certificate>{cert_b64}</ds:X509Certificate>'
-        f'</ds:X509Data>'
-        f'</ds:KeyInfo>'
-        f'<ds:Object Id="Object-{uid}">'
-        f'<xades:QualifyingProperties xmlns:xades="{XADES_NS}" Target="#{sig_id}">'
-        f'{signed_props_xml}'
-        f'</xades:QualifyingProperties>'
-        f'</ds:Object>'
-        f'</ds:Signature>'
-    )
+    # SigningCertificate
+    sc_elem = etree.SubElement(ssp_elem, f"{{{XADES_NS}}}SigningCertificate", nsmap={'xades': XADES_NS})
+    c_elem = etree.SubElement(sc_elem, f"{{{XADES_NS}}}Cert", nsmap={'xades': XADES_NS})
+    cd_elem = etree.SubElement(c_elem, f"{{{XADES_NS}}}CertDigest", nsmap={'xades': XADES_NS})
+    etree.SubElement(cd_elem, f"{{{DS_NS}}}DigestMethod", nsmap={'ds': DS_NS}, Algorithm=DIGEST_ALGO)
+    dv_elem = etree.SubElement(cd_elem, f"{{{DS_NS}}}DigestValue", nsmap={'ds': DS_NS})
+    dv_elem.text = cert_digest
 
-    last_close = clean_xml.rfind('</')
-    if last_close == -1:
-        raise SignerError("El XML no contiene una etiqueta de cierre válida")
+    iss_elem = etree.SubElement(c_elem, f"{{{XADES_NS}}}IssuerSerial", nsmap={'xades': XADES_NS})
+    in_elem = etree.SubElement(iss_elem, f"{{{DS_NS}}}X509IssuerName", nsmap={'ds': DS_NS})
+    in_elem.text = issuer_str
+    sn_elem = etree.SubElement(iss_elem, f"{{{DS_NS}}}X509SerialNumber", nsmap={'ds': DS_NS})
+    sn_elem.text = serial_str
 
-    signed_xml = clean_xml[:last_close].rstrip() + '\n' + signature_xml + '\n' + clean_xml[last_close:]
-    return signed_xml
+    # SignaturePolicyIdentifier (Requerido por Ministerio de Hacienda de Costa Rica para XAdES-EPES)
+    spi_elem = etree.SubElement(ssp_elem, f"{{{XADES_NS}}}SignaturePolicyIdentifier", nsmap={'xades': XADES_NS})
+    spid_elem = etree.SubElement(spi_elem, f"{{{XADES_NS}}}SignaturePolicyId", nsmap={'xades': XADES_NS})
+    sp_id_elem = etree.SubElement(spid_elem, f"{{{XADES_NS}}}SigPolicyId", nsmap={'xades': XADES_NS})
+    id_elem = etree.SubElement(sp_id_elem, f"{{{XADES_NS}}}Identifier", nsmap={'xades': XADES_NS})
+    id_elem.text = POLICY_ID
+    etree.SubElement(sp_id_elem, f"{{{XADES_NS}}}Description", nsmap={'xades': XADES_NS})
+
+    sph_elem = etree.SubElement(spid_elem, f"{{{XADES_NS}}}SigPolicyHash", nsmap={'xades': XADES_NS})
+    etree.SubElement(sph_elem, f"{{{DS_NS}}}DigestMethod", nsmap={'ds': DS_NS}, Algorithm=DIGEST_ALGO)
+    pdv_elem = etree.SubElement(sph_elem, f"{{{DS_NS}}}DigestValue", nsmap={'ds': DS_NS})
+    pdv_elem.text = POLICY_DIGEST
+
+    # 4. Calcular el Digest exacto de SignedProperties mientras está insertado en el DOM
+    sp_c14n = etree.tostring(sp_elem, method="c14n", exclusive=True, with_comments=False)
+    sp_digest = base64.b64encode(hashlib.sha256(sp_c14n).digest()).decode('ascii')
+
+    # 5. Construir ds:SignedInfo con ambas referencias
+    si_elem = etree.Element(f"{{{DS_NS}}}SignedInfo", nsmap={'ds': DS_NS})
+    etree.SubElement(si_elem, f"{{{DS_NS}}}CanonicalizationMethod", Algorithm=C14N_EXC)
+    etree.SubElement(si_elem, f"{{{DS_NS}}}SignatureMethod", Algorithm=SIG_ALGO)
+
+    # Referencia al documento principal (Enveloped Signature)
+    ref_doc = etree.SubElement(si_elem, f"{{{DS_NS}}}Reference", Id="Reference-Document", URI="")
+    transforms = etree.SubElement(ref_doc, f"{{{DS_NS}}}Transforms")
+    etree.SubElement(transforms, f"{{{DS_NS}}}Transform", Algorithm=ENVELOPED_SIG)
+    etree.SubElement(transforms, f"{{{DS_NS}}}Transform", Algorithm=C14N_EXC)
+    etree.SubElement(ref_doc, f"{{{DS_NS}}}DigestMethod", Algorithm=DIGEST_ALGO)
+    rdv = etree.SubElement(ref_doc, f"{{{DS_NS}}}DigestValue")
+    rdv.text = doc_digest
+
+    # Referencia a las propiedades firmadas XAdES
+    ref_sp = etree.SubElement(si_elem, f"{{{DS_NS}}}Reference", Id="Reference-SignedProperties", Type="http://uri.etsi.org/01903#SignedProperties", URI=f"#{signed_props_id}")
+    sp_transforms = etree.SubElement(ref_sp, f"{{{DS_NS}}}Transforms")
+    etree.SubElement(sp_transforms, f"{{{DS_NS}}}Transform", Algorithm=C14N_EXC)
+    etree.SubElement(ref_sp, f"{{{DS_NS}}}DigestMethod", Algorithm=DIGEST_ALGO)
+    rspdv = etree.SubElement(ref_sp, f"{{{DS_NS}}}DigestValue")
+    rspdv.text = sp_digest
+
+    # 6. Canonicalizar y firmar criptográficamente SignedInfo con la llave privada RSA
+    si_c14n = etree.tostring(si_elem, method="c14n", exclusive=True, with_comments=False)
+    sig_bytes = key.sign(si_c14n, padding.PKCS1v15(), hashes.SHA256())
+    sig_value_b64 = base64.b64encode(sig_bytes).decode('ascii')
+
+    # 7. Ensamblar los elementos hijos en ds:Signature en el orden estricto de XMLDSig:
+    # 1: SignedInfo, 2: SignatureValue, 3: KeyInfo, 4: Object
+    sig_elem.insert(0, si_elem)
+
+    sv_elem = etree.Element(f"{{{DS_NS}}}SignatureValue", Id=sig_val_id)
+    sv_elem.text = sig_value_b64
+    sig_elem.insert(1, sv_elem)
+
+    ki_elem = etree.Element(f"{{{DS_NS}}}KeyInfo", Id=key_info_id)
+    x509_data = etree.SubElement(ki_elem, f"{{{DS_NS}}}X509Data")
+    x509_cert = etree.SubElement(x509_data, f"{{{DS_NS}}}X509Certificate")
+    x509_cert.text = cert_b64
+    sig_elem.insert(2, ki_elem)
+
+    return etree.tostring(doc, encoding='utf-8', xml_declaration=True).decode('utf-8')
 
 
 def verify_xml_signature(signed_xml_str: str) -> bool:
-    """Verifica que el XML firmado contenga una estructura XAdES-BES válida y consistente."""
+    """Verifica que el XML firmado contenga una estructura XAdES válida y criptográficamente consistente."""
     try:
-        if isinstance(signed_xml_str, bytes):
-            signed_xml_str = signed_xml_str.decode('utf-8')
-        root = ET.fromstring(signed_xml_str.encode('utf-8'))
-        sig = root.find(f"{{{DS_NS}}}Signature")
+        if isinstance(signed_xml_str, str):
+            xml_bytes = signed_xml_str.encode('utf-8')
+        else:
+            xml_bytes = signed_xml_str
+
+        parser = etree.XMLParser(remove_blank_text=True)
+        doc = etree.fromstring(xml_bytes, parser)
+
+        DS = f"{{{DS_NS}}}"
+        XADES = f"{{{XADES_NS}}}"
+
+        sig = doc.find(f".//{DS}Signature")
         if sig is None:
             return False
 
-        # Verificar presencia de SignedInfo, SignatureValue y KeyInfo
-        si = sig.find(f"{{{DS_NS}}}SignedInfo")
-        sv = sig.find(f"{{{DS_NS}}}SignatureValue")
-        ki = sig.find(f"{{{DS_NS}}}KeyInfo")
+        si = sig.find(f"{DS}SignedInfo")
+        sv = sig.find(f"{DS}SignatureValue")
+        ki = sig.find(f"{DS}KeyInfo")
         if si is None or sv is None or ki is None:
             return False
 
-        cert_el = ki.find(f".//{{{DS_NS}}}X509Certificate")
+        cert_el = ki.find(f".//{DS}X509Certificate")
         if cert_el is None or not cert_el.text:
             return False
 
         # Cargar certificado X.509
-        from cryptography import x509
         cert_bytes = base64.b64decode(cert_el.text.strip())
         cert = x509.load_der_x509_certificate(cert_bytes)
 
-        # Extraer SignedInfo canonicalizado para la verificación
-        si_match = re.search(r'(<ds:SignedInfo.*?</ds:SignedInfo>)', signed_xml_str, re.DOTALL)
-        if not si_match:
-            return False
-        signed_info_c14n = _c14n(si_match.group(1))
-
-        # Verificar la firma RSA del SignedInfo canonicalizado
+        # 1. Verificar firma RSA sobre SignedInfo
+        si_c14n = etree.tostring(si, method="c14n", exclusive=True, with_comments=False)
         sig_val = base64.b64decode(sv.text.strip())
-
         cert.public_key().verify(
             sig_val,
-            signed_info_c14n,
+            si_c14n,
             padding.PKCS1v15(),
             hashes.SHA256()
         )
+
+        # 2. Verificar Document Reference Digest
+        ref_doc = si.find(f"{DS}Reference[@URI='']")
+        if ref_doc is not None:
+            expected_doc_digest = ref_doc.find(f"{DS}DigestValue").text.strip()
+            doc.remove(sig)
+            doc_c14n = etree.tostring(doc, method="c14n", exclusive=True, with_comments=False)
+            actual_doc_digest = base64.b64encode(hashlib.sha256(doc_c14n).digest()).decode('ascii')
+            if expected_doc_digest != actual_doc_digest:
+                return False
+
+        # 3. Verificar SignedProperties Reference Digest
+        doc_reloaded = etree.fromstring(xml_bytes, parser)
+        ref_sp = doc_reloaded.find(f".//{DS}Reference[@Type='http://uri.etsi.org/01903#SignedProperties']")
+        sp_elem = doc_reloaded.find(f".//{XADES}SignedProperties")
+        if ref_sp is not None and sp_elem is not None:
+            expected_sp_digest = ref_sp.find(f"{DS}DigestValue").text.strip()
+            sp_c14n = etree.tostring(sp_elem, method="c14n", exclusive=True, with_comments=False)
+            actual_sp_digest = base64.b64encode(hashlib.sha256(sp_c14n).digest()).decode('ascii')
+            if expected_sp_digest != actual_sp_digest:
+                return False
+
         return True
     except Exception:
         return False
