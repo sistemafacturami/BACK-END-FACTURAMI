@@ -453,6 +453,19 @@ def emitir_comprobante(company_id: str, body: dict, actor: str, db_path=None) ->
     except Exception as e_asnt:
         print(f"[VENTAS] Aviso generando asiento contable automático para {consecutivo}: {e_asnt}")
 
+    # 14. Despacho automático de correo electrónico al receptor si hay correo asignado y SMTP activo
+    if doc_data.get('customer_email') and body.get('enviar_correo', True):
+        try:
+            from services.fe_mail_service import send_document_email, get_company_smtp_config
+            smtp_cfg = get_company_smtp_config(cid, db_path=db_path)
+            if smtp_cfg.get('enabled'):
+                mail_res = send_document_email(cid, doc_id, actor=actor, db_path=db_path)
+                doc_data['correo_estado'] = 'enviado'
+                doc_data['correo_destinatario'] = mail_res.get('destinatario')
+        except Exception as e_mail:
+            doc_data['correo_estado'] = 'fallido'
+            print(f"[VENTAS] Aviso en envío automático de correo para {consecutivo}: {e_mail}")
+
     return doc_data
 
 

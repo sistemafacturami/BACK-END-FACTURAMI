@@ -20180,6 +20180,39 @@
           <button class="top-btn prime" onclick="vSaveHacienda()">Guardar credenciales cifradas</button>
         </div>` : ''}
 
+        ${canSecrets ? `
+        <div class="card" id="cfg_smtp_card" style="margin-bottom:16px;">
+          <div class="sh">
+            <div>
+              <div class="sh-t">Servidor de Correo Saliente (SMTP) para Envío de Facturas</div>
+              <div class="sh-s">Envío automático del PDF oficial y XML firmado a clientes al emitir</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <label style="font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input id="cfg_smtp_enabled" type="checkbox" ${s.smtp_enabled ? 'checked' : ''}> Activar envío automático
+              </label>
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--ink2);margin-bottom:10px;">
+            Servidor: <strong>${vEsc(s.smtp_host || '—')}</strong> ·
+            Puerto: <strong>${vEsc(s.smtp_port || '587')}</strong> ·
+            Usuario: <strong>${vEsc(s.smtp_user || '—')}</strong> ·
+            Contraseña: ${s.has_smtp_password ? '✅ guardada' : '⚠️ pendiente'} ·
+            Estado: ${s.smtp_enabled ? '🟢 Activo' : '⚪ Desactivado'}
+          </div>
+          <div class="v-filter-bar" style="box-shadow:none;border:none;padding:0;">
+            <div class="v-filter-group"><label>Servidor SMTP (Host)</label><input id="cfg_smtp_host" value="${vEsc(s.smtp_host || '')}" placeholder="smtp.gmail.com" class="top-sel" style="width:100%;"></div>
+            <div class="v-filter-group" style="max-width:110px;"><label>Puerto</label><input id="cfg_smtp_port" type="number" value="${s.smtp_port || 587}" class="top-sel" style="width:100%;"></div>
+            <div class="v-filter-group"><label>Usuario / Correo</label><input id="cfg_smtp_user" value="${vEsc(s.smtp_user || '')}" placeholder="facturacion@miempresa.cr" class="top-sel" style="width:100%;"></div>
+            <div class="v-filter-group"><label>Contraseña / App Password</label><input id="cfg_smtp_pass" type="password" placeholder="${s.has_smtp_password ? '••••••••' : 'Contraseña de aplicación'}" class="top-sel" style="width:100%;" autocomplete="new-password"></div>
+            <div class="v-filter-group"><label>Nombre del Remitente</label><input id="cfg_smtp_from" value="${vEsc(s.smtp_from_name || '')}" placeholder="${vEsc(s.nombre_comercial || 'Mi Empresa')}" class="top-sel" style="width:100%;"></div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:12px;">
+            <button class="top-btn prime" onclick="vSaveSmtp()">Guardar Configuración SMTP</button>
+            <button class="top-btn" onclick="vTestSmtp()">Probar Conexión</button>
+          </div>
+        </div>` : ''}
+
         ${canUsers ? '<div class="card" id="cfg_users_card"><div class="sh"><div><div class="sh-t">Usuarios de la empresa y roles</div><div class="sh-s">Asigne cuentas existentes de FACTURAMI a esta empresa</div></div></div><div id="cfg_users_body">Cargando…</div></div>' : ''}
 
         <div class="card" id="cfg_accounting_card" style="margin-bottom:16px;">
@@ -20238,6 +20271,42 @@
       ['cfg_h_pass', 'cfg_h_pin'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
       showToast(r.ok ? 'Credenciales guardadas (cifradas)' : '⚠️ ' + vErrMsg(r.json, 'No se pudo guardar'));
       if (r.ok) vReloadConfig();
+    }
+    async function vSaveSmtp() {
+      const body = {
+        company_id: activeClient.id,
+        smtp_host: vVal('cfg_smtp_host'),
+        smtp_port: parseInt(vVal('cfg_smtp_port') || '587', 10),
+        smtp_user: vVal('cfg_smtp_user'),
+        smtp_from_name: vVal('cfg_smtp_from'),
+        smtp_enabled: document.getElementById('cfg_smtp_enabled')?.checked ? 1 : 0,
+        smtp_tls: 1
+      };
+      const p = document.getElementById('cfg_smtp_pass')?.value || '';
+      if (p) body.smtp_password = p;
+      const r = await vApi('/api/ventas/config/smtp', { method: 'PUT', body: JSON.stringify(body) });
+      const elP = document.getElementById('cfg_smtp_pass');
+      if (elP) elP.value = '';
+      showToast(r.ok ? 'Configuración SMTP guardada exitosamente' : '⚠️ ' + vErrMsg(r.json, 'No se pudo guardar SMTP'));
+      if (r.ok) vReloadConfig();
+    }
+    async function vTestSmtp() {
+      showToast('⏳ Probando conexión al servidor SMTP...');
+      const body = {
+        company_id: activeClient.id,
+        smtp_host: vVal('cfg_smtp_host'),
+        smtp_port: parseInt(vVal('cfg_smtp_port') || '587', 10),
+        smtp_user: vVal('cfg_smtp_user'),
+        smtp_tls: 1
+      };
+      const p = document.getElementById('cfg_smtp_pass')?.value || '';
+      if (p) body.smtp_password = p;
+      const r = await vApi('/api/ventas/config/test-smtp', { method: 'POST', body: JSON.stringify(body) });
+      if (r.ok) {
+        showToast(`✅ ${r.json?.message || 'Conexión SMTP exitosa'}`);
+      } else {
+        showToast('⚠️ ' + vErrMsg(r.json, 'Fallo de conexión SMTP'));
+      }
     }
     async function vLoadUsers() {
       const body = document.getElementById('cfg_users_body');
@@ -21651,6 +21720,7 @@
             <td style="text-align:right; white-space:nowrap;">
               <button type="button" class="top-btn" onclick="vDownloadPdf('${d.id}', '${d.consecutivo}')" title="Descargar PDF" style="padding:3px 7px; font-size:11px;">PDF</button>
               <button type="button" class="top-btn" onclick="vDownloadXml('${d.id}', '${d.clave_numerica}')" title="Descargar XML Firmado" style="padding:3px 7px; font-size:11px;">XML</button>
+              <button type="button" class="top-btn" onclick="vSendEmailDoc('${d.id}', '${vEsc(d.customer_email || '')}')" title="Enviar / Reenviar Comprobante por Correo" style="padding:3px 7px; font-size:11px;">✉️ Correo</button>
               <button type="button" class="top-btn" onclick="vViewDocumentAccounting('${d.id}')" title="Ver Asiento Contable NIIF" style="padding:3px 7px; font-size:11px;">📖 Asiento</button>
               <button type="button" class="top-btn" onclick="vSyncHacienda('${d.id}')" title="Consultar estado ante Hacienda" style="padding:3px 7px; font-size:11px;">🔄</button>
               ${(d.tipo_documento === '01' || d.tipo_documento === '04') ? `<button type="button" class="top-btn" onclick="vPrepareNotaCreditoFromDoc('${d.id}')" title="Emitir Nota de Crédito para este comprobante" style="padding:3px 7px; font-size:11px; color:#d46b08;">NC</button>` : ''}
@@ -21661,6 +21731,23 @@
 
       html += `</tbody></table></div>`;
       box.innerHTML = html;
+    }
+
+    async function vSendEmailDoc(docId, currentEmail) {
+      if (!activeClient) return;
+      const targetEmail = prompt('Confirmar o ingresar dirección de correo del destinatario:', currentEmail || '');
+      if (!targetEmail || !targetEmail.trim()) return;
+      showToast('⏳ Enviando comprobante por correo con PDF y XML adjuntos...');
+      const r = await vApi(`/api/ventas/documents/${encodeURIComponent(docId)}/send-email`, {
+        method: 'POST',
+        body: JSON.stringify({ company_id: activeClient.id, email: targetEmail.trim() })
+      });
+      if (r && r.ok) {
+        showToast(`✅ ${r.json?.message || 'Correo enviado exitosamente'}`);
+        vLoadFeDocuments();
+      } else {
+        showToast('⚠️ ' + vErrMsg(r.json, 'No se pudo enviar el correo'));
+      }
     }
 
     let vFeSearchDebounce = null;

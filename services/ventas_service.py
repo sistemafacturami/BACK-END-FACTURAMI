@@ -38,6 +38,13 @@ CREATE TABLE IF NOT EXISTS company_fe_settings (
     cert_pin_enc                TEXT DEFAULT '',
     cert_file_enc               TEXT DEFAULT '',
     has_cert_file               INTEGER DEFAULT 0 CHECK(has_cert_file IN (0,1)),
+    smtp_host                   TEXT DEFAULT '',
+    smtp_port                   INTEGER DEFAULT 587,
+    smtp_user                   TEXT DEFAULT '',
+    smtp_password_enc           TEXT DEFAULT '',
+    smtp_from_name              TEXT DEFAULT '',
+    smtp_tls                    INTEGER DEFAULT 1 CHECK(smtp_tls IN (0,1)),
+    smtp_enabled                INTEGER DEFAULT 0 CHECK(smtp_enabled IN (0,1)),
     created_at                  TEXT DEFAULT (datetime('now','localtime')),
     updated_at                  TEXT DEFAULT (datetime('now','localtime'))
 );
@@ -189,6 +196,9 @@ CREATE TABLE IF NOT EXISTS electronic_documents (
     ref_fecha_emision       TEXT DEFAULT '',
     ref_codigo              TEXT DEFAULT '',
     ref_razon               TEXT DEFAULT '',
+    correo_enviado_at       TEXT DEFAULT '',
+    correo_destinatario     TEXT DEFAULT '',
+    correo_estado           TEXT DEFAULT 'no_enviado',
     asiento_contable_id     TEXT DEFAULT '',
     usuario_creacion        TEXT DEFAULT '',
     created_at              TEXT DEFAULT (datetime('now','localtime')),
@@ -525,11 +535,17 @@ def init_ventas_schema(db_path=None):
     """Inicializa las tablas e índices del Sistema de Ventas y parametriza tarifas IVA."""
     with database.get_db(db_path) as conn:
         conn.executescript(VENTAS_SCHEMA_SQL)
-        # Migración incremental: metadatos del certificado (nunca el contenido)
+        # Migración incremental: metadatos del certificado (nunca el contenido) y configuración SMTP
         cols_fe = {r['name'] for r in conn.execute("PRAGMA table_info(company_fe_settings)").fetchall()}
         for col in ('cert_expira', 'cert_subject'):
             if col not in cols_fe:
                 conn.execute(f"ALTER TABLE company_fe_settings ADD COLUMN {col} TEXT DEFAULT ''")
+        for col, ctype in (('smtp_host', "TEXT DEFAULT ''"), ('smtp_port', "INTEGER DEFAULT 587"),
+                           ('smtp_user', "TEXT DEFAULT ''"), ('smtp_password_enc', "TEXT DEFAULT ''"),
+                           ('smtp_from_name', "TEXT DEFAULT ''"), ('smtp_tls', "INTEGER DEFAULT 1"),
+                           ('smtp_enabled', "INTEGER DEFAULT 0")):
+            if col not in cols_fe:
+                conn.execute(f"ALTER TABLE company_fe_settings ADD COLUMN {col} {ctype}")
 
         # Migración incremental: campos comerciales de clientes
         cols_cust = {r['name'] for r in conn.execute("PRAGMA table_info(sales_customers)").fetchall()}
@@ -545,11 +561,15 @@ def init_ventas_schema(db_path=None):
             if col not in cols_prod:
                 conn.execute(f"ALTER TABLE products ADD COLUMN {col} {ctype}")
 
-        # Migración incremental: campos de referencia de comprobantes y punto de venta
+        # Migración incremental: campos de referencia de comprobantes, punto de venta y correo
         cols_edoc = {r['name'] for r in conn.execute("PRAGMA table_info(electronic_documents)").fetchall()}
         for col in ('ref_tipo_documento', 'ref_numero_clave', 'ref_fecha_emision', 'ref_codigo', 'ref_razon', 'pos_shift_id', 'asiento_id', 'asiento_costo_id'):
             if col not in cols_edoc:
                 conn.execute(f"ALTER TABLE electronic_documents ADD COLUMN {col} TEXT DEFAULT ''")
+        for col, ctype in (('correo_enviado_at', "TEXT DEFAULT ''"), ('correo_destinatario', "TEXT DEFAULT ''"),
+                           ('correo_estado', "TEXT DEFAULT 'no_enviado'")):
+            if col not in cols_edoc:
+                conn.execute(f"ALTER TABLE electronic_documents ADD COLUMN {col} {ctype}")
 
         # Migración incremental: asiento_id en accounts_receivable y pos_movements (Fase 7)
         cols_ar = {r['name'] for r in conn.execute("PRAGMA table_info(accounts_receivable)").fetchall()}
@@ -643,7 +663,8 @@ def get_or_init_company_context(company_id: str, current_user: str = '', db_path
         has_hacienda_creds = bool(st_dict.get('hacienda_username') and st_dict.get('hacienda_password_enc'))
         st_dict['has_hacienda_password'] = bool(st_dict.get('hacienda_password_enc'))
         st_dict['has_cert_pin'] = bool(st_dict.get('cert_pin_enc'))
-        for secret_key in ('hacienda_password_enc', 'cert_pin_enc', 'cert_file_enc'):
+        st_dict['has_smtp_password'] = bool(st_dict.get('smtp_password_enc'))
+        for secret_key in ('hacienda_password_enc', 'cert_pin_enc', 'cert_file_enc', 'smtp_password_enc'):
             st_dict.pop(secret_key, None)
         u = st_dict.get('hacienda_username') or ''
         st_dict['hacienda_username'] = (u[:2] + '***' + u[-2:]) if len(u) > 4 else ('***' if u else '')

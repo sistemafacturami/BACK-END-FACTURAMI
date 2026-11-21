@@ -22,6 +22,7 @@ import services.fe_emission_service as emission_service
 import services.ventas_gestion_service as gestion_service
 import services.ventas_contabilidad_service as contabilidad_ventas_service
 import services.ventas_reportes_service as reportes_service
+import services.fe_mail_service as mail_service
 import services.secret_store as secret_store
 import db as database
 
@@ -156,6 +157,61 @@ def config_hacienda_put():
         return error(str(e), 400)
     return success({'data': _context_with_role(company_id, role), 'cambios': cambios},
                    message='Credenciales de Hacienda guardadas (cifradas)')
+
+
+@ventas_bp.route('/api/ventas/config/smtp', methods=['PUT'])
+@auth_required
+@handle_errors
+def config_smtp_put():
+    body = _body()
+    company_id = _company_id_from(body)
+    if not company_id:
+        return error("Se requiere company_id", 400)
+    role, denied = require_company_permission(company_id, 'config.secrets')
+    if denied:
+        return denied
+    ventas_service.get_or_init_company_context(company_id)
+    try:
+        cambios = cfg_service.update_smtp_settings(company_id, body, get_jwt_identity())
+    except secret_store.SecretStoreError as e:
+        return error(str(e), 503)
+    except cfg_service.ConfigError as e:
+        return error(str(e), 400)
+    return success({'data': _context_with_role(company_id, role), 'cambios': cambios},
+                   message='Configuración SMTP guardada')
+
+
+@ventas_bp.route('/api/ventas/config/test-smtp', methods=['POST'])
+@auth_required
+@handle_errors
+def config_test_smtp():
+    body = _body()
+    company_id = _company_id_from(body)
+    if not company_id:
+        return error("Se requiere company_id", 400)
+    _role, denied = require_company_permission(company_id, 'config.secrets')
+    if denied:
+        return denied
+    ventas_service.get_or_init_company_context(company_id)
+    cfg = mail_service.get_company_smtp_config(company_id)
+    if body.get('smtp_host'):
+        cfg['host'] = body['smtp_host']
+    if body.get('smtp_port'):
+        try:
+            cfg['port'] = int(body['smtp_port'])
+        except (ValueError, TypeError):
+            pass
+    if body.get('smtp_user'):
+        cfg['user'] = body['smtp_user']
+    if body.get('smtp_password'):
+        cfg['password'] = body['smtp_password']
+    if 'smtp_tls' in body:
+        cfg['tls'] = bool(body['smtp_tls'])
+    try:
+        res = mail_service.test_smtp_connection(cfg)
+    except mail_service.MailError as e:
+        return error(str(e), 400)
+    return success({'data': res}, message='Conexión SMTP exitosa')
 
 
 @ventas_bp.route('/api/ventas/users', methods=['GET'])
@@ -620,6 +676,31 @@ def documents_retry_queue():
     except emission_service.EmissionError as e:
         return error(str(e), 400)
     return success({'data': res}, message=f"Cola procesada: {res.get('enviados', 0)} enviados, {res.get('fallidos', 0)} pendientes")
+
+
+@ventas_bp.route('/api/ventas/documents/<document_id>/send-email', methods=['POST'])
+@auth_required
+@handle_errors
+def documents_send_email(document_id):
+    body = _body()
+    company_id = _company_id_from(body) or _company_id_from(request.args)
+    if not company_id:
+        return error("Se requiere company_id", 400)
+    _role, denied = require_company_permission(company_id, 'docs.view')
+    if denied:
+        return denied
+    ventas_service.get_or_init_company_context(company_id)
+    to_email = body.get('email')
+    try:
+        res = mail_service.send_document_email(
+            company_id=company_id,
+            document_id=document_id,
+            to_email=to_email,
+            actor=get_jwt_identity() or ''
+        )
+    except mail_service.MailError as e:
+        return error(str(e), 400)
+    return success({'data': res}, message=f"Comprobante enviado exitosamente a {res.get('destinatario')}")
 
 
 @ventas_bp.route('/api/ventas/documents/<document_id>/xml', methods=['GET'])

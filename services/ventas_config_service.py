@@ -239,6 +239,57 @@ def update_hacienda_credentials(company_id, body, actor):
     return changed
 
 
+def update_smtp_settings(company_id, body, actor):
+    """Guarda configuración SMTP para la empresa (cifrando la contraseña si se envía)."""
+    if not secret_store.is_configured():
+        raise secret_store.SecretStoreError(
+            'Almacén de secretos no configurado: defina FACTURAMI_FE_SECRET_KEY')
+
+    changed = []
+    sets = {}
+
+    if 'smtp_host' in body:
+        sets['smtp_host'] = _clean_text(body['smtp_host'], 120, 'smtp_host')
+        changed.append('smtp_host')
+    if 'smtp_port' in body:
+        try:
+            port = int(body['smtp_port'])
+            if not 1 <= port <= 65535:
+                raise ValueError()
+            sets['smtp_port'] = port
+            changed.append('smtp_port')
+        except (TypeError, ValueError):
+            raise ConfigError("'smtp_port' debe ser un número de puerto válido (1-65535)")
+    if 'smtp_user' in body:
+        sets['smtp_user'] = _clean_text(body['smtp_user'], 120, 'smtp_user')
+        changed.append('smtp_user')
+    if body.get('smtp_password'):
+        sets['smtp_password_enc'] = secret_store.encrypt(company_id, str(body['smtp_password']))
+        changed.append('smtp_password')
+    if 'smtp_from_name' in body:
+        sets['smtp_from_name'] = _clean_text(body['smtp_from_name'], 120, 'smtp_from_name')
+        changed.append('smtp_from_name')
+    if 'smtp_tls' in body:
+        sets['smtp_tls'] = 1 if bool(body['smtp_tls']) else 0
+        changed.append('smtp_tls')
+    if 'smtp_enabled' in body:
+        sets['smtp_enabled'] = 1 if bool(body['smtp_enabled']) else 0
+        changed.append('smtp_enabled')
+
+    if not sets:
+        raise ConfigError('No se enviaron campos SMTP para actualizar')
+
+    with database.get_db() as conn:
+        cols = ', '.join(f"{k} = ?" for k in sets)
+        conn.execute(
+            f"UPDATE company_fe_settings SET {cols}, updated_at = datetime('now','localtime') WHERE company_id = ?",
+            (*sets.values(), company_id)
+        )
+        database.insert_audit_log(conn, 'ventas_config_smtp', actor, 'company', company_id,
+                                  {'cambios': changed})
+    return changed
+
+
 def list_company_users(company_id):
     with database.get_db() as conn:
         owner = conn.execute("SELECT cuenta_id FROM clientes WHERE id = ?", (company_id,)).fetchone()
