@@ -19,6 +19,7 @@ import unittest
 os.environ.setdefault('JWT_SECRET_KEY', 'test-jwt-secret-key-0123456789-abcdef')
 os.environ.setdefault('N8N_INTERNAL_SECRET', 'test-n8n-secret-key-0123456789-abcdef')
 os.environ['FACTURAMI_FE_SECRET_KEY'] = 'test-fe-secret-key-0123456789-abcdefghij'
+os.environ['FACTURAMI_FE_SIMULATE_HACIENDA'] = '1'
 
 from flask_jwt_extended import create_access_token
 import db as database
@@ -314,6 +315,34 @@ class TestFase9VentasHardening(unittest.TestCase):
         self.assertIn('id="btn-fe-retry-queue"', html)
         self.assertIn('vRetryHaciendaQueue', html)
         self.assertIn('Contingencia', html)
+
+    def test_08_retry_queue_firma_en_memoria_si_se_configura_certificado(self):
+        """Verifica que al reintentar la cola, si hay certificado disponible pero el XML no estaba firmado, se firme automáticamente."""
+        # Insertar documento sin firmar directamente en BD
+        with database.get_db(self.tmp_db) as conn:
+            conn.execute("""
+                INSERT INTO electronic_documents (
+                    id, company_id, tipo_documento, codigo_sucursal, codigo_terminal,
+                    consecutivo, clave_numerica, fecha_emision, moneda, total_bruto,
+                    subtotal, total_impuestos, total_comprobante, estado_comprobante,
+                    xml_firmado, usuario_creacion
+                ) VALUES (
+                    'doc-unsigned-01', '3101888999', '01', '001', '00001',
+                    '00100001010000000999', '506211126003101888999001000010100000009991234567891',
+                    '2026-11-21T08:00:00-06:00', 'CRC', 1000.0, 1000.0, 130.0, 1130.0,
+                    'pendiente_envio', '<FacturaElectronica><NumeroConsecutivo>00100001010000000999</NumeroConsecutivo></FacturaElectronica>',
+                    'empresa_user'
+                )
+            """)
+
+        res = emission_service.retry_pending_hacienda_queue('3101888999', actor='empresa_user', document_id='doc-unsigned-01', db_path=self.tmp_db)
+        self.assertEqual(res['procesados'], 1)
+        self.assertEqual(res['enviados'], 1)
+
+        # Comprobar que el estado pasó a enviado
+        with database.get_db(self.tmp_db) as conn:
+            d_updated = dict(conn.execute("SELECT * FROM electronic_documents WHERE id = 'doc-unsigned-01'").fetchone())
+            self.assertEqual(d_updated['estado_comprobante'], 'enviado')
 
 
 if __name__ == '__main__':

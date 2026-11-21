@@ -658,15 +658,20 @@ def retry_pending_hacienda_queue(company_id: str, actor: str, document_id: str =
             clave = d['clave_numerica']
             xml_firmado = d.get('xml_firmado') or ''
 
-            # Si el comprobante no estaba firmado, intentar firmar en memoria
-            if not xml_firmado and fe_cfg.get('has_cert_file') and fe_cfg.get('cert_file_enc') and fe_cfg.get('cert_pin_enc'):
+            # Si el comprobante no está firmado con XAdES-BES y ya hay certificado disponible, firmar en memoria
+            necesita_firma = (not xml_firmado) or ('<ds:Signature' not in xml_firmado and '<Signature' not in xml_firmado)
+            if necesita_firma and fe_cfg.get('has_cert_file') and fe_cfg.get('cert_file_enc') and fe_cfg.get('cert_pin_enc') and secret_store.is_configured():
                 try:
                     p12_bytes = secret_store.decrypt(cid, fe_cfg['cert_file_enc'])
                     pin = secret_store.decrypt(cid, fe_cfg['cert_pin_enc']).decode('utf-8')
-                    # Generar XML crudo nuevamente si hace falta
-                    pass
-                except Exception:
-                    pass
+                    if xml_firmado:
+                        xml_firmado = sign_xml_xades_bes(xml_firmado, p12_bytes, pin)
+                        conn.execute("UPDATE electronic_documents SET xml_firmado = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+                                     (xml_firmado, did))
+                except Exception as e_sign:
+                    fallidos += 1
+                    detalles.append({'id': did, 'consecutivo': d.get('consecutivo'), 'estado': 'error', 'mensaje': f'Fallo al firmar digitalmente: {e_sign}'})
+                    continue
 
             if not xml_firmado:
                 fallidos += 1
