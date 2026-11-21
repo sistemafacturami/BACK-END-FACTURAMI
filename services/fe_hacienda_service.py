@@ -15,7 +15,7 @@ import requests
 HACIENDA_URLS = {
     'stag': {
         'idp': 'https://idp.comprobanteselectronicos.go.cr/auth/realms/rut-stag/protocol/openid-connect/token',
-        'api': 'https://api.comprobanteselectronicos.go.cr/recepcion-sandbox/v1/recepcion',
+        'api': 'https://api-sandbox.comprobanteselectronicos.go.cr/recepcion/v1/recepcion',
         'client_id': 'api-stag'
     },
     'prod': {
