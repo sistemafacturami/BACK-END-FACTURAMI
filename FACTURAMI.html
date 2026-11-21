@@ -5463,6 +5463,13 @@
             <small>Facturación y gestión comercial</small>
           </div>
         </button>
+        <button class="profile-action-btn" id="btn-mine-menu-hacienda-key" onclick="fmAbrirModalHaciendaRapida()" style="border: 1px solid #10b981; background: rgba(16,185,129,0.08);">
+          <div class="action-icon">🔑</div>
+          <div class="action-text">
+            <strong style="color:#10b981;">Llave Hacienda</strong>
+            <small>Cargar .p12 y PIN</small>
+          </div>
+        </button>
         <button class="profile-action-btn" onclick="editClientInfo()">
           <div class="action-icon">✏️</div>
           <div class="action-text">
@@ -5558,6 +5565,91 @@
           style="flex:2; width:auto; padding:12px 20px; font-size:13px; font-weight:700;">Guardar Cambios</button>
         <button class="btn-login-secondary" onclick="cancelReg()"
           style="flex:1; display:flex; align-items:center; justify-content:center; padding:12px 18px; font-size:12px;">Atrás</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MODAL RÁPIDO: CARGAR LLAVE CRIPTOGRÁFICA Y HACIENDA ════════════ -->
+  <div id="fm-modal-hacienda-rapida" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.88); backdrop-filter:blur(8px); z-index:11000; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:#1e293b; border:1px solid #334155; border-radius:18px; width:100%; max-width:580px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.6); overflow:hidden; font-family:'Segoe UI',system-ui,sans-serif; animation:fadeInModal 0.25s ease-out;">
+      
+      <!-- Header -->
+      <div style="padding:20px 24px; background:linear-gradient(135deg, #064e3b, #0f172a); border-bottom:1px solid #047857; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:44px; height:44px; border-radius:12px; background:#10b981; display:flex; align-items:center; justify-content:center; font-size:22px; box-shadow:0 0 16px rgba(16,185,129,0.4);">🔑</div>
+          <div>
+            <h3 style="margin:0; font-size:17px; font-weight:700; color:#fff;">Espacio de Llave Criptográfica & Hacienda</h3>
+            <p style="margin:2px 0 0; font-size:12px; color:#a7f3d0;">Carga tu archivo .p12 y PIN para activar la facturación oficial</p>
+          </div>
+        </div>
+        <button onclick="fmCerrarModalHaciendaRapida()" style="background:none; border:none; color:#94a3b8; font-size:26px; cursor:pointer; line-height:1;" title="Cerrar">&times;</button>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:22px 24px; max-height:calc(85vh - 140px); overflow-y:auto; color:#f1f5f9;">
+        
+        <!-- Selector de Empresa / Cliente -->
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:11.5px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">1. Emisor / Cliente que facturará</label>
+          <select id="fm_qh_company" class="auth-inp" style="width:100%; background:#0f172a; border:1px solid #334155; color:#fff; padding:10px; border-radius:8px; font-size:14px; font-weight:600;" onchange="fmQhCambioEmpresa()">
+          </select>
+          <div id="fm_qh_company_status" style="margin-top:6px; font-size:12px; color:#10b981; min-height:18px;"></div>
+        </div>
+
+        <!-- Zona Drag & Drop para el .p12 -->
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:11.5px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">2. Archivo de Llave Criptográfica (.p12 o .pfx)</label>
+          <div id="fm_qh_dropzone" onclick="document.getElementById('fm_qh_file').click()" style="border:2px dashed #059669; background:rgba(5,150,105,0.08); border-radius:12px; padding:18px; text-align:center; cursor:pointer; transition:0.2s;">
+            <div style="font-size:30px; margin-bottom:4px;">📁</div>
+            <div id="fm_qh_filename" style="font-size:14px; font-weight:700; color:#34d399;">Haz clic aquí para seleccionar tu archivo .p12</div>
+            <div style="font-size:11px; color:#94a3b8; margin-top:4px;">O arrastra y suelta aquí el archivo que descargaste de TRIBU-CR / ATV</div>
+            <input type="file" id="fm_qh_file" accept=".p12,.pfx" style="display:none;" onchange="fmQhArchivoSeleccionado(this)">
+          </div>
+        </div>
+
+        <!-- Fila: PIN y Ambiente -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px;">
+          <div>
+            <label style="display:block; font-size:11.5px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">3. PIN del Certificado</label>
+            <input type="password" id="fm_qh_pin" maxlength="16" placeholder="4 dígitos (ej: 1234)" class="auth-inp" style="width:100%; background:#0f172a; border:1px solid #334155; color:#fff; padding:10px; border-radius:8px; font-size:15px; font-family:monospace; letter-spacing:3px;">
+          </div>
+          <div>
+            <label style="display:block; font-size:11.5px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">4. Ambiente de Hacienda</label>
+            <select id="fm_qh_amb" class="auth-inp" style="width:100%; background:#0f172a; border:1px solid #334155; color:#fff; padding:10px; border-radius:8px; font-size:13.5px; font-weight:600;">
+              <option value="prod" selected>🟢 Producción (Real / En Vivo)</option>
+              <option value="stag">🟡 Pruebas (Staging / STAG)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Credenciales de API de Hacienda -->
+        <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:14px; margin-bottom:16px;">
+          <div style="font-size:12px; font-weight:700; color:#38bdf8; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+            <span>🌐</span> 5. Credenciales API de Hacienda (TRIBU-CR / ATV)
+          </div>
+          <div style="margin-bottom:10px;">
+            <label style="display:block; font-size:11px; font-weight:600; color:#94a3b8; margin-bottom:4px;">Usuario API Hacienda</label>
+            <input type="text" id="fm_qh_user" placeholder="cpf-05-0447-0991@comprobanteselectronicos.go.cr" class="auth-inp" style="width:100%; background:#1e293b; border:1px solid #334155; color:#fff; padding:9px; border-radius:6px; font-size:13px; font-family:monospace;">
+          </div>
+          <div>
+            <label style="display:block; font-size:11px; font-weight:600; color:#94a3b8; margin-bottom:4px;">Contraseña API Hacienda</label>
+            <input type="password" id="fm_qh_pass" placeholder="Clave generada en TRIBU-CR / ATV" class="auth-inp" style="width:100%; background:#1e293b; border:1px solid #334155; color:#fff; padding:9px; border-radius:6px; font-size:13px; font-family:monospace;">
+          </div>
+        </div>
+
+        <!-- Código de Actividad Económica -->
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:11.5px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px;">6. Código de Actividad Económica (6 dígitos)</label>
+          <input type="text" id="fm_qh_actividad" placeholder="Ej: 620101 o 722003" maxlength="6" class="auth-inp" style="width:100%; background:#0f172a; border:1px solid #334155; color:#fff; padding:10px; border-radius:8px; font-size:14px; font-family:monospace; font-weight:700;">
+        </div>
+
+        <div id="fm_qh_msg" style="display:none; padding:12px 16px; border-radius:10px; font-size:13px; margin-bottom:16px; line-height:1.5;"></div>
+
+        <!-- Botón de Acción -->
+        <button type="button" id="fm_qh_btn_save" onclick="fmQhGuardarYActivar()" style="width:100%; padding:14px; background:linear-gradient(135deg, #10b981, #059669); border:none; border-radius:10px; color:#fff; font-size:14.5px; font-weight:800; cursor:pointer; box-shadow:0 4px 14px rgba(16,185,129,0.4); display:flex; align-items:center; justify-content:center; gap:8px;">
+          <span>⚡</span> GUARDAR Y ACTIVAR FACTURACIÓN EN VIVO
+        </button>
+
       </div>
     </div>
   </div>
@@ -6277,6 +6369,11 @@
       </div>
       <nav class="nav">
         <div class="ng">Principal</div>
+        <!-- ACCESO DIRECTO DESTACADO: LLAVE HACIENDA Y FE -->
+        <div class="ni" id="btn-sidebar-hacienda-quick" onclick="fmAbrirModalHaciendaRapida()" style="background:linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.35)); border:1px solid #10b981; border-radius:8px; margin:4px 0 8px 0; padding:10px 12px; cursor:pointer; display:flex; align-items:center; gap:8px;">
+          <span class="ni-ico" style="font-size:16px;">🔑</span>
+          <span style="font-weight:700; color:#34d399; font-size:12.5px;">Cargar Llave Hacienda</span>
+        </div>
         <div class="ni" onclick="showClientList()"><span class="ni-ico"><i data-lucide="users" stroke-width="2.5"
               width="16" height="16"></i></span><span>Mis Clientes</span></div>
         <div class="ni on" onclick="go('dash',this)"><span class="ni-ico"><i data-lucide="layout-dashboard"
@@ -7592,6 +7689,9 @@
           <span id="v-top-env-badge" class="badge badge-a" style="font-size:11px; padding:6px 12px;">
             🛠️ Hacienda: Pruebas (STAG)
           </span>
+          <button class="top-btn" onclick="fmAbrirModalHaciendaRapida()" style="background:#065f46; color:#a7f3d0; border-color:#059669; font-weight:700; display:inline-flex; align-items:center; gap:6px;">
+            <span>🔑</span> Llave Hacienda
+          </button>
           <button class="top-btn" onclick="loadVentasDashboard()">↻ Actualizar</button>
           <button class="top-btn prime" onclick="vQuickAction('nueva_factura')" style="background:linear-gradient(135deg, #059669, #0d9488);">
             + Nueva Factura Electrónica
@@ -20307,6 +20407,231 @@
         showToast(`✅ ${r.json?.message || 'Conexión SMTP exitosa'}`);
       } else {
         showToast('⚠️ ' + vErrMsg(r.json, 'Fallo de conexión SMTP'));
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // ESPACIO PRÁCTICO: CARGA Y ACTIVACIÓN RÁPIDA DE LLAVE HACIENDA
+    // ══════════════════════════════════════════════════════════════════
+    let fmQhSelectedFile = null;
+
+    async function fmAbrirModalHaciendaRapida(targetCompanyId) {
+      const modal = document.getElementById('fm-modal-hacienda-rapida');
+      if (!modal) return;
+
+      const selComp = document.getElementById('fm_qh_company');
+      const clients = JSON.parse(localStorage.getItem('f_clients') || '[]');
+      
+      if (selComp) {
+        selComp.innerHTML = '';
+        if (clients.length === 0) {
+          selComp.innerHTML = '<option value="">No hay clientes registrados</option>';
+        } else {
+          clients.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = `${c.name} (Cédula: ${c.id})`;
+            selComp.appendChild(opt);
+          });
+        }
+
+        const chosenId = targetCompanyId || (activeClient && activeClient.id) || (clients[0] && clients[0].id);
+        if (chosenId) selComp.value = chosenId;
+      }
+
+      // Resetear campos
+      fmQhSelectedFile = null;
+      const fileInp = document.getElementById('fm_qh_file');
+      if (fileInp) fileInp.value = '';
+      const nameEl = document.getElementById('fm_qh_filename');
+      if (nameEl) {
+        nameEl.textContent = 'Haz clic aquí para seleccionar tu archivo .p12';
+        nameEl.style.color = '#34d399';
+      }
+      const pinEl = document.getElementById('fm_qh_pin');
+      if (pinEl) pinEl.value = '';
+      const msgBox = document.getElementById('fm_qh_msg');
+      if (msgBox) msgBox.style.display = 'none';
+
+      // Configurar Drag and Drop si no se ha configurado
+      const dz = document.getElementById('fm_qh_dropzone');
+      if (dz && !dz._dndInit) {
+        dz._dndInit = true;
+        ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => {
+          e.preventDefault(); e.stopPropagation();
+          dz.style.borderColor = '#34d399';
+          dz.style.background = 'rgba(16,185,129,0.18)';
+        }));
+        ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => {
+          e.preventDefault(); e.stopPropagation();
+          dz.style.borderColor = '#059669';
+          dz.style.background = 'rgba(5,150,105,0.08)';
+        }));
+        dz.addEventListener('drop', e => {
+          if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+            fmQhSelectedFile = e.dataTransfer.files[0];
+            const nEl = document.getElementById('fm_qh_filename');
+            if (nEl) {
+              const sizeKb = (fmQhSelectedFile.size / 1024).toFixed(1);
+              nEl.textContent = `📄 ${fmQhSelectedFile.name} (${sizeKb} KB)`;
+              nEl.style.color = '#10b981';
+            }
+          }
+        });
+      }
+
+      modal.style.display = 'flex';
+      modal.style.opacity = '1';
+
+      await fmQhCambioEmpresa();
+    }
+
+    function fmCerrarModalHaciendaRapida() {
+      const modal = document.getElementById('fm-modal-hacienda-rapida');
+      if (modal) {
+        modal.style.display = 'none';
+        modal.style.opacity = '0';
+      }
+    }
+
+    async function fmQhCambioEmpresa() {
+      const compId = document.getElementById('fm_qh_company')?.value;
+      const statusEl = document.getElementById('fm_qh_company_status');
+      if (!compId || !statusEl) return;
+
+      statusEl.textContent = 'Consultando estado tributario...';
+      statusEl.style.color = '#94a3b8';
+
+      try {
+        const r = await vApi(`/api/ventas/config?company_id=${encodeURIComponent(compId)}`);
+        if (r.ok && r.json && r.json.data) {
+          const s = r.json.data.settings || {};
+          const p = r.json.data.profile || {};
+          
+          if (p.actividad_principal) {
+            document.getElementById('fm_qh_actividad').value = p.actividad_principal;
+          }
+          if (s.hacienda_username) {
+            document.getElementById('fm_qh_user').value = s.hacienda_username;
+          }
+          if (s.ambiente_hacienda) {
+            document.getElementById('fm_qh_amb').value = s.ambiente_hacienda;
+          }
+
+          if (s.has_cert_file) {
+            statusEl.innerHTML = `✅ <strong>Llave Criptográfica cargada</strong> (Vence: ${s.cert_expira || 'Válida'}) · Usuario: ${s.hacienda_username || 'Configurado'}`;
+            statusEl.style.color = '#10b981';
+          } else {
+            statusEl.innerHTML = `⚠️ <em>Sin llave criptográfica configurada aún.</em>`;
+            statusEl.style.color = '#f59e0b';
+          }
+        } else {
+          statusEl.textContent = 'Listo para registrar llave por primera vez.';
+          statusEl.style.color = '#94a3b8';
+        }
+      } catch (e) {
+        statusEl.textContent = '';
+      }
+    }
+
+    function fmQhArchivoSeleccionado(input) {
+      if (input.files && input.files[0]) {
+        fmQhSelectedFile = input.files[0];
+        const nameEl = document.getElementById('fm_qh_filename');
+        if (nameEl) {
+          const sizeKb = (fmQhSelectedFile.size / 1024).toFixed(1);
+          nameEl.textContent = `📄 ${fmQhSelectedFile.name} (${sizeKb} KB)`;
+          nameEl.style.color = '#10b981';
+        }
+      }
+    }
+
+    async function fmQhGuardarYActivar() {
+      const compId = document.getElementById('fm_qh_company')?.value;
+      if (!compId) return showToast('⚠️ Seleccione una empresa o cliente');
+
+      const pin = (document.getElementById('fm_qh_pin')?.value || '').trim();
+      const amb = document.getElementById('fm_qh_amb')?.value || 'prod';
+      const user = (document.getElementById('fm_qh_user')?.value || '').trim();
+      const pass = (document.getElementById('fm_qh_pass')?.value || '').trim();
+      const actividad = (document.getElementById('fm_qh_actividad')?.value || '').trim();
+      const msgBox = document.getElementById('fm_qh_msg');
+      const btnSave = document.getElementById('fm_qh_btn_save');
+
+      if (fmQhSelectedFile && !pin) {
+        msgBox.style.display = 'block';
+        msgBox.style.background = 'rgba(239, 68, 68, 0.2)';
+        msgBox.style.color = '#f87171';
+        msgBox.style.border = '1px solid #ef4444';
+        msgBox.textContent = '⚠️ Debe ingresar el PIN de 4 dígitos del archivo .p12 para poder verificarlo.';
+        return;
+      }
+
+      btnSave.disabled = true;
+      btnSave.style.opacity = '0.7';
+      btnSave.innerHTML = '<span>⏳</span> Verificando y Cifrando Llave...';
+
+      try {
+        const bodyHacienda = { company_id: compId, ambiente: amb };
+        if (user) bodyHacienda.username = user;
+        if (pass) bodyHacienda.password = pass;
+        if (pin) bodyHacienda.pin = pin;
+
+        if (fmQhSelectedFile) {
+          if (fmQhSelectedFile.size > 200 * 1024) {
+            throw new Error('El certificado excede 200 KB');
+          }
+          bodyHacienda.cert_p12_b64 = await vFileToBase64(fmQhSelectedFile);
+        }
+
+        // 1. Guardar credenciales de Hacienda
+        const rH = await vApi('/api/ventas/config/hacienda', {
+          method: 'PUT',
+          body: JSON.stringify(bodyHacienda)
+        });
+
+        if (!rH.ok) {
+          throw new Error(vErrMsg(rH.json, 'Error guardando llave criptográfica. Verifique el PIN y las credenciales.'));
+        }
+
+        // 2. Si se ingresó actividad económica, guardarla en el perfil general
+        if (actividad) {
+          await vApi('/api/ventas/config', {
+            method: 'PUT',
+            body: JSON.stringify({ company_id: compId, actividad_principal: actividad })
+          });
+        }
+
+        // Mensaje de éxito
+        const expira = rH.json?.data?.settings?.cert_expira || '';
+        msgBox.style.display = 'block';
+        msgBox.style.background = 'rgba(16, 185, 129, 0.2)';
+        msgBox.style.color = '#34d399';
+        msgBox.style.border = '1px solid #10b981';
+        msgBox.innerHTML = `
+          <strong>🎉 ¡Excelente! Llave Criptográfica vinculada con éxito.</strong><br>
+          <span style="font-size:12px;">Tu certificado está activo y cifrado con seguridad. ${expira ? 'Vence: ' + expira : ''}</span>
+          <div style="margin-top:12px;">
+            <button onclick="fmCerrarModalHaciendaRapida(); openVentasSystem('v-pos');" style="padding:10px 18px; background:#10b981; color:#fff; border:none; border-radius:8px; font-weight:800; cursor:pointer; font-size:13.5px; box-shadow:0 4px 12px rgba(16,185,129,0.4);">
+              🚀 Ir a Emitir Factura Ahora
+            </button>
+          </div>
+        `;
+
+        showToast('✅ Llave y configuración de Hacienda guardadas exitosamente');
+        await fmQhCambioEmpresa();
+        if (typeof vReloadConfig === 'function') vReloadConfig();
+
+      } catch (err) {
+        msgBox.style.display = 'block';
+        msgBox.style.background = 'rgba(239, 68, 68, 0.2)';
+        msgBox.style.color = '#f87171';
+        msgBox.style.border = '1px solid #ef4444';
+        msgBox.textContent = '❌ ' + (err.message || 'Error guardando datos');
+      } finally {
+        btnSave.disabled = false;
+        btnSave.style.opacity = '1';
+        btnSave.innerHTML = '<span>⚡</span> GUARDAR Y ACTIVAR FACTURACIÓN EN VIVO';
       }
     }
     async function vLoadUsers() {
