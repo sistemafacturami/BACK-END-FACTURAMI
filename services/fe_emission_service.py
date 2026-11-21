@@ -469,11 +469,11 @@ def emitir_comprobante(company_id: str, body: dict, actor: str, db_path=None) ->
     return doc_data
 
 
-def get_document(company_id: str, document_id: str) -> dict:
+def get_document(company_id: str, document_id: str, db_path=None) -> dict:
     cid = str(company_id or '').strip()
     did = str(document_id or '').strip()
 
-    with database.get_db() as conn:
+    with database.get_db(db_path) as conn:
         doc_row = conn.execute("SELECT * FROM electronic_documents WHERE id = ? AND company_id = ?",
                                (did, cid)).fetchone()
         if not doc_row:
@@ -534,14 +534,14 @@ def list_documents(company_id: str, tipo: str = None, estado: str = None,
         return {'items': [dict(r) for r in rows], 'total': total, 'limit': limit, 'offset': offset}
 
 
-def sync_hacienda_status(company_id: str, document_id: str, actor: str) -> dict:
+def sync_hacienda_status(company_id: str, document_id: str, actor: str, db_path=None) -> dict:
     """Consulta ante Hacienda el estado de validación y actualiza el documento."""
-    doc = get_document(company_id, document_id)
+    doc = get_document(company_id, document_id, db_path=db_path)
     clave = doc.get('clave_numerica')
     if not clave:
         raise EmissionError("El documento no tiene clave numérica")
 
-    with database.get_db() as conn:
+    with database.get_db(db_path) as conn:
         fe_cfg_row = conn.execute("SELECT * FROM company_fe_settings WHERE company_id = ?", (company_id,)).fetchone()
         fe_cfg = dict(fe_cfg_row) if fe_cfg_row else {}
 
@@ -562,7 +562,7 @@ def sync_hacienda_status(company_id: str, document_id: str, actor: str) -> dict:
     xml_resp = status_resp.get('xml_respuesta') or doc.get('xml_respuesta_hacienda', '')
     mensaje = status_resp.get('mensaje') or doc.get('hacienda_mensaje', '')
 
-    with database.get_db() as conn:
+    with database.get_db(db_path) as conn:
         conn.execute("""
             UPDATE electronic_documents SET
                 estado_comprobante = ?,
@@ -575,13 +575,13 @@ def sync_hacienda_status(company_id: str, document_id: str, actor: str) -> dict:
         database.insert_audit_log(conn, 'ventas_hacienda_check', actor, 'document', document_id,
                                   {'clave': clave, 'nuevo_estado': nuevo_estado})
 
-    return get_document(company_id, document_id)
+    return get_document(company_id, document_id, db_path=db_path)
 
 
-def download_document_pdf(company_id: str, document_id: str) -> tuple:
+def download_document_pdf(company_id: str, document_id: str, db_path=None) -> tuple:
     """Genera y retorna (filename, pdf_bytes)."""
-    doc = get_document(company_id, document_id)
-    with database.get_db() as conn:
+    doc = get_document(company_id, document_id, db_path=db_path)
+    with database.get_db(db_path) as conn:
         emisor = dict(conn.execute("SELECT * FROM clientes WHERE id = ?", (company_id,)).fetchone())
         fe_cfg = dict(conn.execute("SELECT * FROM company_fe_settings WHERE company_id = ?", (company_id,)).fetchone() or {})
 
@@ -609,9 +609,9 @@ def download_document_pdf(company_id: str, document_id: str) -> tuple:
     return filename, pdf_bytes
 
 
-def download_document_xml(company_id: str, document_id: str) -> tuple:
+def download_document_xml(company_id: str, document_id: str, db_path=None) -> tuple:
     """Retorna (filename, xml_string) del comprobante firmado."""
-    doc = get_document(company_id, document_id)
+    doc = get_document(company_id, document_id, db_path=db_path)
     xml_content = doc.get('xml_firmado') or ''
     if not xml_content:
         raise EmissionError("El comprobante aún no tiene XML generado o firmado")

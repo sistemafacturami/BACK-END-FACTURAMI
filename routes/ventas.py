@@ -654,6 +654,29 @@ def documents_sync_hacienda(document_id):
     return success({'data': updated}, message=f"Estado de comprobante actualizado: {updated.get('estado_comprobante')}")
 
 
+@ventas_bp.route('/api/ventas/documents/poll-pending', methods=['POST'])
+@auth_required
+@handle_errors
+def documents_poll_pending():
+    body = _body()
+    company_id = _company_id_from(body) or _company_id_from(request.args)
+    if not company_id:
+        return error("Se requiere company_id", 400)
+    _role, denied = require_company_permission(company_id, 'docs.view')
+    if denied:
+        return denied
+    ventas_service.get_or_init_company_context(company_id)
+    try:
+        from services.fe_poller_service import poll_pending_hacienda_documents
+        res = poll_pending_hacienda_documents(
+            company_id=company_id,
+            limit=body.get('limit', 50)
+        )
+    except Exception as e:
+        return error(str(e), 400)
+    return success({'data': res}, message=f"Sincronización completada: {res.get('aceptados', 0)} aceptados, {res.get('rechazados', 0)} rechazados, {res.get('pendientes', 0)} pendientes")
+
+
 @ventas_bp.route('/api/ventas/documents/retry-queue', methods=['POST'])
 @auth_required
 @handle_errors

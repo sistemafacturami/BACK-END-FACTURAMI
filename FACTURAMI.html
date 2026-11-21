@@ -7900,6 +7900,7 @@
               <button type="button" class="top-btn" id="btn-fe-nav-nota_debito" onclick="vOpenFacturacionSub('nota_debito')">Nota de Débito (02)</button>
               <button type="button" class="top-btn" id="btn-fe-nav-historial" onclick="vOpenFacturacionSub('historial')">📋 Historial</button>
               <button type="button" class="top-btn" id="btn-fe-retry-queue" onclick="vRetryHaciendaQueue()" title="Reintentar comprobantes pendientes o en contingencia">🔄 Reintentar Cola</button>
+              <button type="button" class="top-btn" id="btn-fe-poll-pending" onclick="vPollPendingHacienda()" title="Consultar estado de todos los comprobantes en proceso ante Hacienda">⚡ Sincronizar Hacienda</button>
             </div>
           </div>
 
@@ -21626,6 +21627,26 @@
         }
       } catch (err) {
         showToast(`❌ Error en reintento: ${err.message}`);
+      }
+    }
+
+    async function vPollPendingHacienda() {
+      if (!activeClient) return showToast('⚠️ Seleccione una empresa activa');
+      showToast('⏳ Consultando comprobantes pendientes ante Hacienda...');
+      try {
+        const r = await vApi('/api/ventas/documents/poll-pending', {
+          method: 'POST',
+          body: JSON.stringify({ company_id: activeClient.id })
+        });
+        if (r && r.ok) {
+          showToast(`✅ ${r.json?.message || 'Sincronización completada'}`);
+          vLoadFeDocuments();
+          if (typeof vFetchDashboardData === 'function') vFetchDashboardData();
+        } else {
+          showToast(`❌ Error: ${vErrMsg(r?.json, 'No se pudo sincronizar con Hacienda')}`);
+        }
+      } catch (err) {
+        showToast(`❌ Error en sincronización: ${err.message}`);
       }
     }
 

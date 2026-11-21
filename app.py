@@ -90,6 +90,15 @@ def create_app():
     app.register_blueprint(contabilidad_bp)
     app.register_blueprint(ventas_bp)
 
+    # ── Iniciar Demonio de Polling de Hacienda en segundo plano ──────────
+    if os.environ.get('FACTURAMI_ENABLE_POLLER', '1').lower() in ('1', 'true', 'yes') and not os.environ.get('PYTEST_CURRENT_TEST'):
+        try:
+            from services.fe_poller_service import start_hacienda_poller
+            interval = int(os.environ.get('HACIENDA_POLLER_INTERVAL', 60))
+            start_hacienda_poller(interval_seconds=interval)
+        except Exception as e_poll:
+            print(f"[POLLER] Aviso al iniciar poller automático: {e_poll}")
+
     # ── Encabezados Globales de Seguridad ───────────────────────────────
     @app.after_request
     def set_security_headers(response):
