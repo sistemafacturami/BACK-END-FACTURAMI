@@ -10,6 +10,7 @@ services:
       - FLASK_PORT=5001
       - FLASK_HOST=0.0.0.0
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?define JWT_SECRET_KEY en .env}
+      - FACTURAMI_FE_SECRET_KEY=${FACTURAMI_FE_SECRET_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - N8N_WEBHOOK_URL=http://n8n:5678/webhook/importar-facturas
       - N8N_BASE_URL=http://n8n:5678
