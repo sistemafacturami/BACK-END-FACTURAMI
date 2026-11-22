@@ -4792,7 +4792,7 @@
       width: 100vw;
       height: 100vh;
       z-index: 99999999;
-      background: rgba(15, 23, 42, 0.94);
+      background: rgba(15, 23, 42, 0.96);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
       display: none;
@@ -4801,7 +4801,15 @@
       color: #fff;
       font-family: var(--ff);
       cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
       transition: opacity 0.2s ease;
+    }
+
+    @supports not ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
+      #fm-privacy-shield {
+        background: #0f172a !important;
+      }
     }
 
     #fm-privacy-shield.active {
@@ -4901,7 +4909,7 @@
   <!-- ══ CAPAS DE SEGURIDAD Y ESCUDO ANTI-CAPTURE ══════════════════ -->
   <div id="fm-forensic-watermark"></div>
 
-  <div id="fm-privacy-shield" onclick="fmRestaurarFocoPrivacidad()">
+  <div id="fm-privacy-shield" onclick="fmRestaurarFocoPrivacidad()" ontouchstart="fmRestaurarFocoPrivacidad()">
     <div class="fm-shield-box">
       <div class="fm-shield-icon">🛡️</div>
       <div class="fm-shield-title">Vista Protegida por Seguridad</div>
@@ -27342,6 +27350,7 @@
     // ══════════════════════════════════════════════════════════════════════════
     (function initFacturamiSecurity() {
       window.FM_FILE_PICKER_OPEN = false;
+      const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
 
       // 1. Mostrar alerta / toast de seguridad
       let toastTimer = null;
@@ -27357,21 +27366,54 @@
         }, 2800);
       };
 
-      // 2. Escudo al perder el foco (Bloquea Snipping Tool / Win+Shift+S / Grabadores externos / Alt-Tab)
+      // 2. Escudo de Privacidad Dinámico (Multi-Navegador y Multi-Dispositivo)
       const shield = document.getElementById('fm-privacy-shield');
 
-      window.fmRestaurarFocoPrivacidad = function () {
-        if (shield) shield.classList.remove('active');
-      };
-
-      window.addEventListener('blur', () => {
-        // No activar si el usuario abrió el explorador de archivos para subir PDF o CSV
+      function activarEscudo() {
         if (window.FM_FILE_PICKER_OPEN) return;
-        if (shield) shield.classList.add('active');
+        if (shield && !shield.classList.contains('active')) {
+          shield.classList.add('active');
+        }
+      }
+
+      function desactivarEscudo() {
+        if (shield && shield.classList.contains('active')) {
+          shield.classList.remove('active');
+        }
+      }
+
+      window.fmRestaurarFocoPrivacidad = desactivarEscudo;
+
+      // 2.1 W3C Page Visibility API (Universal para iOS Safari, Android Chrome, Windows, Mac, Linux)
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden || document.visibilityState === 'hidden') {
+          activarEscudo();
+        } else {
+          if (!isTouch) {
+            desactivarEscudo();
+          }
+        }
+      });
+
+      // 2.2 Ciclo de vida en iOS / iPadOS Safari y WebKit
+      window.addEventListener('pagehide', activarEscudo);
+      window.addEventListener('pageshow', () => {
+        if (!document.hidden && !isTouch) desactivarEscudo();
+      });
+
+      // 2.3 Pérdida de foco en ventana (Desktop Alt-Tab, Snipping Tool Win+Shift+S)
+      window.addEventListener('blur', () => {
+        if (window.FM_FILE_PICKER_OPEN) return;
+        // En móviles, evitar parpadeos si el usuario interactúa con teclados o selects nativos
+        if (isTouch && !document.hidden) {
+          const tag = (document.activeElement?.tagName || '').toLowerCase();
+          if (['input', 'textarea', 'select'].includes(tag)) return;
+        }
+        activarEscudo();
       });
 
       window.addEventListener('focus', () => {
-        if (shield) shield.classList.remove('active');
+        desactivarEscudo();
       });
 
       // Prevenir falsos positivos al abrir selectores de archivo nativos
@@ -27383,6 +27425,17 @@
         }
       }, true);
 
+      // 2.4 Bloqueo preventivo de APIs WebRTC de captura de pantalla (getDisplayMedia)
+      if (navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
+        try {
+          navigator.mediaDevices.getDisplayMedia = function () {
+            activarEscudo();
+            fmMostrarAvisoSeguridad('Captura y grabación de pantalla restringidas por seguridad.');
+            return Promise.reject(new DOMException('Display capture is disabled by policy', 'NotAllowedError'));
+          };
+        } catch (eMedia) {}
+      }
+
       // 3. Interceptar PrintScreen y limpiar portapapeles
       window.addEventListener('keyup', (e) => {
         if (e.key === 'PrintScreen' || e.keyCode === 44) {
@@ -27391,18 +27444,26 @@
               navigator.clipboard.writeText('FACTURAMI: Contenido confidencial protegido. Prohibida la captura de pantalla.');
             }
           } catch (err) { }
-          if (shield) {
-            shield.classList.add('active');
-            setTimeout(() => shield.classList.remove('active'), 2500);
-          }
+          activarEscudo();
+          setTimeout(desactivarEscudo, 2500);
           fmMostrarAvisoSeguridad('Captura de pantalla bloqueada por política de seguridad.');
         }
       });
 
-      // 4. Bloquear atajos de inspección, desarrollador, impresión y guardado
+      // 4. Bloquear atajos de inspección, desarrollador, impresión y capturas en Mac / Windows
       window.addEventListener('keydown', (e) => {
         const key = (e.key || '').toLowerCase();
         const ctrlOrMeta = e.ctrlKey || e.metaKey;
+
+        // Atajos de captura en macOS (Cmd + Shift + 3, Cmd + Shift + 4, Cmd + Shift + 5)
+        if (e.metaKey && e.shiftKey && ['3', '4', '5'].includes(e.key)) {
+          e.preventDefault();
+          e.stopPropagation();
+          activarEscudo();
+          setTimeout(desactivarEscudo, 2500);
+          fmMostrarAvisoSeguridad('Captura de pantalla en macOS bloqueada.');
+          return false;
+        }
 
         // F12 -> DevTools
         if (e.keyCode === 123 || e.key === 'F12') {
@@ -27412,23 +27473,24 @@
           return false;
         }
 
-        // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C -> DevTools
-        if (ctrlOrMeta && e.shiftKey && (key === 'i' || key === 'j' || key === 'c')) {
+        // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C / Cmd+Option+I/J/C -> DevTools
+        if ((ctrlOrMeta && e.shiftKey && (key === 'i' || key === 'j' || key === 'c')) ||
+            (e.metaKey && e.altKey && (key === 'i' || key === 'j' || key === 'c'))) {
           e.preventDefault();
           e.stopPropagation();
           fmMostrarAvisoSeguridad('Inspección de código restringida.');
           return false;
         }
 
-        // Ctrl+U -> Ver código fuente
-        if (ctrlOrMeta && key === 'u') {
+        // Ctrl+U / Cmd+Option+U -> Ver código fuente
+        if ((ctrlOrMeta && key === 'u') || (e.metaKey && e.altKey && key === 'u')) {
           e.preventDefault();
           e.stopPropagation();
           fmMostrarAvisoSeguridad('Visualización de código fuente restringida.');
           return false;
         }
 
-        // Ctrl+S -> Guardar página web en disco
+        // Ctrl+S / Cmd+S -> Guardar página web en disco
         if (ctrlOrMeta && key === 's') {
           e.preventDefault();
           e.stopPropagation();
@@ -27436,7 +27498,7 @@
           return false;
         }
 
-        // Ctrl+P -> Abrir reporte financiero oficial si está en un estado financiero
+        // Ctrl+P / Cmd+P -> Abrir reporte financiero oficial si está en un estado financiero
         if (ctrlOrMeta && key === 'p') {
           e.preventDefault();
           e.stopPropagation();
