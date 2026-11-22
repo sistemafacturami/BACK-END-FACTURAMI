@@ -73,6 +73,14 @@ def generar_clave(cedula_emisor: str, consecutivo: str, fecha: datetime = None,
     """
     if not fecha:
         fecha = datetime.now()
+    elif isinstance(fecha, str):
+        try:
+            fecha = datetime.fromisoformat(fecha)
+        except Exception:
+            try:
+                fecha = datetime.strptime(fecha[:10], '%Y-%m-%d')
+            except Exception:
+                fecha = datetime.now()
 
     ced_clean = re.sub(r'\D', '', str(cedula_emisor or ''))
     if not ced_clean:

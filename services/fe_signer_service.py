@@ -25,8 +25,8 @@ ENVELOPED_SIG = "http://www.w3.org/2000/09/xmldsig#enveloped-signature"
 XADES_NS = "http://uri.etsi.org/01903/v1.3.2#"
 DS_NS = "http://www.w3.org/2000/09/xmldsig#"
 
-POLICY_ID = "https://tribunet.hacienda.go.cr/docs/esquemas/2016/v4.2/ResolucionComprobantesElectronicosDGT-R-48-2016_4.2.pdf"
-POLICY_DIGEST = "NmI5Njk1ZThkNzI0MmIzMGJmZDAyNDc4YjUwNzkzODM2NTBiOWUxNTBkMmI2YjgzYzZjM2I5NTZlNDQ4OWQzMQ=="
+POLICY_ID = "https://tribunet.hacienda.go.cr/docs/esquemas/2016/v4.4/Resolucion_General_MH-DGT-RES-0027-2024.pdf"
+POLICY_DIGEST = "KN6/2eZEAduZ3t0sn4aWMv8nmpGdaIcSso99Bp9QT04="
 
 
 class SignerError(ValueError):

@@ -85,7 +85,8 @@ def emitir_comprobante(company_id: str, body: dict, actor: str, db_path=None) ->
         raise EmissionError(f"Situación del comprobante '{situacion}' inválida (1=Normal, 2=Contingencia, 3=Sin internet)")
 
     doc_id = str(uuid.uuid4())
-    ahora = datetime.now()
+    cr_tz = timezone(timedelta(hours=-6))
+    ahora = datetime.now(cr_tz)
     fecha_emision_iso = ahora.strftime('%Y-%m-%dT%H:%M:%S-06:00')
 
     with database.get_db(db_path) as conn:
